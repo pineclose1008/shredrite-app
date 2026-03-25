@@ -1,0 +1,2016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ShredRite Collection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════
+   DESIGN TOKENS
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --navy: #1B2A4A;
+  --navy-light: #2E4057;
+  --navy-dark: #0F1B30;
+  --gold: #C9A84C;
+  --gold-light: #D4BA6A;
+  --gold-muted: #C9A84C33;
+  --white: #FFFFFF;
+  --off-white: #F8F7F4;
+  --grey-50: #FAFAF9;
+  --grey-100: #F0EFEC;
+  --grey-200: #E0DED8;
+  --grey-300: #C5C2BA;
+  --grey-400: #9B9790;
+  --grey-500: #6E6B64;
+  --grey-600: #4A4842;
+  --red: #C0392B;
+  --green: #27AE60;
+  --green-light: #E8F5E9;
+
+  --font-body: 'DM Sans', -apple-system, sans-serif;
+  --font-display: 'DM Serif Display', Georgia, serif;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --shadow-sm: 0 1px 3px rgba(27,42,74,0.06);
+  --shadow-md: 0 4px 12px rgba(27,42,74,0.08);
+  --shadow-lg: 0 8px 30px rgba(27,42,74,0.12);
+  --shadow-gold: 0 4px 20px rgba(201,168,76,0.2);
+
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESET & BASE
+   ══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-family: var(--font-body);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  background: var(--off-white);
+  color: var(--navy);
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: inherit;
+  border: none;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   APP SHELL
+   ══════════════════════════════════════════════════════════════ */
+#app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--off-white);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Top Bar ─────────────────────────────────────────────── */
+.topbar {
+  background: var(--navy);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-light), var(--gold));
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-logo {
+  width: 28px; height: 28px;
+  background: var(--gold);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--navy);
+}
+
+.topbar h1 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--white);
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+.topbar-date {
+  font-size: 12px;
+  color: var(--grey-300);
+  font-weight: 500;
+}
+
+/* ── Page Container ──────────────────────────────────────── */
+.page-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.page {
+  display: none;
+  padding: 16px 20px 100px;
+  animation: pageIn 0.25s ease;
+}
+
+.page.active { display: block; }
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Bottom Nav ──────────────────────────────────────────── */
+.bottomnav {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: var(--white);
+  border-top: 1px solid var(--grey-200);
+  display: flex;
+  padding-bottom: var(--safe-bottom);
+  z-index: 100;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+}
+
+.bottomnav button {
+  flex: 1;
+  background: none;
+  padding: 10px 0 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: var(--grey-400);
+  cursor: pointer;
+  transition: color 0.2s;
+  border: none;
+  position: relative;
+}
+
+.bottomnav button.active {
+  color: var(--navy);
+}
+
+.bottomnav button.active::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: 20%; right: 20%;
+  height: 2px;
+  background: var(--gold);
+  border-radius: 0 0 2px 2px;
+}
+
+.bottomnav svg {
+  width: 22px; height: 22px;
+  stroke-width: 1.8;
+}
+
+.bottomnav span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ── Back Button ─────────────────────────────────────────── */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  color: var(--grey-500);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 12px;
+}
+
+.back-btn svg { width: 16px; height: 16px; }
+
+/* ══════════════════════════════════════════════════════════════
+   COMPONENTS
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Section Headers ─────────────────────────────────────── */
+.section-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--navy);
+  margin-bottom: 16px;
+}
+
+.section-subtitle {
+  font-size: 13px;
+  color: var(--grey-400);
+  margin-top: -12px;
+  margin-bottom: 16px;
+}
+
+/* ── Pickup Cards ────────────────────────────────────────── */
+.pickup-card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: 1px solid var(--grey-100);
+  position: relative;
+  overflow: hidden;
+}
+
+.pickup-card:active {
+  transform: scale(0.98);
+  box-shadow: var(--shadow-md);
+}
+
+.pickup-card.completed {
+  border-left: 3px solid var(--green);
+  opacity: 0.7;
+}
+
+.pickup-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.pickup-card-name {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--navy);
+}
+
+.pickup-card-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold);
+  background: var(--gold-muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.pickup-card-address {
+  font-size: 13px;
+  color: var(--grey-500);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.pickup-card-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-paid {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.badge-unpaid {
+  background: #FFF3E0;
+  color: #E65100;
+}
+
+.badge-completed {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+/* ── Empty State ─────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--grey-400);
+}
+
+.empty-state svg {
+  width: 48px; height: 48px;
+  stroke: var(--grey-300);
+  margin-bottom: 16px;
+}
+
+.empty-state p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Form Styles ─────────────────────────────────────────── */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--grey-500);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--white);
+  border: 1.5px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  color: var(--navy);
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-muted);
+}
+
+.form-input::placeholder {
+  color: var(--grey-300);
+}
+
+textarea.form-input {
+  resize: vertical;
+  min-height: 72px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* ── Weight Input Grid ───────────────────────────────────── */
+.weight-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.weight-card {
+  background: var(--white);
+  border: 1.5px solid var(--grey-200);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.weight-card:focus-within {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-muted);
+}
+
+.weight-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--grey-500);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+}
+
+.weight-card-label .rate {
+  color: var(--grey-300);
+  font-weight: 400;
+  display: block;
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.weight-card input {
+  width: 100%;
+  text-align: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--navy);
+  background: none;
+  padding: 4px 0;
+}
+
+.weight-card input::placeholder {
+  color: var(--grey-200);
+  font-weight: 400;
+}
+
+.weight-card.tare {
+  border-style: dashed;
+}
+
+.weight-card.tare .weight-card-label {
+  color: var(--red);
+}
+
+/* ── Net Weight Display ──────────────────────────────────── */
+.net-weight-bar {
+  background: var(--navy);
+  color: var(--white);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.net-weight-bar .label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--grey-300);
+}
+
+.net-weight-bar .value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+/* ── Toggle Switch ───────────────────────────────────────── */
+.toggle-group {
+  display: flex;
+  background: var(--grey-100);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  margin-bottom: 16px;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 10px 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--grey-400);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: none;
+}
+
+.toggle-btn.active {
+  background: var(--white);
+  color: var(--navy);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Photo Upload ────────────────────────────────────────── */
+.photo-upload {
+  border: 2px dashed var(--grey-200);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 16px;
+}
+
+.photo-upload:active {
+  background: var(--grey-50);
+  border-color: var(--gold);
+}
+
+.photo-upload svg {
+  width: 32px; height: 32px;
+  stroke: var(--grey-300);
+  margin-bottom: 8px;
+}
+
+.photo-upload p {
+  font-size: 13px;
+  color: var(--grey-400);
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.photo-thumb {
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.photo-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+
+.photo-thumb .remove-photo {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 20px; height: 20px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+}
+
+/* ── Primary Button ──────────────────────────────────────── */
+.btn-primary {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  background: var(--navy);
+  color: var(--white);
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: transform 0.1s, background 0.2s;
+  text-align: center;
+  letter-spacing: 0.3px;
+  border: none;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+  background: var(--navy-dark);
+}
+
+.btn-primary.gold {
+  background: var(--gold);
+  color: var(--navy);
+}
+
+.btn-secondary {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  background: var(--white);
+  color: var(--navy);
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: 1.5px solid var(--grey-200);
+  text-align: center;
+  transition: transform 0.1s;
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.btn-row > * { flex: 1; }
+
+/* ══════════════════════════════════════════════════════════════
+   RECEIPT (screenshot-optimized)
+   ══════════════════════════════════════════════════════════════ */
+#receipt-capture {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  margin-bottom: 20px;
+}
+
+.receipt-header {
+  background: var(--navy);
+  padding: 20px 24px 16px;
+  text-align: center;
+  position: relative;
+}
+
+.receipt-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.receipt-brand {
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--white);
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.receipt-tagline {
+  font-size: 10px;
+  color: var(--grey-300);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.receipt-body {
+  padding: 20px 24px;
+}
+
+.receipt-customer {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--grey-100);
+}
+
+.receipt-customer-name {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.receipt-date {
+  font-size: 12px;
+  color: var(--grey-400);
+}
+
+/* Weight Table */
+.receipt-table {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.receipt-table tr {
+  border-bottom: 1px solid var(--grey-100);
+}
+
+.receipt-table tr:last-child {
+  border-bottom: none;
+}
+
+.receipt-table td {
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.receipt-table .item-name {
+  color: var(--grey-600);
+  width: 40%;
+}
+
+.receipt-table .item-calc {
+  color: var(--grey-400);
+  text-align: center;
+  font-size: 13px;
+}
+
+.receipt-table .item-amount {
+  text-align: right;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.receipt-table .tare-row td {
+  color: var(--red);
+  font-size: 13px;
+}
+
+.receipt-divider {
+  height: 1px;
+  background: var(--grey-200);
+  margin: 4px 0;
+}
+
+.receipt-divider.thick {
+  height: 2px;
+  background: var(--navy);
+  margin: 8px 0;
+}
+
+.receipt-subtotal,
+.receipt-fee-row,
+.receipt-tip-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+  color: var(--grey-500);
+}
+
+.receipt-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.receipt-total .amount {
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 24px;
+}
+
+.receipt-payment {
+  text-align: center;
+  padding: 8px 0;
+  font-size: 12px;
+  color: var(--grey-400);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.receipt-footer {
+  background: var(--grey-50);
+  text-align: center;
+  padding: 14px 24px;
+  border-top: 1px solid var(--grey-100);
+}
+
+.receipt-footer p {
+  font-size: 12px;
+  color: var(--grey-400);
+  line-height: 1.5;
+}
+
+.receipt-footer .thank-you {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+/* Receipt photos */
+.receipt-photos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.receipt-photos img {
+  width: 100%;
+  border-radius: var(--radius-sm);
+  aspect-ratio: 4/3;
+  object-fit: cover;
+}
+
+/* WhatsApp button */
+.btn-whatsapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  background: #25D366;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: none;
+  margin-bottom: 10px;
+}
+
+.btn-whatsapp:active { opacity: 0.9; }
+
+.btn-whatsapp svg { width: 20px; height: 20px; fill: white; }
+
+/* ── History ─────────────────────────────────────────────── */
+.history-card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--grey-100);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-info h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.history-info p {
+  font-size: 12px;
+  color: var(--grey-400);
+}
+
+.history-amount {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--gold);
+}
+
+/* ── Divider ─────────────────────────────────────────────── */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+}
+
+.section-divider span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--grey-400);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--grey-200);
+}
+
+/* ── Toast ───────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--navy);
+  color: var(--white);
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UTILITY
+   ══════════════════════════════════════════════════════════════ */
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-20 { margin-top: 20px; }
+.mb-8 { margin-bottom: 8px; }
+.text-center { text-align: center; }
+.text-gold { color: var(--gold); }
+.text-grey { color: var(--grey-400); }
+.text-sm { font-size: 13px; }
+.hidden { display: none !important; }
+
+/* ── Modal ───────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+
+.modal .btn-row {
+  margin-top: 16px;
+}
+
+/* ── Discount row ────────────────────────────────────────── */
+.discount-row {
+  background: #FFF8E1;
+  border: 1.5px solid #FFE082;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.discount-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--grey-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.discount-row input {
+  flex: 1;
+  padding: 8px 10px;
+  background: var(--white);
+  border: 1px solid #FFE082;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--red);
+  text-align: right;
+}
+
+/* ── Receipt logo ────────────────────────────────────────── */
+.receipt-logo {
+  height: 36px;
+  margin-bottom: 8px;
+  filter: brightness(0) invert(1);
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- ═══ TOP BAR ═══ -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo">SR</div>
+      <h1>ShredRite</h1>
+    </div>
+    <div class="topbar-date" id="topbar-date"></div>
+  </div>
+
+  <!-- ═══ PAGE CONTAINER ═══ -->
+  <div class="page-container">
+
+    <!-- ═══ HOME PAGE ═══ -->
+    <div class="page active" id="page-home">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2 class="section-title" style="margin-bottom:0;">Today's Pickups</h2>
+        <button onclick="syncFromSheet()" style="background:none;border:1px solid var(--grey-200);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;font-weight:600;color:var(--grey-500);cursor:pointer;display:flex;align-items:center;gap:4px;" id="sync-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          Sync
+        </button>
+      </div>
+      <p class="text-sm text-grey mb-8" id="sync-status" style="margin-top:4px;"></p>
+      <div id="pickup-list"></div>
+    </div>
+
+    <!-- ═══ COLLECTION FORM ═══ -->
+    <div class="page" id="page-collect">
+      <button class="back-btn" onclick="showPage('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg>
+        Back
+      </button>
+
+      <div id="collect-customer-info" style="margin-bottom: 20px;">
+        <h2 class="section-title" id="collect-name"></h2>
+        <p class="text-sm text-grey" id="collect-address"></p>
+      </div>
+
+      <div class="section-divider"><span>Weights</span></div>
+
+      <div class="weight-grid">
+        <div class="weight-card">
+          <div class="weight-card-label">Paper / Kitab<span class="rate">$5.50/kg</span></div>
+          <input type="number" id="w-paper" inputmode="decimal" step="0.05" min="0" placeholder="0.00" oninput="calcWeights()">
+        </div>
+        <div class="weight-card">
+          <div class="weight-card-label">Frame<span class="rate">$7.00/kg</span></div>
+          <input type="number" id="w-frame" inputmode="decimal" step="0.05" min="0" placeholder="0.00" oninput="calcWeights()">
+        </div>
+        <div class="weight-card">
+          <div class="weight-card-label">Other<span class="rate">$7.00/kg</span></div>
+          <input type="number" id="w-other" inputmode="decimal" step="0.05" min="0" placeholder="0.00" oninput="calcWeights()">
+        </div>
+        <div class="weight-card tare">
+          <div class="weight-card-label">Box Tare (-)<span class="rate">Subtract</span></div>
+          <input type="number" id="w-tare" inputmode="decimal" step="0.05" min="0" placeholder="0.00" oninput="calcWeights()">
+        </div>
+      </div>
+
+      <div class="net-weight-bar">
+        <span class="label">Net Weight</span>
+        <span class="value" id="net-weight-display">0.00 kg</span>
+      </div>
+
+      <div class="section-divider"><span>Booking & Payment</span></div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Booking Fee ($)</label>
+          <input type="number" class="form-input" id="c-booking-fee" value="20" inputmode="decimal" step="1" min="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tips ($)</label>
+          <input type="number" class="form-input" id="c-tips" inputmode="decimal" step="1" min="0" placeholder="0">
+        </div>
+      </div>
+
+      <div class="discount-row">
+        <label>Discount ($)</label>
+        <input type="number" id="c-discount" inputmode="decimal" step="1" min="0" placeholder="0" value="">
+      </div>
+
+      <label class="form-label">Booking Already Paid?</label>
+      <div class="toggle-group" id="toggle-paid">
+        <button class="toggle-btn active" data-value="Yes" onclick="setToggle('toggle-paid', 'Yes')">Yes (Shopify)</button>
+        <button class="toggle-btn" data-value="No" onclick="setToggle('toggle-paid', 'No')">No (Collect)</button>
+      </div>
+
+      <label class="form-label">Payment Method</label>
+      <div class="toggle-group" id="toggle-payment">
+        <button class="toggle-btn active" data-value="PayNow" onclick="setToggle('toggle-payment', 'PayNow')">PayNow</button>
+        <button class="toggle-btn" data-value="Cash" onclick="setToggle('toggle-payment', 'Cash')">Cash</button>
+      </div>
+
+      <div class="section-divider"><span>Photos</span></div>
+
+      <div class="photo-grid" id="photo-grid"></div>
+      <div class="photo-upload" onclick="document.getElementById('photo-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <p>Tap to add photos</p>
+      </div>
+      <input type="file" id="photo-input" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(event)">
+
+      <button class="btn-primary gold mt-20" onclick="generateReceipt()">Generate Receipt</button>
+    </div>
+
+    <!-- ═══ RECEIPT PAGE ═══ -->
+    <div class="page" id="page-receipt">
+      <button class="back-btn" onclick="showPage('collect')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg>
+        Back to form
+      </button>
+
+      <div id="receipt-capture">
+        <div class="receipt-header">
+          <img class="receipt-logo" id="receipt-logo" src="" alt="ShredRite">
+          <div class="receipt-tagline">Islamic Material Disposal</div>
+        </div>
+        <div class="receipt-body">
+          <div class="receipt-customer">
+            <div class="receipt-customer-name" id="r-name"></div>
+            <div class="receipt-date" id="r-date"></div>
+          </div>
+
+          <table class="receipt-table">
+            <tbody id="r-items"></tbody>
+          </table>
+
+          <div class="receipt-divider thick"></div>
+
+          <div class="receipt-subtotal">
+            <span>Service Total</span>
+            <span id="r-service-total"></span>
+          </div>
+          <div class="receipt-fee-row" id="r-fee-row">
+            <span>Booking Fee</span>
+            <span id="r-booking-fee"></span>
+          </div>
+          <div class="receipt-fee-row hidden" id="r-discount-row" style="color:var(--red);">
+            <span>Discount</span>
+            <span id="r-discount"></span>
+          </div>
+          <div class="receipt-tip-row hidden" id="r-tip-row">
+            <span>Tips</span>
+            <span id="r-tips"></span>
+          </div>
+
+          <div class="receipt-divider thick"></div>
+
+          <div class="receipt-total">
+            <span>Total</span>
+            <span class="amount" id="r-total"></span>
+          </div>
+
+          <div class="receipt-payment" id="r-payment"></div>
+        </div>
+        <div class="receipt-footer">
+          <p class="thank-you">Thank you for choosing ShredRite</p>
+          <p>Shariah-compliant disposal of Islamic materials</p>
+        </div>
+      </div>
+
+      <div class="receipt-photos" id="r-photos"></div>
+
+      <div class="mt-16">
+        <button class="btn-whatsapp" onclick="shareWhatsApp()">
+          <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Send via WhatsApp
+        </button>
+        <button class="btn-primary" onclick="saveCollection()">Save & Complete</button>
+      </div>
+    </div>
+
+    <!-- ═══ NEW BOOKING PAGE ═══ -->
+    <div class="page" id="page-booking">
+      <h2 class="section-title">New Booking</h2>
+      <p class="section-subtitle">Manual entry for walk-in or phone bookings</p>
+
+      <div class="form-group">
+        <label class="form-label">Customer Name</label>
+        <input type="text" class="form-input" id="b-name" placeholder="Full name">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input type="tel" class="form-input" id="b-phone" placeholder="9XXX XXXX">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Address</label>
+        <textarea class="form-input" id="b-address" placeholder="Block, unit, postal code"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email (optional)</label>
+        <input type="email" class="form-input" id="b-email" placeholder="email@example.com">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="b-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time</label>
+          <input type="time" class="form-input" id="b-time">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Booking Fee ($)</label>
+        <input type="number" class="form-input" id="b-fee" value="20" inputmode="decimal" step="1" min="0">
+      </div>
+
+      <label class="form-label">Booking Paid?</label>
+      <div class="toggle-group" id="toggle-booking-paid">
+        <button class="toggle-btn" data-value="Yes" onclick="setToggle('toggle-booking-paid', 'Yes')">Yes</button>
+        <button class="toggle-btn active" data-value="No" onclick="setToggle('toggle-booking-paid', 'No')">No (Collect later)</button>
+      </div>
+
+      <button class="btn-primary mt-16" onclick="saveBooking()">Save Booking</button>
+    </div>
+
+    <!-- ═══ HISTORY PAGE ═══ -->
+    <div class="page" id="page-history">
+      <h2 class="section-title">Collection History</h2>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- ═══ BOTTOM NAV ═══ -->
+  <div class="bottomnav">
+    <button class="active" onclick="showPage('home')" id="nav-home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </button>
+    <button onclick="showPage('booking')" id="nav-booking">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span>Booking</span>
+    </button>
+    <button onclick="showPage('history')" id="nav-history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>History</span>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Reschedule Modal -->
+<div class="modal-overlay hidden" id="reschedule-modal" onclick="if(event.target===this)closeReschedule()">
+  <div class="modal">
+    <h3>Reschedule</h3>
+    <div class="form-group">
+      <label class="form-label">New Date</label>
+      <input type="date" class="form-input" id="rs-date">
+    </div>
+    <div class="form-group">
+      <label class="form-label">New Time</label>
+      <input type="time" class="form-input" id="rs-time">
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeReschedule()">Cancel</button>
+      <button class="btn-primary" onclick="confirmReschedule()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   STATE
+   ══════════════════════════════════════════════════════════════ */
+const RATES = { paper: 5.50, frame: 7.00, other: 7.00 };
+let currentPickup = null;
+let collectionPhotos = [];
+
+// ── Google Apps Script URL ──────────────────────────────────
+// REPLACE THIS with your deployed Apps Script Web App URL
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdRFi5F5Ed1qFI7eSi7eBbmuwGlt5Tx-WVZfq6WQAv0LuMe98kqVJl7/exec';
+// ─────────────────────────────────────────────────────────────
+
+const SYNC_ENABLED = APPS_SCRIPT_URL.length > 0;
+
+/* ══════════════════════════════════════════════════════════════
+   STORAGE (localStorage + Google Sheets sync)
+   ══════════════════════════════════════════════════════════════ */
+function getBookings() {
+  return JSON.parse(localStorage.getItem('sr_bookings') || '[]');
+}
+function saveBookings(data) {
+  localStorage.setItem('sr_bookings', JSON.stringify(data));
+}
+function getHistory() {
+  return JSON.parse(localStorage.getItem('sr_history') || '[]');
+}
+function saveHistoryData(data) {
+  localStorage.setItem('sr_history', JSON.stringify(data));
+}
+
+/* ── Sync: Pull bookings from Google Sheet ───────────────── */
+async function syncFromSheet() {
+  if (!SYNC_ENABLED) return;
+
+  try {
+    document.getElementById('topbar-date').textContent = 'Syncing...';
+    const resp = await fetch(APPS_SCRIPT_URL + '?action=getBookings');
+    const data = await resp.json();
+
+    if (data.bookings && data.bookings.length > 0) {
+      // Merge: keep local-only bookings, update/add sheet bookings
+      const localBookings = getBookings();
+      const localOnlyBookings = localBookings.filter(b => !b.id.startsWith('row_'));
+      const sheetBookings = data.bookings;
+
+      // Combine: sheet bookings + local-only bookings
+      const merged = [...sheetBookings, ...localOnlyBookings];
+      saveBookings(merged);
+    }
+
+    const now = new Date();
+    document.getElementById('topbar-date').textContent = now.toLocaleDateString('en-SG', {
+      weekday: 'short', day: 'numeric', month: 'short'
+    });
+
+    renderPickups();
+    toast('Synced with Google Sheet');
+  } catch (err) {
+    console.error('Sync error:', err);
+    const now = new Date();
+    document.getElementById('topbar-date').textContent = now.toLocaleDateString('en-SG', {
+      weekday: 'short', day: 'numeric', month: 'short'
+    });
+  }
+}
+
+/* ── Sync: Push collection to Google Sheet ────────────────── */
+async function syncCollectionToSheet(pickup, collectionData) {
+  if (!SYNC_ENABLED) return;
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'saveCollection',
+        row: pickup.row || null,
+        name: pickup.name,
+        phone: pickup.phone,
+        address: pickup.address,
+        email: pickup.email,
+        date: pickup.date,
+        time: pickup.time,
+        bookingFee: collectionData.bookingFee,
+        bookingPaid: collectionData.bookingPaid,
+        paper: collectionData.paper,
+        frame: collectionData.frame,
+        other: collectionData.other,
+        tare: collectionData.tare,
+        tips: collectionData.tips,
+        discount: collectionData.discount,
+        paymentMethod: collectionData.paymentMethod
+      })
+    });
+  } catch (err) {
+    console.error('Save sync error:', err);
+    toast('Saved locally (sheet sync failed)');
+  }
+}
+
+/* ── Sync: Push reschedule to Google Sheet ────────────────── */
+async function syncRescheduleToSheet(bookingId, newDate, newTime) {
+  if (!SYNC_ENABLED) return;
+
+  const bookings = getBookings();
+  const booking = bookings.find(b => b.id === bookingId);
+  if (!booking || !booking.row) return;
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'reschedule',
+        row: booking.row,
+        newDate: newDate,
+        newTime: newTime
+      })
+    });
+  } catch (err) {
+    console.error('Reschedule sync error:', err);
+  }
+}
+
+/* ── Sync: Push new booking to Google Sheet ───────────────── */
+async function syncNewBookingToSheet(bookingData) {
+  if (!SYNC_ENABLED) return;
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'addBooking',
+        ...bookingData
+      })
+    });
+  } catch (err) {
+    console.error('Add booking sync error:', err);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   NAVIGATION
+   ══════════════════════════════════════════════════════════════ */
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+
+  document.querySelectorAll('.bottomnav button').forEach(b => b.classList.remove('active'));
+  const navBtn = document.getElementById('nav-' + name);
+  if (navBtn) navBtn.classList.add('active');
+
+  // Show/hide bottom nav on sub-pages
+  const bottomNav = document.querySelector('.bottomnav');
+  if (name === 'collect' || name === 'receipt') {
+    bottomNav.style.display = 'none';
+  } else {
+    bottomNav.style.display = 'flex';
+  }
+
+  // Scroll to top
+  document.querySelector('.page-container').scrollTop = 0;
+
+  if (name === 'home') renderPickups();
+  if (name === 'history') renderHistory();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HOME: PICKUP LIST
+   ══════════════════════════════════════════════════════════════ */
+function renderPickups() {
+  const list = document.getElementById('pickup-list');
+  const bookings = getBookings();
+  const today = new Date().toISOString().split('T')[0];
+  const history = getHistory();
+  const completedIds = new Set(history.map(h => h.bookingId));
+
+  // Show today's + upcoming (within 3 days)
+  const upcoming = bookings.filter(b => {
+    const d = new Date(b.date);
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    const diff = (d - now) / (1000*60*60*24);
+    return diff >= 0 && diff <= 3;
+  }).sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return (a.time || '').localeCompare(b.time || '');
+  });
+
+  if (upcoming.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="4" width="18" height="18" rx="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <p>No upcoming pickups.<br>Add bookings via the + button below.</p>
+      </div>`;
+    return;
+  }
+
+  let currentDate = '';
+  let html = '';
+
+  upcoming.forEach(b => {
+    const isCompleted = completedIds.has(b.id);
+    const dateLabel = b.date === today ? 'Today' :
+      new Date(b.date + 'T00:00:00').toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
+
+    if (b.date !== currentDate) {
+      currentDate = b.date;
+      html += `<div class="section-divider"><span>${dateLabel}</span></div>`;
+    }
+
+    html += `
+      <div class="pickup-card ${isCompleted ? 'completed' : ''}" onclick="${isCompleted ? '' : `startCollection('${b.id}')`}">
+        <div class="pickup-card-header">
+          <div class="pickup-card-name">${esc(b.name)}</div>
+          ${b.time ? `<div class="pickup-card-time">${formatTime(b.time)}</div>` : ''}
+        </div>
+        <div class="pickup-card-address">${esc(b.address).replace(/\n/g, '<br>')}</div>
+        <div class="pickup-card-footer">
+          ${b.bookingPaid === 'Yes'
+            ? '<span class="badge badge-paid">Paid</span>'
+            : '<span class="badge badge-unpaid">Unpaid</span>'}
+          ${isCompleted ? '<span class="badge badge-completed">Completed</span>' : ''}
+          ${b.phone ? `<span class="text-sm text-grey">${esc(b.phone)}</span>` : ''}
+        </div>
+        ${!isCompleted ? `<div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;">
+          <button class="badge" style="cursor:pointer;background:var(--grey-100);color:var(--grey-600);border:none;padding:5px 10px;" onclick="event.stopPropagation();rescheduleBooking('${b.id}')">Reschedule</button>
+        </div>` : ''}
+      </div>`;
+  });
+
+  list.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COLLECTION FORM
+   ══════════════════════════════════════════════════════════════ */
+function startCollection(bookingId) {
+  const bookings = getBookings();
+  currentPickup = bookings.find(b => b.id === bookingId);
+  if (!currentPickup) return;
+
+  document.getElementById('collect-name').textContent = currentPickup.name;
+  document.getElementById('collect-address').textContent = currentPickup.address;
+
+  // Reset form
+  ['w-paper', 'w-frame', 'w-other', 'w-tare', 'c-tips', 'c-discount'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('c-booking-fee').value = currentPickup.bookingFee || 20;
+  document.getElementById('net-weight-display').textContent = '0.00 kg';
+
+  setToggle('toggle-paid', currentPickup.bookingPaid || 'Yes');
+  setToggle('toggle-payment', 'PayNow');
+
+  collectionPhotos = [];
+  document.getElementById('photo-grid').innerHTML = '';
+
+  showPage('collect');
+}
+
+function calcWeights() {
+  const paper = parseFloat(document.getElementById('w-paper').value) || 0;
+  const frame = parseFloat(document.getElementById('w-frame').value) || 0;
+  const other = parseFloat(document.getElementById('w-other').value) || 0;
+  const tare = parseFloat(document.getElementById('w-tare').value) || 0;
+  const net = Math.max(0, paper + frame + other - tare);
+  document.getElementById('net-weight-display').textContent = net.toFixed(2) + ' kg';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TOGGLES
+   ══════════════════════════════════════════════════════════════ */
+function setToggle(groupId, value) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === value);
+  });
+  group.dataset.value = value;
+}
+
+function getToggle(groupId) {
+  return document.getElementById(groupId).dataset.value;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PHOTOS
+   ══════════════════════════════════════════════════════════════ */
+function handlePhotos(event) {
+  const files = event.target.files;
+  Array.from(files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      collectionPhotos.push(e.target.result);
+      renderPhotoGrid();
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function renderPhotoGrid() {
+  const grid = document.getElementById('photo-grid');
+  grid.innerHTML = collectionPhotos.map((src, i) => `
+    <div class="photo-thumb">
+      <img src="${src}" alt="Photo ${i+1}">
+      <button class="remove-photo" onclick="removePhoto(${i})">&times;</button>
+    </div>
+  `).join('');
+}
+
+function removePhoto(index) {
+  collectionPhotos.splice(index, 1);
+  renderPhotoGrid();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RECEIPT GENERATION
+   ══════════════════════════════════════════════════════════════ */
+function generateReceipt() {
+  const paper = parseFloat(document.getElementById('w-paper').value) || 0;
+  const frame = parseFloat(document.getElementById('w-frame').value) || 0;
+  const other = parseFloat(document.getElementById('w-other').value) || 0;
+  const tare = parseFloat(document.getElementById('w-tare').value) || 0;
+  const bookingFee = parseFloat(document.getElementById('c-booking-fee').value) || 0;
+  const tips = parseFloat(document.getElementById('c-tips').value) || 0;
+  const discount = parseFloat(document.getElementById('c-discount').value) || 0;
+  const bookingPaid = getToggle('toggle-paid');
+  const paymentMethod = getToggle('toggle-payment');
+
+  if (paper === 0 && frame === 0 && other === 0) {
+    toast('Please enter at least one weight');
+    return;
+  }
+
+  const paperCost = paper * RATES.paper;
+  const frameCost = frame * RATES.frame;
+  const otherCost = other * RATES.other;
+  const netWeight = Math.max(0, paper + frame + other - tare);
+  const serviceTotal = paperCost + frameCost + otherCost;
+  const totalDue = serviceTotal + (bookingPaid === 'No' ? bookingFee : 0) + tips - discount;
+
+  // Populate receipt
+  document.getElementById('r-name').textContent = currentPickup.name;
+  document.getElementById('r-date').textContent = new Date().toLocaleDateString('en-SG', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+
+  // Build items table
+  let rows = '';
+  if (paper > 0) {
+    rows += `<tr>
+      <td class="item-name">Paper / Kitab</td>
+      <td class="item-calc">${paper.toFixed(2)} kg &times; $5.50</td>
+      <td class="item-amount">$${paperCost.toFixed(2)}</td>
+    </tr>`;
+  }
+  if (frame > 0) {
+    rows += `<tr>
+      <td class="item-name">Frame</td>
+      <td class="item-calc">${frame.toFixed(2)} kg &times; $7.00</td>
+      <td class="item-amount">$${frameCost.toFixed(2)}</td>
+    </tr>`;
+  }
+  if (other > 0) {
+    rows += `<tr>
+      <td class="item-name">Other</td>
+      <td class="item-calc">${other.toFixed(2)} kg &times; $7.00</td>
+      <td class="item-amount">$${otherCost.toFixed(2)}</td>
+    </tr>`;
+  }
+  if (tare > 0) {
+    rows += `<tr class="tare-row">
+      <td class="item-name">Box Tare</td>
+      <td class="item-calc">&minus;${tare.toFixed(2)} kg</td>
+      <td class="item-amount"></td>
+    </tr>`;
+  }
+  rows += `<tr>
+    <td class="item-name" style="font-weight:600">Net Weight</td>
+    <td class="item-calc"></td>
+    <td class="item-amount">${netWeight.toFixed(2)} kg</td>
+  </tr>`;
+
+  document.getElementById('r-items').innerHTML = rows;
+  document.getElementById('r-service-total').textContent = '$' + serviceTotal.toFixed(2);
+
+  if (bookingPaid === 'Yes') {
+    document.getElementById('r-booking-fee').textContent = 'Paid via Shopify';
+    document.getElementById('r-fee-row').classList.remove('hidden');
+  } else {
+    document.getElementById('r-booking-fee').textContent = '$' + bookingFee.toFixed(2);
+    document.getElementById('r-fee-row').classList.remove('hidden');
+  }
+
+  if (discount > 0) {
+    document.getElementById('r-discount').textContent = '-$' + discount.toFixed(2);
+    document.getElementById('r-discount-row').classList.remove('hidden');
+  } else {
+    document.getElementById('r-discount-row').classList.add('hidden');
+  }
+
+  if (tips > 0) {
+    document.getElementById('r-tips').textContent = '$' + tips.toFixed(2);
+    document.getElementById('r-tip-row').classList.remove('hidden');
+  } else {
+    document.getElementById('r-tip-row').classList.add('hidden');
+  }
+
+  document.getElementById('r-total').textContent = '$' + totalDue.toFixed(2);
+  document.getElementById('r-payment').textContent = 'Payment: ' + paymentMethod;
+
+  // Photos
+  const photoContainer = document.getElementById('r-photos');
+  photoContainer.innerHTML = collectionPhotos.map(src =>
+    `<img src="${src}" alt="Collection photo">`
+  ).join('');
+
+  // Store data for saving
+  currentPickup._collection = {
+    paper, frame, other, tare, netWeight,
+    paperCost, frameCost, otherCost,
+    serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod,
+    photos: collectionPhotos.length,
+    date: new Date().toISOString()
+  };
+
+  showPage('receipt');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WHATSAPP SHARE
+   ══════════════════════════════════════════════════════════════ */
+function shareWhatsApp() {
+  if (!currentPickup || !currentPickup._collection) return;
+  const c = currentPickup._collection;
+
+  let msg = `*ShredRite Collection Receipt*\n`;
+  msg += `Customer: ${currentPickup.name}\n`;
+  msg += `Date: ${new Date().toLocaleDateString('en-SG')}\n\n`;
+  msg += `*Weight Breakdown:*\n`;
+  if (c.paper > 0) msg += `Paper/Kitab: ${c.paper.toFixed(2)} kg x $5.50 = $${c.paperCost.toFixed(2)}\n`;
+  if (c.frame > 0) msg += `Frame: ${c.frame.toFixed(2)} kg x $7.00 = $${c.frameCost.toFixed(2)}\n`;
+  if (c.other > 0) msg += `Other: ${c.other.toFixed(2)} kg x $7.00 = $${c.otherCost.toFixed(2)}\n`;
+  if (c.tare > 0) msg += `Box Tare: -${c.tare.toFixed(2)} kg\n`;
+  msg += `Net Weight: ${c.netWeight.toFixed(2)} kg\n\n`;
+  msg += `Service Total: $${c.serviceTotal.toFixed(2)}\n`;
+  if (c.bookingPaid === 'Yes') {
+    msg += `Booking Fee: Paid via Shopify\n`;
+  } else {
+    msg += `Booking Fee: $${c.bookingFee.toFixed(2)}\n`;
+  }
+  if (c.discount > 0) msg += `Discount: -$${c.discount.toFixed(2)}\n`;
+  if (c.tips > 0) msg += `Tips: $${c.tips.toFixed(2)}\n`;
+  msg += `\n*Total: $${c.totalDue.toFixed(2)}*\n`;
+  msg += `Payment: ${c.paymentMethod}\n\n`;
+  msg += `Thank you for choosing ShredRite! Shariah-compliant disposal of Islamic materials.`;
+
+  // If we have phone number, pre-fill
+  let phone = currentPickup.phone || '';
+  phone = phone.replace(/\s/g, '').replace('.0', '');
+  if (phone && !phone.startsWith('+') && !phone.startsWith('65')) {
+    phone = '65' + phone;
+  }
+
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+  window.open(url, '_blank');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SAVE COLLECTION
+   ══════════════════════════════════════════════════════════════ */
+function saveCollection() {
+  if (!currentPickup || !currentPickup._collection) return;
+  const c = currentPickup._collection;
+
+  const history = getHistory();
+  history.unshift({
+    bookingId: currentPickup.id,
+    name: currentPickup.name,
+    address: currentPickup.address,
+    phone: currentPickup.phone,
+    ...c
+  });
+  saveHistoryData(history);
+
+  // Sync to Google Sheet
+  syncCollectionToSheet(currentPickup, c);
+
+  toast('Collection saved');
+  showPage('home');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   NEW BOOKING
+   ══════════════════════════════════════════════════════════════ */
+function saveBooking() {
+  const name = document.getElementById('b-name').value.trim();
+  const phone = document.getElementById('b-phone').value.trim();
+  const address = document.getElementById('b-address').value.trim();
+  const email = document.getElementById('b-email').value.trim();
+  const date = document.getElementById('b-date').value;
+  const time = document.getElementById('b-time').value;
+  const fee = parseFloat(document.getElementById('b-fee').value) || 20;
+  const paid = getToggle('toggle-booking-paid');
+
+  if (!name || !address || !date) {
+    toast('Please fill in name, address, and date');
+    return;
+  }
+
+  const bookings = getBookings();
+  bookings.push({
+    id: 'b_' + Date.now(),
+    name, phone, address, email, date, time,
+    bookingFee: fee,
+    bookingPaid: paid,
+    createdAt: new Date().toISOString()
+  });
+  saveBookings(bookings);
+
+  // Sync to Google Sheet
+  syncNewBookingToSheet({ name, phone, address, email, date, time, bookingFee: fee, bookingPaid: paid });
+
+  // Reset form
+  ['b-name', 'b-phone', 'b-address', 'b-email'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('b-date').value = '';
+  document.getElementById('b-time').value = '';
+  document.getElementById('b-fee').value = '20';
+  setToggle('toggle-booking-paid', 'No');
+
+  toast('Booking saved');
+  showPage('home');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HISTORY
+   ══════════════════════════════════════════════════════════════ */
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  const history = getHistory();
+
+  if (history.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <p>No collections yet.<br>Complete a pickup to see it here.</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = history.map(h => {
+    const d = new Date(h.date);
+    return `
+      <div class="history-card">
+        <div class="history-info">
+          <h4>${esc(h.name)}</h4>
+          <p>${d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })} &middot; ${h.netWeight.toFixed(1)} kg &middot; ${h.paymentMethod}</p>
+        </div>
+        <div class="history-amount">$${h.totalDue.toFixed(2)}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESCHEDULE
+   ══════════════════════════════════════════════════════════════ */
+let rescheduleId = null;
+
+function rescheduleBooking(bookingId) {
+  rescheduleId = bookingId;
+  const bookings = getBookings();
+  const booking = bookings.find(b => b.id === bookingId);
+  if (!booking) return;
+
+  document.getElementById('rs-date').value = booking.date;
+  document.getElementById('rs-time').value = booking.time || '';
+  document.getElementById('reschedule-modal').classList.remove('hidden');
+}
+
+function closeReschedule() {
+  document.getElementById('reschedule-modal').classList.add('hidden');
+  rescheduleId = null;
+}
+
+function confirmReschedule() {
+  if (!rescheduleId) return;
+  const newDate = document.getElementById('rs-date').value;
+  const newTime = document.getElementById('rs-time').value;
+
+  if (!newDate) {
+    toast('Please select a new date');
+    return;
+  }
+
+  const bookings = getBookings();
+  const idx = bookings.findIndex(b => b.id === rescheduleId);
+  if (idx === -1) return;
+
+  bookings[idx].date = newDate;
+  if (newTime) bookings[idx].time = newTime;
+  bookings[idx].rescheduled = true;
+  bookings[idx].status = 'Rescheduled';
+  saveBookings(bookings);
+
+  // Sync to Google Sheet
+  syncRescheduleToSheet(rescheduleId, newDate, newTime);
+
+  closeReschedule();
+  toast('Booking rescheduled');
+  renderPickups();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UTILITIES
+   ══════════════════════════════════════════════════════════════ */
+function esc(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function formatTime(t) {
+  if (!t) return '';
+  try {
+    const [h, m] = t.split(':');
+    const hr = parseInt(h);
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    const hr12 = hr % 12 || 12;
+    return `${hr12}:${m} ${ampm}`;
+  } catch {
+    return t;
+  }
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════════════════════════ */
+(function init() {
+  // Load logo - use relative path (works when opened from project folder)
+  const logoEl = document.getElementById('receipt-logo');
+  logoEl.src = 'shredrite-logo.png';
+  logoEl.onerror = function() {
+    // Fallback: show text if logo file not found
+    this.style.display = 'none';
+    this.parentElement.insertAdjacentHTML('afterbegin', '<div style="font-family:DM Serif Display,Georgia,serif;font-size:24px;color:#fff;letter-spacing:1px;margin-bottom:4px;">ShredRite</div>');
+  };
+
+  // Set today's date in topbar
+  const now = new Date();
+  document.getElementById('topbar-date').textContent = now.toLocaleDateString('en-SG', {
+    weekday: 'short', day: 'numeric', month: 'short'
+  });
+
+  // Set default date on booking form
+  document.getElementById('b-date').value = now.toISOString().split('T')[0];
+
+  // Seed demo data if empty
+  if (getBookings().length === 0) {
+    const today = now.toISOString().split('T')[0];
+    const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+    saveBookings([
+      {
+        id: 'demo_1',
+        name: 'Normalah Dollah',
+        phone: '9769 8927',
+        address: 'Jurong East Street 21\nBlock 211 Unit 10-313\nSingapore 600211',
+        email: 'normalahdollah@gmail.com',
+        date: today,
+        time: '09:00',
+        bookingFee: 20,
+        bookingPaid: 'Yes',
+        createdAt: now.toISOString()
+      },
+      {
+        id: 'demo_2',
+        name: 'Hamida Marican',
+        phone: '9776 2959',
+        address: 'Block 430, #06-589\nChoa Chu Kang Avenue 4\nSingapore 680430',
+        email: 'hamidamarican@hotmail.com',
+        date: today,
+        time: '11:00',
+        bookingFee: 20,
+        bookingPaid: 'Yes',
+        createdAt: now.toISOString()
+      },
+      {
+        id: 'demo_3',
+        name: 'Noraisha Ahmad',
+        phone: '9025 5116',
+        address: '649 Punggol Central\n14-388\nSingapore 820649',
+        email: 'ahmadnoraisha@gmail.com',
+        date: tomorrow,
+        time: '13:00',
+        bookingFee: 20,
+        bookingPaid: 'No',
+        createdAt: now.toISOString()
+      }
+    ]);
+  }
+
+  renderPickups();
+
+  // Auto-sync from Google Sheet on load
+  if (SYNC_ENABLED) {
+    document.getElementById('sync-status').textContent = 'Connected to Google Sheet';
+    syncFromSheet();
+  } else {
+    document.getElementById('sync-status').textContent = 'Offline mode (no Google Sheet connected)';
+    document.getElementById('sync-btn').style.display = 'none';
+  }
+})();
+</script>
+</body>
+</html>
