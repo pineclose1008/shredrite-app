@@ -1698,6 +1698,40 @@ function sendAllConfirmations() {
   sendConfirmation(confirmations, 0);
 }
 
+/* ── Request Reschedule via WhatsApp ─────────────────────── */
+function requestRescheduleWA(bookingId) {
+  const bookings = getBookings();
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return;
+
+  // Ask for the proposed new date
+  const newDate = prompt('What date do you want to propose? (e.g. 2026-03-28)');
+  if (!newDate) return;
+
+  const origDateObj = new Date(b.date + 'T00:00:00');
+  const origDateStr = origDateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const newDateObj = new Date(newDate + 'T00:00:00');
+  const newDateStr = newDateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  let msg = `Salam ${b.name}, ni Hambali from ShredRite.\n\n`;
+  msg += `Your booking for us to pick up your items for disposal is currently scheduled for *${origDateStr}*.\n\n`;
+  msg += `Would you be ok to reschedule to *${newDateStr}* instead?\n\n`;
+  msg += `${b.name} dont need to be at home. You can just place the items outside your house.\n\n`;
+  msg += `Let me know, thank you!`;
+
+  let phone = (b.phone || '').replace(/\s/g, '').replace('.0', '');
+  if (phone && !phone.startsWith('+') && !phone.startsWith('65')) {
+    phone = '65' + phone;
+  }
+
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+  window.open(url, '_blank');
+}
+
 function sendConfirmation(list, index) {
   if (index >= list.length) {
     toast('All confirmations sent');
@@ -1981,6 +2015,7 @@ function renderPickups() {
         </div>
         ${!isCompleted ? `<div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;">
           <button class="badge" style="cursor:pointer;background:var(--grey-100);color:var(--grey-600);border:none;padding:5px 10px;" onclick="event.stopPropagation();rescheduleBooking('${b.id}')">Reschedule</button>
+          <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:5px 10px;" onclick="event.stopPropagation();requestRescheduleWA('${b.id}')">Ask to Move</button>
         </div>` : ''}
       </div>`;
   });
