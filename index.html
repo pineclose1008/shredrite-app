@@ -1038,6 +1038,12 @@ textarea.form-input {
         </div>
       </div>
       <p class="text-sm text-grey mb-8" id="sync-status" style="margin-top:0;"></p>
+      <div id="route-btn-container" class="hidden" style="margin-bottom:12px;">
+        <button class="btn-primary" onclick="planRoute()" style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--navy);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 10-16 0c0 3 2.7 7 8 11.7z"/></svg>
+          Plan Route in Google Maps
+        </button>
+      </div>
       <div id="pickup-list"></div>
     </div>
 
@@ -1315,6 +1321,75 @@ function saveHistoryData(data) {
   localStorage.setItem('sr_history', JSON.stringify(data));
 }
 
+/* ══════════════════════════════════════════════════════════════
+   ROUTE PLANNING
+   ══════════════════════════════════════════════════════════════ */
+const HOME_ADDRESS = '9 Pine Close Singapore 390009';
+
+function planRoute() {
+  const bookings = getBookings();
+  const history = getHistory();
+  const completedIds = new Set(history.map(h => h.bookingId));
+  const today = new Date().toISOString().split('T')[0];
+
+  // Get today's uncompleted pickups, sorted by time
+  const todayPickups = bookings.filter(b => {
+    if (completedIds.has(b.id)) return false;
+    if (b.status === 'Completed') return false;
+    return b.date === today;
+  }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  if (todayPickups.length === 0) {
+    toast('No pickups to route today');
+    return;
+  }
+
+  // Build Google Maps multi-stop URL
+  // Format: https://www.google.com/maps/dir/origin/stop1/stop2/.../destination
+  // Start and end at home
+  const stops = todayPickups.map(b => {
+    // Clean address: replace newlines with spaces, extract postal code if present
+    let addr = b.address.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    // Ensure "Singapore" is in the address for Google Maps accuracy
+    if (!addr.toLowerCase().includes('singapore')) {
+      addr += ' Singapore';
+    }
+    return encodeURIComponent(addr);
+  });
+
+  const origin = encodeURIComponent(HOME_ADDRESS);
+  const url = 'https://www.google.com/maps/dir/' + origin + '/' + stops.join('/') + '/' + origin;
+
+  window.open(url, '_blank');
+}
+
+function updateRouteButton() {
+  const container = document.getElementById('route-btn-container');
+  if (!container) return;
+
+  if (currentFilter !== 'upcoming') {
+    container.classList.add('hidden');
+    return;
+  }
+
+  const bookings = getBookings();
+  const history = getHistory();
+  const completedIds = new Set(history.map(h => h.bookingId));
+  const today = new Date().toISOString().split('T')[0];
+
+  const todayPickups = bookings.filter(b => {
+    if (completedIds.has(b.id)) return false;
+    if (b.status === 'Completed') return false;
+    return b.date === today;
+  });
+
+  if (todayPickups.length > 0) {
+    container.classList.remove('hidden');
+  } else {
+    container.classList.add('hidden');
+  }
+}
+
 /* ── Status Filter ────────────────────────────────────────── */
 function setStatusFilter(filter) {
   currentFilter = filter;
@@ -1564,6 +1639,7 @@ function renderPickups() {
   });
 
   list.innerHTML = html;
+  updateRouteButton();
 }
 
 /* ══════════════════════════════════════════════════════════════
