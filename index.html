@@ -1327,6 +1327,11 @@ textarea.form-input {
       <p class="section-subtitle">Manual entry for walk-in or phone bookings</p>
 
       <div class="form-group">
+        <label class="form-label">Shopify Order #</label>
+        <input type="text" class="form-input" id="b-order" placeholder="e.g. #1234 (optional for manual bookings)">
+      </div>
+
+      <div class="form-group">
         <label class="form-label">Customer Name</label>
         <input type="text" class="form-input" id="b-name" placeholder="Full name">
       </div>
@@ -1373,7 +1378,13 @@ textarea.form-input {
 
     <!-- ═══ HISTORY PAGE ═══ -->
     <div class="page" id="page-history">
-      <h2 class="section-title">Collection History</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 class="section-title" style="margin-bottom:0;">Audit Log</h2>
+        <button onclick="downloadAuditCSV()" style="background:none;border:1px solid var(--grey-200);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;font-weight:600;color:var(--grey-500);cursor:pointer;display:flex;align-items:center;gap:4px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download CSV
+        </button>
+      </div>
       <div id="history-list"></div>
     </div>
   </div>
@@ -2244,6 +2255,7 @@ function saveCollection() {
    NEW BOOKING
    ══════════════════════════════════════════════════════════════ */
 function saveBooking() {
+  const orderNum = document.getElementById('b-order').value.trim();
   const name = document.getElementById('b-name').value.trim();
   const phone = document.getElementById('b-phone').value.trim();
   const address = document.getElementById('b-address').value.trim();
@@ -2261,7 +2273,7 @@ function saveBooking() {
   const bookings = getBookings();
   bookings.push({
     id: 'b_' + Date.now(),
-    name, phone, address, email, date, time,
+    orderNum, name, phone, address, email, date, time,
     bookingFee: fee,
     bookingPaid: paid,
     createdAt: new Date().toISOString()
@@ -2269,10 +2281,10 @@ function saveBooking() {
   saveBookings(bookings);
 
   // Sync to Google Sheet
-  syncNewBookingToSheet({ name, phone, address, email, date, time, bookingFee: fee, bookingPaid: paid });
+  syncNewBookingToSheet({ orderNum, name, phone, address, email, date, time, bookingFee: fee, bookingPaid: paid });
 
   // Reset form
-  ['b-name', 'b-phone', 'b-address', 'b-email'].forEach(id => {
+  ['b-order', 'b-name', 'b-phone', 'b-address', 'b-email'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('b-date').value = '';
@@ -2314,6 +2326,91 @@ function renderHistory() {
         <div class="history-amount">$${h.totalDue.toFixed(2)}</div>
       </div>`;
   }).join('');
+}
+
+/* ── Audit CSV Download ──────────────────────────────────── */
+async function downloadAuditCSV() {
+  if (!SYNC_ENABLED) {
+    downloadLocalCSV();
+    return;
+  }
+
+  try {
+    toast('Fetching all records...');
+    const resp = await fetch(APPS_SCRIPT_URL + '?action=getBookings&status=all');
+    const data = await resp.json();
+
+    if (!data.bookings || data.bookings.length === 0) {
+      toast('No records to download');
+      return;
+    }
+
+    const headers = ['Order#','Status','Date','Time','Name','Phone','Address','Email','Booking Fee','Booking Paid','Paper (kg)','Frame (kg)','Other (kg)','Net Weight (kg)','Service Total','Tips','Total Collected','Payment Method'];
+
+    const rows = data.bookings.map(b => [
+      b.orderNum || '',
+      b.status || '',
+      b.date || '',
+      b.time || '',
+      (b.name || '').replace(/"/g, '""'),
+      b.phone || '',
+      (b.address || '').replace(/\n/g, ' ').replace(/"/g, '""'),
+      b.email || '',
+      b.bookingFee || '',
+      b.bookingPaid || '',
+      b.paperKg || '',
+      b.frameKg || '',
+      b.otherKg || '',
+      b.netWeight || '',
+      b.serviceTotal || '',
+      b.tips || '',
+      b.totalCollected || '',
+      b.paymentMethod || ''
+    ]);
+
+    let csv = headers.join(',') + '\n';
+    rows.forEach(row => {
+      csv += row.map(v => '"' + String(v) + '"').join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().split('T')[0];
+    a.href = url;
+    a.download = 'ShredRite-Audit-Log-' + dateStr + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('CSV downloaded');
+  } catch (err) {
+    console.error('Download error:', err);
+    toast('Download failed');
+  }
+}
+
+function downloadLocalCSV() {
+  const history = getHistory();
+  if (history.length === 0) { toast('No records to download'); return; }
+
+  const headers = ['Date','Name','Phone','Paper (kg)','Frame (kg)','Other (kg)','Net Weight (kg)','Service Total','Booking Fee','Tips','Total Due','Payment Method'];
+  const rows = history.map(h => [
+    h.date||'', (h.name||'').replace(/"/g,'""'), h.phone||'',
+    h.paper||'', h.frame||'', h.other||'', h.netWeight||'',
+    h.serviceTotal||'', h.bookingFee||'', h.tips||'',
+    h.totalDue||'', h.paymentMethod||''
+  ]);
+
+  let csv = headers.join(',') + '\n';
+  rows.forEach(row => { csv += row.map(v => '"'+String(v)+'"').join(',') + '\n'; });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ShredRite-Audit-Log-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV downloaded');
 }
 
 /* ══════════════════════════════════════════════════════════════
