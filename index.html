@@ -1997,8 +1997,8 @@ function selectOMW(minutes) {
   const b = bookings.find(x => x.id === omwBookingId);
   if (!b) return;
 
-  let msg = `Salam ${b.name}, ni Hambali from ShredRite.\n\n`;
-  msg += `I'm on my way to your place now. Will be there in about *${minutes} minutes*.\n\n`;
+  let msg = `Salam ${b.name},\n\n`;
+  msg += `Kita sekarang on the way to your place now. Will be there in about *${minutes} minutes*.\n\n`;
   msg += `Please have your items ready for collection. Thank you!`;
 
   let phone = (b.phone || '').replace(/\s/g, '').replace('.0', '');
