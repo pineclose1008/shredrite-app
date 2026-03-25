@@ -1662,14 +1662,12 @@ function sendConfirmation(list, index) {
   const dateStr = dateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' });
   const timeStr = formatTime(b.time);
 
-  let msg = `Assalamualaikum ${b.name},\n\n`;
-  msg += `This is Hambali from ShredRite.\n\n`;
+  let msg = `Salam ${b.name}, ni Hambali from ShredRite.\n\n`;
   msg += `Your collection is confirmed for *${dateStr}*.\n`;
-  msg += `I will arrive at approximately *${timeStr}*.\n\n`;
-  msg += `Collection address:\n${b.address}\n\n`;
+  msg += `I will arrive at around *${timeStr}*.\n\n`;
+  msg += `Can i confirm if this is the address for collection?:\n${b.address}\n\n`;
   msg += `Please have your items ready for weighing. Payment is via PayNow or cash.\n\n`;
-  msg += `If you need to reschedule, please let me know.\n\n`;
-  msg += `JazakAllahu khairan.`;
+  msg += `JazakAllahu khairan. See you tmr!`;
 
   let phone = (b.phone || '').replace(/\s/g, '').replace('.0', '');
   if (phone && !phone.startsWith('+') && !phone.startsWith('65')) {
