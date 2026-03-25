@@ -1963,7 +1963,7 @@ function sendReminder(bookingId) {
   const timeStr = b.time ? formatTime(b.time) : 'to be confirmed';
 
   let msg = `Salam ${b.name}, ni Hambali from ShredRite.\n\n`;
-  msg += `Just a reminder that I will be coming tomorrow at around *${timeStr}* to pick up your items for disposal.\n\n`;
+  msg += `Just a reminder that we will be coming tomorrow at around *${timeStr}* to pick up your items for disposal.\n\n`;
   msg += `Please have your items ready for collection. Thank you!`;
 
   let phone = (b.phone || '').replace(/\s/g, '').replace('.0', '');
