@@ -946,6 +946,45 @@ textarea.form-input {
 .text-sm { font-size: 13px; }
 .hidden { display: none !important; }
 
+/* ── Weigh Round ─────────────────────────────────────────── */
+.weigh-round {
+  background: var(--white);
+  border: 1.5px solid var(--grey-200);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  position: relative;
+}
+
+.weigh-round-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.weigh-round-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--navy);
+  background: var(--gold-muted);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.weigh-round-remove {
+  background: none;
+  border: none;
+  color: var(--grey-300);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 0 4px;
+}
+
+.weigh-round .weight-grid {
+  margin-bottom: 0;
+}
+
 /* ── Assign Time Cards ───────────────────────────────────── */
 .assign-card {
   background: var(--white);
@@ -1206,27 +1245,18 @@ textarea.form-input {
 
       <div class="section-divider"><span>Weights</span></div>
 
-      <div class="weight-grid">
-        <div class="weight-card">
-          <div class="weight-card-label">Paper / Kitab<span class="rate">$5.50/kg</span></div>
-          <input type="number" id="w-paper" inputmode="decimal" step="0.05" min="0" placeholder="0.00" oninput="calcWeights()">
-        </div>
-        <div class="weight-card">
-          <div class="weight-card-label">Frame<span class="rate">$7.00/kg</span></div>
-          <input type="number" id="w-frame" inputmode="decimal" step="0.05" min="0" placeholder="0.00" oninput="calcWeights()">
-        </div>
-        <div class="weight-card">
-          <div class="weight-card-label">Other<span class="rate">$7.00/kg</span></div>
-          <input type="number" id="w-other" inputmode="decimal" step="0.05" min="0" placeholder="0.00" oninput="calcWeights()">
-        </div>
-        <div class="weight-card tare">
-          <div class="weight-card-label">Box Tare (-)<span class="rate">Subtract</span></div>
-          <input type="number" id="w-tare" inputmode="decimal" step="0.05" min="0" placeholder="0.00" oninput="calcWeights()">
-        </div>
-      </div>
+      <div id="weigh-rounds"></div>
+
+      <button type="button" onclick="addWeighRound()" style="width:100%;padding:10px;background:var(--grey-100);border:1.5px dashed var(--grey-300);border-radius:var(--radius-md);color:var(--grey-500);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Another Weighing Round
+      </button>
 
       <div class="net-weight-bar">
-        <span class="label">Net Weight</span>
+        <div>
+          <span class="label">Total Weight</span>
+          <div style="font-size:11px;color:var(--grey-400);margin-top:2px;" id="weight-breakdown-summary"></div>
+        </div>
         <span class="value" id="net-weight-display">0.00 kg</span>
       </div>
 
@@ -2094,11 +2124,16 @@ function startCollection(bookingId) {
   document.getElementById('collect-address').textContent = currentPickup.address;
 
   // Reset form
-  ['w-paper', 'w-frame', 'w-other', 'w-tare', 'c-tips', 'c-discount'].forEach(id => {
+  ['c-tips', 'c-discount'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('c-booking-fee').value = currentPickup.bookingFee || 20;
   document.getElementById('net-weight-display').textContent = '0.00 kg';
+  document.getElementById('weight-breakdown-summary').textContent = '';
+
+  // Reset weigh rounds to 1
+  weighRounds = [{ paper: 0, frame: 0, other: 0, tare: 0 }];
+  renderWeighRounds();
 
   setToggle('toggle-paid', currentPickup.bookingPaid || 'Yes');
   setToggle('toggle-payment', 'PayNow');
@@ -2109,13 +2144,98 @@ function startCollection(bookingId) {
   showPage('collect');
 }
 
+let weighRounds = [];
+
+function addWeighRound() {
+  const roundNum = weighRounds.length + 1;
+  weighRounds.push({ paper: 0, frame: 0, other: 0, tare: 0 });
+  renderWeighRounds();
+}
+
+function removeWeighRound(index) {
+  if (weighRounds.length <= 1) {
+    toast('Need at least one weighing round');
+    return;
+  }
+  weighRounds.splice(index, 1);
+  renderWeighRounds();
+  calcWeights();
+}
+
+function renderWeighRounds() {
+  const container = document.getElementById('weigh-rounds');
+  container.innerHTML = weighRounds.map((r, i) => `
+    <div class="weigh-round">
+      <div class="weigh-round-header">
+        <span class="weigh-round-title">Round ${i + 1}</span>
+        ${weighRounds.length > 1 ? `<button class="weigh-round-remove" onclick="removeWeighRound(${i})">&times;</button>` : ''}
+      </div>
+      <div class="weight-grid">
+        <div class="weight-card">
+          <div class="weight-card-label">Paper / Kitab<span class="rate">$5.50/kg</span></div>
+          <input type="number" id="wr-${i}-paper" inputmode="decimal" step="0.05" min="0" placeholder="0.00" value="${r.paper || ''}" oninput="calcWeights()">
+        </div>
+        <div class="weight-card">
+          <div class="weight-card-label">Frame<span class="rate">$7.00/kg</span></div>
+          <input type="number" id="wr-${i}-frame" inputmode="decimal" step="0.05" min="0" placeholder="0.00" value="${r.frame || ''}" oninput="calcWeights()">
+        </div>
+        <div class="weight-card">
+          <div class="weight-card-label">Other<span class="rate">$7.00/kg</span></div>
+          <input type="number" id="wr-${i}-other" inputmode="decimal" step="0.05" min="0" placeholder="0.00" value="${r.other || ''}" oninput="calcWeights()">
+        </div>
+        <div class="weight-card tare">
+          <div class="weight-card-label">Box Tare (-)<span class="rate">Subtract</span></div>
+          <input type="number" id="wr-${i}-tare" inputmode="decimal" step="0.05" min="0" placeholder="0.00" value="${r.tare || ''}" oninput="calcWeights()">
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
 function calcWeights() {
-  const paper = parseFloat(document.getElementById('w-paper').value) || 0;
-  const frame = parseFloat(document.getElementById('w-frame').value) || 0;
-  const other = parseFloat(document.getElementById('w-other').value) || 0;
-  const tare = parseFloat(document.getElementById('w-tare').value) || 0;
-  const net = Math.max(0, paper + frame + other - tare);
+  let totalPaper = 0, totalFrame = 0, totalOther = 0, totalTare = 0;
+
+  weighRounds.forEach((r, i) => {
+    const paper = parseFloat(document.getElementById('wr-' + i + '-paper')?.value) || 0;
+    const frame = parseFloat(document.getElementById('wr-' + i + '-frame')?.value) || 0;
+    const other = parseFloat(document.getElementById('wr-' + i + '-other')?.value) || 0;
+    const tare = parseFloat(document.getElementById('wr-' + i + '-tare')?.value) || 0;
+
+    // Save back to array
+    weighRounds[i] = { paper, frame, other, tare };
+
+    totalPaper += paper;
+    totalFrame += frame;
+    totalOther += other;
+    totalTare += tare;
+  });
+
+  const net = Math.max(0, totalPaper + totalFrame + totalOther - totalTare);
   document.getElementById('net-weight-display').textContent = net.toFixed(2) + ' kg';
+
+  // Show breakdown summary if multiple rounds
+  const summary = document.getElementById('weight-breakdown-summary');
+  if (weighRounds.length > 1) {
+    let parts = [];
+    if (totalPaper > 0) parts.push('Paper: ' + totalPaper.toFixed(2));
+    if (totalFrame > 0) parts.push('Frame: ' + totalFrame.toFixed(2));
+    if (totalOther > 0) parts.push('Other: ' + totalOther.toFixed(2));
+    if (totalTare > 0) parts.push('Tare: -' + totalTare.toFixed(2));
+    summary.textContent = weighRounds.length + ' rounds | ' + parts.join(' | ');
+  } else {
+    summary.textContent = '';
+  }
+}
+
+function getTotalWeights() {
+  let totalPaper = 0, totalFrame = 0, totalOther = 0, totalTare = 0;
+  weighRounds.forEach(r => {
+    totalPaper += r.paper || 0;
+    totalFrame += r.frame || 0;
+    totalOther += r.other || 0;
+    totalTare += r.tare || 0;
+  });
+  return { paper: totalPaper, frame: totalFrame, other: totalOther, tare: totalTare };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2169,10 +2289,13 @@ function removePhoto(index) {
    RECEIPT GENERATION
    ══════════════════════════════════════════════════════════════ */
 function generateReceipt() {
-  const paper = parseFloat(document.getElementById('w-paper').value) || 0;
-  const frame = parseFloat(document.getElementById('w-frame').value) || 0;
-  const other = parseFloat(document.getElementById('w-other').value) || 0;
-  const tare = parseFloat(document.getElementById('w-tare').value) || 0;
+  // Get totals from all weighing rounds
+  calcWeights(); // ensure latest values saved
+  const totals = getTotalWeights();
+  const paper = totals.paper;
+  const frame = totals.frame;
+  const other = totals.other;
+  const tare = totals.tare;
   const bookingFee = parseFloat(document.getElementById('c-booking-fee').value) || 0;
   const tips = parseFloat(document.getElementById('c-tips').value) || 0;
   const discount = parseFloat(document.getElementById('c-discount').value) || 0;
