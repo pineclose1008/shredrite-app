@@ -1281,7 +1281,7 @@ textarea.form-input {
 
       <div id="receipt-capture">
         <div class="receipt-header">
-          <img class="receipt-logo" id="receipt-logo" src="" alt="ShredRite">
+          <img class="receipt-logo" id="receipt-logo" src="logo.png" alt="ShredRite" crossorigin="anonymous">
           <div class="receipt-tagline">Islamic Material Disposal</div>
         </div>
         <div class="receipt-body">
@@ -1427,6 +1427,22 @@ textarea.form-input {
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- WhatsApp Reschedule Request Modal -->
+<div class="modal-overlay hidden" id="wa-reschedule-modal" onclick="if(event.target===this)closeWAReschedule()">
+  <div class="modal">
+    <h3>WhatsApp to Reschedule</h3>
+    <p class="text-sm text-grey mb-8" id="wa-rs-customer" style="margin-bottom:12px;"></p>
+    <div class="form-group">
+      <label class="form-label">Propose New Date</label>
+      <input type="date" class="form-input" id="wa-rs-date">
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeWAReschedule()">Cancel</button>
+      <button class="btn-whatsapp" onclick="sendRescheduleWA()" style="flex:1;margin:0;border-radius:var(--radius-sm);padding:12px;">Send WhatsApp</button>
+    </div>
+  </div>
+</div>
 
 <!-- Reschedule Modal -->
 <div class="modal-overlay hidden" id="reschedule-modal" onclick="if(event.target===this)closeReschedule()">
@@ -1719,14 +1735,35 @@ function sendAllConfirmations() {
 }
 
 /* ── Request Reschedule via WhatsApp ─────────────────────── */
-function requestRescheduleWA(bookingId) {
+let waRescheduleId = null;
+
+function openRescheduleWA(bookingId) {
   const bookings = getBookings();
   const b = bookings.find(x => x.id === bookingId);
   if (!b) return;
 
-  // Ask for the proposed new date
-  const newDate = prompt('What date do you want to propose? (e.g. 2026-03-28)');
-  if (!newDate) return;
+  waRescheduleId = bookingId;
+  document.getElementById('wa-rs-customer').textContent = b.name + ' (currently ' + b.date + ')';
+  document.getElementById('wa-rs-date').value = '';
+  document.getElementById('wa-reschedule-modal').classList.remove('hidden');
+}
+
+function closeWAReschedule() {
+  document.getElementById('wa-reschedule-modal').classList.add('hidden');
+  waRescheduleId = null;
+}
+
+function sendRescheduleWA() {
+  if (!waRescheduleId) return;
+  const bookings = getBookings();
+  const b = bookings.find(x => x.id === waRescheduleId);
+  if (!b) return;
+
+  const newDate = document.getElementById('wa-rs-date').value;
+  if (!newDate) {
+    toast('Please select a date');
+    return;
+  }
 
   const origDateObj = new Date(b.date + 'T00:00:00');
   const origDateStr = origDateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -1750,6 +1787,7 @@ function requestRescheduleWA(bookingId) {
     : `https://wa.me/?text=${encodeURIComponent(msg)}`;
 
   window.open(url, '_blank');
+  closeWAReschedule();
 }
 
 function sendConfirmation(list, index) {
@@ -2035,7 +2073,7 @@ function renderPickups() {
         </div>
         ${!isCompleted ? `<div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;">
           <button class="badge" style="cursor:pointer;background:var(--grey-100);color:var(--grey-600);border:none;padding:5px 10px;" onclick="event.stopPropagation();rescheduleBooking('${b.id}')">Reschedule</button>
-          <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:5px 10px;" onclick="event.stopPropagation();requestRescheduleWA('${b.id}')">Ask to Move</button>
+          <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:5px 10px;" onclick="event.stopPropagation();openRescheduleWA('${b.id}')">WhatsApp to Reschedule</button>
         </div>` : ''}
       </div>`;
   });
@@ -2284,6 +2322,7 @@ async function shareReceiptImage() {
       if (navigator.canShare(shareData)) {
         await navigator.share(shareData);
         toast('Receipt shared');
+        promptSaveToSheet();
         return;
       }
     }
@@ -2308,10 +2347,23 @@ async function shareReceiptImage() {
         window.open(`https://wa.me/${phone}`, '_blank');
       }, 1000);
     }
+
+    // Prompt to save after a short delay
+    setTimeout(() => promptSaveToSheet(), 2500);
   } catch (err) {
     console.error('Receipt capture error:', err);
     toast('Failed to generate image');
   }
+}
+
+function promptSaveToSheet() {
+  if (!currentPickup || !currentPickup._collection) return;
+
+  setTimeout(() => {
+    if (confirm('Update Google Sheet with this collection data?')) {
+      saveCollection();
+    }
+  }, 500);
 }
 
 function savePDFCopy(canvas, fileName) {
@@ -2604,7 +2656,7 @@ function toast(msg) {
 (function init() {
   // Load logo - use relative path (works when opened from project folder)
   const logoEl = document.getElementById('receipt-logo');
-  logoEl.src = 'shredrite-logo.png';
+  logoEl.src = 'logo.png';
   logoEl.onerror = function() {
     // Fallback: show text if logo file not found
     this.style.display = 'none';
