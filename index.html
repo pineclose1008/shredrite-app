@@ -1326,9 +1326,11 @@ textarea.form-input {
           <p class="thank-you">Thank you for choosing ShredRite</p>
           <p>Shariah-compliant disposal of Islamic materials</p>
         </div>
+        <div id="r-photos-container" class="hidden" style="padding:16px 24px 20px;">
+          <p style="font-size:12px;font-weight:600;color:var(--grey-500);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">Collection Photos</p>
+          <div class="receipt-photos" id="r-photos"></div>
+        </div>
       </div>
-
-      <div class="receipt-photos" id="r-photos"></div>
 
       <div class="mt-16">
         <button class="btn-whatsapp" onclick="shareReceiptImage()">
@@ -2223,9 +2225,18 @@ function generateReceipt() {
 
   // Photos
   const photoContainer = document.getElementById('r-photos');
-  photoContainer.innerHTML = collectionPhotos.map(src =>
-    `<img src="${src}" alt="Collection photo">`
-  ).join('');
+  const photosWrapper = document.getElementById('r-photos-container');
+  if (collectionPhotos.length > 0) {
+    photosWrapper.classList.remove('hidden');
+    photoContainer.innerHTML = collectionPhotos.map((src, i) =>
+      `<div style="position:relative;border-radius:var(--radius-sm);overflow:hidden;">
+        <img src="${src}" alt="Photo ${i+1}">
+        <div style="position:absolute;bottom:4px;left:4px;background:var(--navy);color:var(--gold);font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;">${i+1}</div>
+      </div>`
+    ).join('');
+  } else {
+    photosWrapper.classList.add('hidden');
+  }
 
   // Store data for saving
   currentPickup._collection = {
