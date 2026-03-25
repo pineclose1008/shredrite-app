@@ -1505,6 +1505,7 @@ function renderPickups() {
           ${b.bookingPaid === 'Yes'
             ? '<span class="badge badge-paid">Paid</span>'
             : '<span class="badge badge-unpaid">Unpaid</span>'}
+          ${b.rescheduled ? '<span class="badge" style="background:#FFF3E0;color:#E65100;">Rescheduled</span>' : ''}
           ${isCompleted ? '<span class="badge badge-completed">Completed</span>' : ''}
           ${b.phone ? `<span class="text-sm text-grey">${esc(b.phone)}</span>` : ''}
         </div>
