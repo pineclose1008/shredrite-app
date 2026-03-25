@@ -2005,48 +2005,13 @@ function toast(msg) {
   // Set default date on booking form
   document.getElementById('b-date').value = now.toISOString().split('T')[0];
 
-  // Seed demo data if empty
-  if (getBookings().length === 0) {
-    const today = now.toISOString().split('T')[0];
-    const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
-    saveBookings([
-      {
-        id: 'demo_1',
-        name: 'Normalah Dollah',
-        phone: '9769 8927',
-        address: 'Jurong East Street 21\nBlock 211 Unit 10-313\nSingapore 600211',
-        email: 'normalahdollah@gmail.com',
-        date: today,
-        time: '09:00',
-        bookingFee: 20,
-        bookingPaid: 'Yes',
-        createdAt: now.toISOString()
-      },
-      {
-        id: 'demo_2',
-        name: 'Hamida Marican',
-        phone: '9776 2959',
-        address: 'Block 430, #06-589\nChoa Chu Kang Avenue 4\nSingapore 680430',
-        email: 'hamidamarican@hotmail.com',
-        date: today,
-        time: '11:00',
-        bookingFee: 20,
-        bookingPaid: 'Yes',
-        createdAt: now.toISOString()
-      },
-      {
-        id: 'demo_3',
-        name: 'Noraisha Ahmad',
-        phone: '9025 5116',
-        address: '649 Punggol Central\n14-388\nSingapore 820649',
-        email: 'ahmadnoraisha@gmail.com',
-        date: tomorrow,
-        time: '13:00',
-        bookingFee: 20,
-        bookingPaid: 'No',
-        createdAt: now.toISOString()
-      }
-    ]);
+  // Clear any old demo data on first load when connected to Google Sheet
+  if (SYNC_ENABLED) {
+    const existing = getBookings();
+    const hasDemo = existing.some(b => b.id && b.id.startsWith('demo_'));
+    if (hasDemo) {
+      saveBookings(existing.filter(b => !b.id.startsWith('demo_')));
+    }
   }
 
   renderPickups();
