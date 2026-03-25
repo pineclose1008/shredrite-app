@@ -1024,13 +1024,20 @@ textarea.form-input {
     <!-- ═══ HOME PAGE ═══ -->
     <div class="page active" id="page-home">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <h2 class="section-title" style="margin-bottom:0;">Today's Pickups</h2>
+        <h2 class="section-title" style="margin-bottom:0;" id="home-title">Today's Pickups</h2>
         <button onclick="syncFromSheet()" style="background:none;border:1px solid var(--grey-200);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;font-weight:600;color:var(--grey-500);cursor:pointer;display:flex;align-items:center;gap:4px;" id="sync-btn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
           Sync
         </button>
       </div>
-      <p class="text-sm text-grey mb-8" id="sync-status" style="margin-top:4px;"></p>
+      <div class="status-filter-bar" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;">
+        <div class="toggle-group" id="toggle-status-filter" style="margin-bottom:10px;min-width:fit-content;">
+          <button class="toggle-btn active" data-value="upcoming" onclick="setStatusFilter('upcoming')">Upcoming</button>
+          <button class="toggle-btn" data-value="completed" onclick="setStatusFilter('completed')">Completed</button>
+          <button class="toggle-btn" data-value="all" onclick="setStatusFilter('all')">All</button>
+        </div>
+      </div>
+      <p class="text-sm text-grey mb-8" id="sync-status" style="margin-top:0;"></p>
       <div id="pickup-list"></div>
     </div>
 
@@ -1283,6 +1290,7 @@ textarea.form-input {
 const RATES = { paper: 5.50, frame: 7.00, other: 7.00 };
 let currentPickup = null;
 let collectionPhotos = [];
+let currentFilter = 'upcoming';
 
 // ── Google Apps Script URL ──────────────────────────────────
 // REPLACE THIS with your deployed Apps Script Web App URL
@@ -1307,24 +1315,49 @@ function saveHistoryData(data) {
   localStorage.setItem('sr_history', JSON.stringify(data));
 }
 
+/* ── Status Filter ────────────────────────────────────────── */
+function setStatusFilter(filter) {
+  currentFilter = filter;
+
+  // Update toggle UI
+  const group = document.getElementById('toggle-status-filter');
+  group.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === filter);
+  });
+
+  // Update title
+  const titleEl = document.getElementById('home-title');
+  if (filter === 'upcoming') titleEl.textContent = "Today's Pickups";
+  else if (filter === 'completed') titleEl.textContent = 'Completed';
+  else titleEl.textContent = 'All Bookings';
+
+  // Re-sync from sheet with the new filter
+  syncFromSheet(filter);
+}
+
 /* ── Sync: Pull bookings from Google Sheet ───────────────── */
-async function syncFromSheet() {
+async function syncFromSheet(status) {
   if (!SYNC_ENABLED) return;
+
+  status = status || currentFilter || 'upcoming';
 
   try {
     document.getElementById('topbar-date').textContent = 'Syncing...';
-    const resp = await fetch(APPS_SCRIPT_URL + '?action=getBookings');
+    const resp = await fetch(APPS_SCRIPT_URL + '?action=getBookings&status=' + encodeURIComponent(status));
     const data = await resp.json();
 
-    if (data.bookings && data.bookings.length > 0) {
-      // Merge: keep local-only bookings, update/add sheet bookings
-      const localBookings = getBookings();
-      const localOnlyBookings = localBookings.filter(b => !b.id.startsWith('row_'));
-      const sheetBookings = data.bookings;
-
-      // Combine: sheet bookings + local-only bookings
-      const merged = [...sheetBookings, ...localOnlyBookings];
-      saveBookings(merged);
+    if (data.bookings) {
+      if (status === 'upcoming') {
+        // Merge: keep local-only bookings, update/add sheet bookings
+        const localBookings = getBookings();
+        const localOnlyBookings = localBookings.filter(b => !b.id.startsWith('row_'));
+        const sheetBookings = data.bookings;
+        const merged = [...sheetBookings, ...localOnlyBookings];
+        saveBookings(merged);
+      } else {
+        // For completed/all views, store separately so we don't overwrite upcoming bookings
+        localStorage.setItem('sr_filtered_bookings', JSON.stringify(data.bookings));
+      }
     }
 
     const now = new Date();
@@ -1340,6 +1373,8 @@ async function syncFromSheet() {
     document.getElementById('topbar-date').textContent = now.toLocaleDateString('en-SG', {
       weekday: 'short', day: 'numeric', month: 'short'
     });
+    // Still render from local data
+    renderPickups();
   }
 }
 
@@ -1450,24 +1485,36 @@ function showPage(name) {
    ══════════════════════════════════════════════════════════════ */
 function renderPickups() {
   const list = document.getElementById('pickup-list');
-  const bookings = getBookings();
   const today = new Date().toISOString().split('T')[0];
   const history = getHistory();
   const completedIds = new Set(history.map(h => h.bookingId));
 
-  // Show today's + upcoming (within 3 days)
-  const upcoming = bookings.filter(b => {
-    const d = new Date(b.date);
-    const now = new Date();
-    now.setHours(0,0,0,0);
-    const diff = (d - now) / (1000*60*60*24);
-    return diff >= 0 && diff <= 3;
-  }).sort((a, b) => {
-    if (a.date !== b.date) return a.date.localeCompare(b.date);
-    return (a.time || '').localeCompare(b.time || '');
-  });
+  let displayBookings;
 
-  if (upcoming.length === 0) {
+  if (currentFilter === 'upcoming') {
+    // Default view: show upcoming from local storage
+    const bookings = getBookings();
+    displayBookings = bookings.filter(b => {
+      const d = new Date(b.date);
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      const diff = (d - now) / (1000*60*60*24);
+      return diff >= 0 && diff <= 3;
+    }).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.time || '').localeCompare(b.time || '');
+    });
+  } else {
+    // Completed or All: use filtered bookings from sheet sync
+    displayBookings = JSON.parse(localStorage.getItem('sr_filtered_bookings') || '[]');
+  }
+
+  if (displayBookings.length === 0) {
+    const emptyMsg = currentFilter === 'upcoming'
+      ? 'No upcoming pickups.<br>Add bookings via the + button below.'
+      : currentFilter === 'completed'
+      ? 'No completed collections yet.'
+      : 'No bookings found.';
     list.innerHTML = `
       <div class="empty-state">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -1476,7 +1523,7 @@ function renderPickups() {
           <line x1="8" y1="2" x2="8" y2="6"/>
           <line x1="3" y1="10" x2="21" y2="10"/>
         </svg>
-        <p>No upcoming pickups.<br>Add bookings via the + button below.</p>
+        <p>${emptyMsg}</p>
       </div>`;
     return;
   }
@@ -1484,8 +1531,8 @@ function renderPickups() {
   let currentDate = '';
   let html = '';
 
-  upcoming.forEach(b => {
-    const isCompleted = completedIds.has(b.id);
+  displayBookings.forEach(b => {
+    const isCompleted = completedIds.has(b.id) || b.status === 'Completed';
     const dateLabel = b.date === today ? 'Today' :
       new Date(b.date + 'T00:00:00').toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
 
@@ -1508,6 +1555,7 @@ function renderPickups() {
           ${b.rescheduled ? '<span class="badge" style="background:#FFF3E0;color:#E65100;">Rescheduled</span>' : ''}
           ${isCompleted ? '<span class="badge badge-completed">Completed</span>' : ''}
           ${b.phone ? `<span class="text-sm text-grey">${esc(b.phone)}</span>` : ''}
+          ${isCompleted && b.totalCollected ? `<span class="text-sm text-gold" style="margin-left:auto;font-weight:600;">$${Number(b.totalCollected).toFixed(2)}</span>` : ''}
         </div>
         ${!isCompleted ? `<div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;">
           <button class="badge" style="cursor:pointer;background:var(--grey-100);color:var(--grey-600);border:none;padding:5px 10px;" onclick="event.stopPropagation();rescheduleBooking('${b.id}')">Reschedule</button>
