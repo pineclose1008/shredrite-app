@@ -1034,6 +1034,26 @@ textarea.form-input {
   flex-shrink: 0;
 }
 
+/* ── On My Way time buttons ───────────────────────────────── */
+.omw-time-btn {
+  padding: 10px 16px;
+  background: var(--grey-50);
+  border: 1.5px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--navy);
+  cursor: pointer;
+  flex: 1;
+  min-width: 70px;
+  text-align: center;
+}
+
+.omw-time-btn:active {
+  background: var(--gold-muted);
+  border-color: var(--gold);
+}
+
 .wc-add {
   display: block;
   width: 100%;
@@ -1547,6 +1567,31 @@ textarea.form-input {
 
 <div class="toast" id="toast"></div>
 
+<!-- On My Way Modal -->
+<div class="modal-overlay hidden" id="omw-modal" onclick="if(event.target===this)closeOnMyWay()">
+  <div class="modal">
+    <h3>On My Way</h3>
+    <p class="text-sm text-grey" id="omw-customer" style="margin-bottom:16px;"></p>
+    <label class="form-label">How many minutes away?</label>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+      <button class="omw-time-btn" onclick="selectOMW(5)">5 min</button>
+      <button class="omw-time-btn" onclick="selectOMW(10)">10 min</button>
+      <button class="omw-time-btn" onclick="selectOMW(15)">15 min</button>
+      <button class="omw-time-btn" onclick="selectOMW(20)">20 min</button>
+      <button class="omw-time-btn" onclick="selectOMW(30)">30 min</button>
+      <button class="omw-time-btn" onclick="selectOMW(45)">45 min</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <input type="number" class="form-input" id="omw-custom" inputmode="numeric" placeholder="Or enter minutes" min="1" style="flex:1;">
+      <button class="btn-primary" onclick="selectOMW(parseInt(document.getElementById('omw-custom').value))" style="padding:12px 16px;white-space:nowrap;">Send</button>
+    </div>
+    <button class="btn-secondary mt-12" onclick="checkGoogleMapsETA()" style="font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 10-16 0c0 3 2.7 7 8 11.7z"/></svg>
+      Check ETA on Google Maps first
+    </button>
+  </div>
+</div>
+
 <!-- WhatsApp Reschedule Request Modal -->
 <div class="modal-overlay hidden" id="wa-reschedule-modal" onclick="if(event.target===this)closeWAReschedule()">
   <div class="modal">
@@ -1909,6 +1954,66 @@ function sendRescheduleWA() {
   closeWAReschedule();
 }
 
+/* ── On My Way WhatsApp ───────────────────────────────────── */
+let omwBookingId = null;
+
+function openOnMyWay(bookingId) {
+  const bookings = getBookings();
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return;
+
+  omwBookingId = bookingId;
+  document.getElementById('omw-customer').textContent = b.name + ' - ' + b.address.replace(/\n/g, ', ').split(',')[0];
+  document.getElementById('omw-custom').value = '';
+  document.getElementById('omw-modal').classList.remove('hidden');
+}
+
+function closeOnMyWay() {
+  document.getElementById('omw-modal').classList.add('hidden');
+  omwBookingId = null;
+}
+
+function checkGoogleMapsETA() {
+  if (!omwBookingId) return;
+  const bookings = getBookings();
+  const b = bookings.find(x => x.id === omwBookingId);
+  if (!b) return;
+
+  let addr = b.address.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!addr.toLowerCase().includes('singapore')) addr += ' Singapore';
+
+  // Open Google Maps directions from current location
+  const url = 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(addr) + '&travelmode=driving';
+  window.open(url, '_blank');
+}
+
+function selectOMW(minutes) {
+  if (!minutes || minutes < 1) {
+    toast('Please enter a valid time');
+    return;
+  }
+
+  const bookings = getBookings();
+  const b = bookings.find(x => x.id === omwBookingId);
+  if (!b) return;
+
+  let msg = `Salam ${b.name}, ni Hambali from ShredRite.\n\n`;
+  msg += `I'm on my way to your place now. Will be there in about *${minutes} minutes*.\n\n`;
+  msg += `Please have your items ready for collection. Thank you!`;
+
+  let phone = (b.phone || '').replace(/\s/g, '').replace('.0', '');
+  if (phone && !phone.startsWith('+') && !phone.startsWith('65')) {
+    phone = '65' + phone;
+  }
+
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+  window.open(url, '_blank');
+  closeOnMyWay();
+}
+
 function sendConfirmation(list, index) {
   if (index >= list.length) {
     toast('All confirmations sent');
@@ -2190,9 +2295,10 @@ function renderPickups() {
           ${b.phone ? `<span class="text-sm text-grey">${esc(b.phone)}</span>` : ''}
           ${isCompleted && b.totalCollected ? `<span class="text-sm text-gold" style="margin-left:auto;font-weight:600;">$${Number(b.totalCollected).toFixed(2)}</span>` : ''}
         </div>
-        ${!isCompleted ? `<div style="display:flex;gap:8px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;">
+        ${!isCompleted ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;">
           <button class="badge" style="cursor:pointer;background:var(--grey-100);color:var(--grey-600);border:none;padding:5px 10px;" onclick="event.stopPropagation();rescheduleBooking('${b.id}')">Reschedule</button>
           <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:5px 10px;" onclick="event.stopPropagation();openRescheduleWA('${b.id}')">WhatsApp to Reschedule</button>
+          <button class="badge" style="cursor:pointer;background:var(--navy);color:var(--gold);border:none;padding:5px 10px;" onclick="event.stopPropagation();openOnMyWay('${b.id}')">On My Way</button>
         </div>` : ''}
       </div>`;
   });
