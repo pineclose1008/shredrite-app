@@ -1954,6 +1954,30 @@ function sendRescheduleWA() {
   closeWAReschedule();
 }
 
+/* ── Reminder WhatsApp ────────────────────────────────────── */
+function sendReminder(bookingId) {
+  const bookings = getBookings();
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return;
+
+  const timeStr = b.time ? formatTime(b.time) : 'to be confirmed';
+
+  let msg = `Salam ${b.name}, ni Hambali from ShredRite.\n\n`;
+  msg += `Just a reminder that I will be coming tomorrow at around *${timeStr}* to pick up your items for disposal.\n\n`;
+  msg += `Please have your items ready for collection. Thank you!`;
+
+  let phone = (b.phone || '').replace(/\s/g, '').replace('.0', '');
+  if (phone && !phone.startsWith('+') && !phone.startsWith('65')) {
+    phone = '65' + phone;
+  }
+
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+  window.open(url, '_blank');
+}
+
 /* ── On My Way WhatsApp ───────────────────────────────────── */
 let omwBookingId = null;
 
@@ -2298,6 +2322,7 @@ function renderPickups() {
         ${!isCompleted ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;">
           <button class="badge" style="cursor:pointer;background:var(--grey-100);color:var(--grey-600);border:none;padding:5px 10px;" onclick="event.stopPropagation();rescheduleBooking('${b.id}')">Reschedule</button>
           <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:5px 10px;" onclick="event.stopPropagation();openRescheduleWA('${b.id}')">WhatsApp to Reschedule</button>
+          <button class="badge" style="cursor:pointer;background:#FFF3E0;color:#E65100;border:none;padding:5px 10px;" onclick="event.stopPropagation();sendReminder('${b.id}')">Reminder</button>
           <button class="badge" style="cursor:pointer;background:var(--navy);color:var(--gold);border:none;padding:5px 10px;" onclick="event.stopPropagation();openOnMyWay('${b.id}')">On My Way</button>
         </div>` : ''}
       </div>`;
