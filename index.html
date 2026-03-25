@@ -928,6 +928,88 @@ textarea.form-input {
 .text-sm { font-size: 13px; }
 .hidden { display: none !important; }
 
+/* ── Assign Time Cards ───────────────────────────────────── */
+.assign-card {
+  background: var(--white);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--grey-100);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.assign-card .order-num {
+  width: 28px; height: 28px;
+  background: var(--navy);
+  color: var(--gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.assign-card .assign-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.assign-card .assign-name {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.assign-card .assign-address {
+  font-size: 12px;
+  color: var(--grey-400);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assign-card .assign-time-input {
+  width: 80px;
+  padding: 8px 6px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1.5px solid var(--grey-200);
+  border-radius: var(--radius-sm);
+  color: var(--navy);
+  flex-shrink: 0;
+}
+
+.assign-card .assign-time-input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-muted);
+}
+
+.assign-card .move-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.assign-card .move-btn {
+  background: none;
+  border: 1px solid var(--grey-200);
+  border-radius: 4px;
+  width: 24px; height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--grey-400);
+  font-size: 10px;
+}
+
 /* ── Modal ───────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
@@ -1039,12 +1121,41 @@ textarea.form-input {
       </div>
       <p class="text-sm text-grey mb-8" id="sync-status" style="margin-top:0;"></p>
       <div id="route-btn-container" class="hidden" style="margin-bottom:12px;">
-        <button class="btn-primary" onclick="planRoute()" style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--navy);">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 10-16 0c0 3 2.7 7 8 11.7z"/></svg>
-          Plan Route in Google Maps
-        </button>
+        <div class="btn-row">
+          <button class="btn-primary" onclick="planRoute()" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 10-16 0c0 3 2.7 7 8 11.7z"/></svg>
+            Plan Route
+          </button>
+          <button class="btn-primary gold" onclick="openAssignTimes()" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Assign Times
+          </button>
+        </div>
       </div>
       <div id="pickup-list"></div>
+    </div>
+
+    <!-- ═══ ASSIGN TIMES PAGE ═══ -->
+    <div class="page" id="page-assign">
+      <button class="back-btn" onclick="showPage('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg>
+        Back
+      </button>
+
+      <h2 class="section-title">Assign Collection Times</h2>
+      <p class="section-subtitle">Set times based on your route order. Drag to reorder.</p>
+
+      <div id="assign-list"></div>
+
+      <div class="mt-20">
+        <button class="btn-primary gold" onclick="saveAssignedTimes()">
+          Save Times to Google Sheet
+        </button>
+        <button class="btn-primary mt-8" onclick="sendAllConfirmations()" id="btn-send-confirmations" style="background:#25D366;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          Send All Confirmations via WhatsApp
+        </button>
+      </div>
     </div>
 
     <!-- ═══ COLLECTION FORM ═══ -->
@@ -1387,6 +1498,197 @@ function updateRouteButton() {
     container.classList.remove('hidden');
   } else {
     container.classList.add('hidden');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ASSIGN TIMES
+   ══════════════════════════════════════════════════════════════ */
+let assignList = []; // ordered list of bookings for time assignment
+
+function openAssignTimes() {
+  const bookings = getBookings();
+  const history = getHistory();
+  const completedIds = new Set(history.map(h => h.bookingId));
+  const today = new Date().toISOString().split('T')[0];
+
+  // Get today's uncompleted pickups
+  assignList = bookings.filter(b => {
+    if (completedIds.has(b.id)) return false;
+    if (b.status === 'Completed') return false;
+    return b.date === today;
+  }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  if (assignList.length === 0) {
+    toast('No pickups today to assign times');
+    return;
+  }
+
+  renderAssignList();
+  showPage('assign');
+}
+
+function renderAssignList() {
+  const container = document.getElementById('assign-list');
+  container.innerHTML = assignList.map((b, i) => {
+    const shortAddr = b.address.replace(/\n/g, ', ').replace(/\s+/g, ' ').trim();
+    return `
+    <div class="assign-card" data-index="${i}">
+      <div class="move-btns">
+        <button class="move-btn" onclick="moveAssign(${i}, -1)" ${i === 0 ? 'disabled style="opacity:0.3"' : ''}>&#9650;</button>
+        <button class="move-btn" onclick="moveAssign(${i}, 1)" ${i === assignList.length - 1 ? 'disabled style="opacity:0.3"' : ''}>&#9660;</button>
+      </div>
+      <div class="order-num">${i + 1}</div>
+      <div class="assign-info">
+        <div class="assign-name">${esc(b.name)}</div>
+        <div class="assign-address">${esc(shortAddr)}</div>
+      </div>
+      <input type="time" class="assign-time-input" id="assign-time-${i}" value="${b.time || ''}">
+    </div>`;
+  }).join('');
+}
+
+function moveAssign(index, direction) {
+  const newIndex = index + direction;
+  if (newIndex < 0 || newIndex >= assignList.length) return;
+
+  // Swap items
+  const temp = assignList[index];
+  assignList[index] = assignList[newIndex];
+  assignList[newIndex] = temp;
+
+  // Preserve entered times before re-render
+  const times = [];
+  assignList.forEach((b, i) => {
+    const input = document.getElementById('assign-time-' + (i === index ? newIndex : i === newIndex ? index : i));
+    if (input) times.push(input.value);
+    else times.push(b.time || '');
+  });
+
+  // Swap times too
+  const tempTime = times[index];
+  times[index] = times[newIndex];
+  times[newIndex] = tempTime;
+
+  renderAssignList();
+
+  // Restore times
+  times.forEach((t, i) => {
+    const input = document.getElementById('assign-time-' + i);
+    if (input) input.value = t;
+  });
+}
+
+function saveAssignedTimes() {
+  // Read times from inputs
+  const updates = [];
+  assignList.forEach((b, i) => {
+    const input = document.getElementById('assign-time-' + i);
+    const newTime = input ? input.value : '';
+    if (newTime) {
+      updates.push({ bookingId: b.id, row: b.row, time: newTime, name: b.name });
+    }
+  });
+
+  if (updates.length === 0) {
+    toast('No times entered');
+    return;
+  }
+
+  // Update local bookings
+  const bookings = getBookings();
+  updates.forEach(u => {
+    const idx = bookings.findIndex(b => b.id === u.bookingId);
+    if (idx !== -1) {
+      bookings[idx].time = u.time;
+    }
+  });
+  saveBookings(bookings);
+
+  // Sync each to Google Sheet (update rescheduled time)
+  if (SYNC_ENABLED) {
+    updates.forEach(u => {
+      if (u.row) {
+        fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'assignTime',
+            row: u.row,
+            time: u.time
+          })
+        }).catch(err => console.error('Assign time sync error:', err));
+      }
+    });
+  }
+
+  toast(updates.length + ' times saved');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SEND CONFIRMATIONS VIA WHATSAPP
+   ══════════════════════════════════════════════════════════════ */
+function sendAllConfirmations() {
+  // Read current times from inputs
+  const confirmations = [];
+  assignList.forEach((b, i) => {
+    const input = document.getElementById('assign-time-' + i);
+    const time = input ? input.value : b.time;
+    if (time) {
+      confirmations.push({ ...b, time: time });
+    }
+  });
+
+  if (confirmations.length === 0) {
+    toast('Assign times first');
+    return;
+  }
+
+  // Save times first
+  saveAssignedTimes();
+
+  // Open WhatsApp for the first confirmation, queue the rest
+  sendConfirmation(confirmations, 0);
+}
+
+function sendConfirmation(list, index) {
+  if (index >= list.length) {
+    toast('All confirmations sent');
+    return;
+  }
+
+  const b = list[index];
+  const dateObj = new Date(b.date + 'T00:00:00');
+  const dateStr = dateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' });
+  const timeStr = formatTime(b.time);
+
+  let msg = `Assalamualaikum ${b.name},\n\n`;
+  msg += `This is Hambali from ShredRite.\n\n`;
+  msg += `Your collection is confirmed for *${dateStr}*.\n`;
+  msg += `I will arrive at approximately *${timeStr}*.\n\n`;
+  msg += `Collection address:\n${b.address}\n\n`;
+  msg += `Please have your items ready for weighing. Payment is via PayNow or cash.\n\n`;
+  msg += `If you need to reschedule, please let me know.\n\n`;
+  msg += `JazakAllahu khairan.`;
+
+  let phone = (b.phone || '').replace(/\s/g, '').replace('.0', '');
+  if (phone && !phone.startsWith('+') && !phone.startsWith('65')) {
+    phone = '65' + phone;
+  }
+
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+  window.open(url, '_blank');
+
+  // Show a prompt to send the next one
+  if (index < list.length - 1) {
+    setTimeout(() => {
+      if (confirm(`Sent to ${b.name}. Send next to ${list[index + 1].name}?`)) {
+        sendConfirmation(list, index + 1);
+      }
+    }, 1500);
   }
 }
 
