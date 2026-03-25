@@ -1120,16 +1120,32 @@ textarea.form-input {
         </div>
       </div>
       <p class="text-sm text-grey mb-8" id="sync-status" style="margin-top:0;"></p>
-      <div id="route-btn-container" class="hidden" style="margin-bottom:12px;">
-        <div class="btn-row">
-          <button class="btn-primary" onclick="planRoute()" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 10-16 0c0 3 2.7 7 8 11.7z"/></svg>
-            Plan Route
+      <div id="route-section" style="margin-bottom:16px;">
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px;">
+          <div style="flex:1;">
+            <label class="form-label">Collection Date</label>
+            <input type="date" class="form-input" id="route-date" style="padding:10px 12px;">
+          </div>
+          <button class="btn-primary" onclick="loadDatePickups()" style="padding:10px 16px;font-size:13px;white-space:nowrap;">
+            Load
           </button>
-          <button class="btn-primary gold" onclick="openAssignTimes()" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Assign Times
-          </button>
+        </div>
+        <div id="route-summary" class="hidden" style="background:var(--white);border-radius:var(--radius-md);padding:14px 16px;border:1px solid var(--grey-100);box-shadow:var(--shadow-sm);margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-weight:600;font-size:15px;" id="route-summary-title"></span>
+            <span class="badge badge-paid" id="route-summary-count"></span>
+          </div>
+          <div id="route-summary-names" style="font-size:13px;color:var(--grey-500);line-height:1.6;"></div>
+          <div class="btn-row" style="margin-top:12px;">
+            <button class="btn-primary" onclick="planRouteForDate()" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 10-16 0c0 3 2.7 7 8 11.7z"/></svg>
+              Plan Route
+            </button>
+            <button class="btn-primary gold" onclick="openAssignTimesForDate()" style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Assign Times
+            </button>
+          </div>
         </div>
       </div>
       <div id="pickup-list"></div>
@@ -1436,32 +1452,53 @@ function saveHistoryData(data) {
    ROUTE PLANNING
    ══════════════════════════════════════════════════════════════ */
 const HOME_ADDRESS = '9 Pine Close Singapore 390009';
+let routeDatePickups = []; // pickups for the selected route date
 
-function planRoute() {
-  const bookings = getBookings();
-  const history = getHistory();
-  const completedIds = new Set(history.map(h => h.bookingId));
-  const today = new Date().toISOString().split('T')[0];
+function loadDatePickups() {
+  const dateInput = document.getElementById('route-date');
+  const selectedDate = dateInput.value;
 
-  // Get today's uncompleted pickups, sorted by time
-  const todayPickups = bookings.filter(b => {
-    if (completedIds.has(b.id)) return false;
-    if (b.status === 'Completed') return false;
-    return b.date === today;
-  }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-
-  if (todayPickups.length === 0) {
-    toast('No pickups to route today');
+  if (!selectedDate) {
+    toast('Please select a date');
     return;
   }
 
-  // Build Google Maps multi-stop URL
-  // Format: https://www.google.com/maps/dir/origin/stop1/stop2/.../destination
-  // Start and end at home
-  const stops = todayPickups.map(b => {
-    // Clean address: replace newlines with spaces, extract postal code if present
+  const bookings = getBookings();
+  const history = getHistory();
+  const completedIds = new Set(history.map(h => h.bookingId));
+
+  routeDatePickups = bookings.filter(b => {
+    if (completedIds.has(b.id)) return false;
+    if (b.status === 'Completed') return false;
+    return b.date === selectedDate;
+  }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  const summary = document.getElementById('route-summary');
+  if (routeDatePickups.length === 0) {
+    summary.classList.add('hidden');
+    toast('No pickups for this date');
+    return;
+  }
+
+  // Show summary
+  summary.classList.remove('hidden');
+  const dateObj = new Date(selectedDate + 'T00:00:00');
+  const dateLabel = dateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'short' });
+  document.getElementById('route-summary-title').textContent = dateLabel;
+  document.getElementById('route-summary-count').textContent = routeDatePickups.length + ' stops';
+  document.getElementById('route-summary-names').innerHTML = routeDatePickups.map((b, i) =>
+    `${i + 1}. ${esc(b.name)} <span style="color:var(--grey-300);">${b.time ? formatTime(b.time) : 'no time'}</span>`
+  ).join('<br>');
+}
+
+function planRouteForDate() {
+  if (routeDatePickups.length === 0) {
+    toast('Load a date first');
+    return;
+  }
+
+  const stops = routeDatePickups.map(b => {
     let addr = b.address.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-    // Ensure "Singapore" is in the address for Google Maps accuracy
     if (!addr.toLowerCase().includes('singapore')) {
       addr += ' Singapore';
     }
@@ -1470,34 +1507,29 @@ function planRoute() {
 
   const origin = encodeURIComponent(HOME_ADDRESS);
   const url = 'https://www.google.com/maps/dir/' + origin + '/' + stops.join('/') + '/' + origin;
-
   window.open(url, '_blank');
 }
 
-function updateRouteButton() {
-  const container = document.getElementById('route-btn-container');
-  if (!container) return;
-
-  if (currentFilter !== 'upcoming') {
-    container.classList.add('hidden');
+function openAssignTimesForDate() {
+  if (routeDatePickups.length === 0) {
+    toast('Load a date first');
     return;
   }
 
-  const bookings = getBookings();
-  const history = getHistory();
-  const completedIds = new Set(history.map(h => h.bookingId));
-  const today = new Date().toISOString().split('T')[0];
+  assignList = [...routeDatePickups];
+  renderAssignList();
+  showPage('assign');
+}
 
-  const todayPickups = bookings.filter(b => {
-    if (completedIds.has(b.id)) return false;
-    if (b.status === 'Completed') return false;
-    return b.date === today;
-  });
+function updateRouteButton() {
+  // Route section is always visible on upcoming tab
+  const section = document.getElementById('route-section');
+  if (!section) return;
 
-  if (todayPickups.length > 0) {
-    container.classList.remove('hidden');
+  if (currentFilter !== 'upcoming') {
+    section.classList.add('hidden');
   } else {
-    container.classList.add('hidden');
+    section.classList.remove('hidden');
   }
 }
 
@@ -1507,21 +1539,25 @@ function updateRouteButton() {
 let assignList = []; // ordered list of bookings for time assignment
 
 function openAssignTimes() {
-  const bookings = getBookings();
-  const history = getHistory();
-  const completedIds = new Set(history.map(h => h.bookingId));
-  const today = new Date().toISOString().split('T')[0];
+  // Use routeDatePickups if already loaded, otherwise try today
+  if (routeDatePickups.length > 0) {
+    assignList = [...routeDatePickups];
+  } else {
+    const bookings = getBookings();
+    const history = getHistory();
+    const completedIds = new Set(history.map(h => h.bookingId));
+    const today = new Date().toISOString().split('T')[0];
 
-  // Get today's uncompleted pickups
-  assignList = bookings.filter(b => {
-    if (completedIds.has(b.id)) return false;
-    if (b.status === 'Completed') return false;
-    return b.date === today;
-  }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    assignList = bookings.filter(b => {
+      if (completedIds.has(b.id)) return false;
+      if (b.status === 'Completed') return false;
+      return b.date === today;
+    }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
-  if (assignList.length === 0) {
-    toast('No pickups today to assign times');
-    return;
+    if (assignList.length === 0) {
+      toast('Select a date and load pickups first');
+      return;
+    }
   }
 
   renderAssignList();
@@ -2378,8 +2414,9 @@ function toast(msg) {
     weekday: 'short', day: 'numeric', month: 'short'
   });
 
-  // Set default date on booking form
+  // Set default dates on forms
   document.getElementById('b-date').value = now.toISOString().split('T')[0];
+  document.getElementById('route-date').value = now.toISOString().split('T')[0];
 
   // Clear any old demo data on first load when connected to Google Sheet
   if (SYNC_ENABLED) {
