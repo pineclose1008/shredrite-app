@@ -1405,7 +1405,7 @@ textarea.form-input {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         <p>Tap to add photos (multiple allowed)</p>
       </div>
-      <input type="file" id="photo-input" accept="image/*" capture="environment" multiple style="display:none" onchange="handlePhotos(event)">
+      <input type="file" id="photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotos(event)">
 
       <button class="btn-primary gold mt-20" onclick="generateReceipt()">Generate Receipt</button>
     </div>
@@ -1545,6 +1545,95 @@ textarea.form-input {
       </div>
       <div id="history-list"></div>
     </div>
+
+    <!-- ═══ REVENUE SUMMARY PAGE ═══ -->
+    <div class="page" id="page-revenue">
+      <h2 class="section-title">Revenue Summary</h2>
+
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <div style="flex:1;">
+          <label class="form-label">From</label>
+          <input type="date" class="form-input" id="rev-from">
+        </div>
+        <div style="flex:1;">
+          <label class="form-label">To</label>
+          <input type="date" class="form-input" id="rev-to">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="btn-secondary" onclick="setRevRange('today')" style="flex:1;min-width:70px;padding:8px 4px;font-size:12px;">Today</button>
+        <button class="btn-secondary" onclick="setRevRange('week')" style="flex:1;min-width:70px;padding:8px 4px;font-size:12px;">This Week</button>
+        <button class="btn-secondary" onclick="setRevRange('month')" style="flex:1;min-width:70px;padding:8px 4px;font-size:12px;">This Month</button>
+        <button class="btn-secondary" onclick="setRevRange('all')" style="flex:1;min-width:70px;padding:8px 4px;font-size:12px;">All Time</button>
+      </div>
+
+      <button class="btn-primary" onclick="loadRevenueSummary()" style="width:100%;margin-bottom:20px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:6px;"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+        Generate Report
+      </button>
+
+      <div id="rev-results" class="hidden">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="background:var(--navy);color:var(--white);padding:16px;border-radius:var(--radius-md);text-align:center;">
+            <div style="font-size:12px;opacity:0.7;margin-bottom:4px;">Total Revenue</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gold);" id="rev-total">$0.00</div>
+          </div>
+          <div style="background:var(--navy);color:var(--white);padding:16px;border-radius:var(--radius-md);text-align:center;">
+            <div style="font-size:12px;opacity:0.7;margin-bottom:4px;">Collections</div>
+            <div style="font-size:22px;font-weight:700;color:var(--gold);" id="rev-count">0</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;">
+            <div style="font-size:11px;color:var(--grey-400);margin-bottom:4px;">Total Weight</div>
+            <div style="font-size:18px;font-weight:600;" id="rev-weight">0 kg</div>
+          </div>
+          <div style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;">
+            <div style="font-size:11px;color:var(--grey-400);margin-bottom:4px;">Avg per Collection</div>
+            <div style="font-size:18px;font-weight:600;" id="rev-avg">$0.00</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;">
+            <div style="font-size:10px;color:var(--grey-400);margin-bottom:2px;">Paper</div>
+            <div style="font-size:14px;font-weight:600;" id="rev-paper">0 kg</div>
+          </div>
+          <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;">
+            <div style="font-size:10px;color:var(--grey-400);margin-bottom:2px;">Frame</div>
+            <div style="font-size:14px;font-weight:600;" id="rev-frame">0 kg</div>
+          </div>
+          <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;">
+            <div style="font-size:10px;color:var(--grey-400);margin-bottom:2px;">Tips</div>
+            <div style="font-size:14px;font-weight:600;" id="rev-tips">$0.00</div>
+          </div>
+        </div>
+
+        <div style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+          <div style="font-weight:600;margin-bottom:8px;font-size:14px;">Breakdown</div>
+          <table style="width:100%;font-size:13px;border-collapse:collapse;">
+            <tr style="border-bottom:1px solid var(--grey-100);">
+              <td style="padding:6px 0;color:var(--grey-500);">Service Charges</td>
+              <td style="padding:6px 0;text-align:right;font-weight:600;" id="rev-service">$0.00</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--grey-100);">
+              <td style="padding:6px 0;color:var(--grey-500);">Booking Fees</td>
+              <td style="padding:6px 0;text-align:right;font-weight:600;" id="rev-fees">$0.00</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--grey-100);">
+              <td style="padding:6px 0;color:var(--grey-500);">Tips Received</td>
+              <td style="padding:6px 0;text-align:right;font-weight:600;" id="rev-tips2">$0.00</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;font-weight:700;">Total Revenue</td>
+              <td style="padding:8px 0;text-align:right;font-weight:700;color:var(--gold);" id="rev-total2">$0.00</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ═══ BOTTOM NAV ═══ -->
@@ -1556,6 +1645,10 @@ textarea.form-input {
     <button onclick="showPage('booking')" id="nav-booking">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       <span>Booking</span>
+    </button>
+    <button onclick="showPage('revenue')" id="nav-revenue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+      <span>Revenue</span>
     </button>
     <button onclick="showPage('history')" id="nav-history">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -2437,11 +2530,20 @@ function getToggle(groupId) {
    ══════════════════════════════════════════════════════════════ */
 function handlePhotos(event) {
   const files = event.target.files;
-  Array.from(files).forEach(file => {
+  Array.from(files).forEach((file, idx) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       collectionPhotos.push(e.target.result);
       renderPhotoGrid();
+
+      // Auto-save photo to phone
+      const photoNum = collectionPhotos.length;
+      const customerName = currentPickup ? currentPickup.name.replace(/\s+/g, '-') : 'item';
+      const dateStr = new Date().toISOString().split('T')[0];
+      const a = document.createElement('a');
+      a.href = e.target.result;
+      a.download = 'ShredRite-' + customerName + '-Photo-' + photoNum + '-' + dateStr + '.jpg';
+      a.click();
     };
     reader.readAsDataURL(file);
   });
@@ -2491,7 +2593,24 @@ function generateReceipt() {
   const otherCost = other * RATES.other;
   const netWeight = Math.max(0, paper + frame + other - tare);
   const serviceTotal = paperCost + frameCost + otherCost;
+  // If booking already paid on Shopify, don't include in amount due
   const totalDue = serviceTotal + (bookingPaid === 'No' ? bookingFee : 0) + tips - discount;
+
+  // Build confirmation summary
+  let confirmMsg = 'Please confirm the figures:\n\n';
+  if (paper > 0) confirmMsg += 'Paper/Kitab: ' + paper.toFixed(2) + ' kg = $' + paperCost.toFixed(2) + '\n';
+  if (frame > 0) confirmMsg += 'Frame: ' + frame.toFixed(2) + ' kg = $' + frameCost.toFixed(2) + '\n';
+  if (other > 0) confirmMsg += 'Other: ' + other.toFixed(2) + ' kg = $' + otherCost.toFixed(2) + '\n';
+  if (tare > 0) confirmMsg += 'Box Tare: -' + tare.toFixed(2) + ' kg\n';
+  confirmMsg += '\nNet Weight: ' + netWeight.toFixed(2) + ' kg\n';
+  confirmMsg += 'Service Total: $' + serviceTotal.toFixed(2) + '\n';
+  if (bookingPaid === 'No') confirmMsg += 'Booking Fee: $' + bookingFee.toFixed(2) + '\n';
+  else confirmMsg += 'Booking Fee: Paid via Shopify\n';
+  if (discount > 0) confirmMsg += 'Discount: -$' + discount.toFixed(2) + '\n';
+  if (tips > 0) confirmMsg += 'Tips: $' + tips.toFixed(2) + '\n';
+  confirmMsg += '\nTOTAL TO COLLECT: $' + totalDue.toFixed(2);
+
+  if (!confirm(confirmMsg)) return;
 
   // Populate receipt
   document.getElementById('r-name').textContent = currentPickup.name;
@@ -2538,7 +2657,8 @@ function generateReceipt() {
   document.getElementById('r-items').innerHTML = rows;
   document.getElementById('r-service-total').textContent = '$' + serviceTotal.toFixed(2);
 
-  if (bookingPaid === 'Yes') {
+  // Booking fee row: show "Paid via Shopify" if already paid, otherwise show amount
+  if (bookingPaid === 'Yes' || bookingPaid === '') {
     document.getElementById('r-booking-fee').textContent = 'Paid via Shopify';
     document.getElementById('r-fee-row').classList.remove('hidden');
   } else {
@@ -2560,6 +2680,7 @@ function generateReceipt() {
     document.getElementById('r-tip-row').classList.add('hidden');
   }
 
+  // Total label changes based on whether booking fee is included
   document.getElementById('r-total').textContent = '$' + totalDue.toFixed(2);
   document.getElementById('r-payment').textContent = 'Payment: ' + paymentMethod;
 
@@ -2611,35 +2732,36 @@ async function shareReceiptImage() {
 
     // Convert to blob
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    const fileName = 'ShredRite-Receipt-' + currentPickup.name.replace(/\s+/g, '-') + '-' + new Date().toISOString().split('T')[0] + '.png';
+    const dateStr = new Date().toISOString().split('T')[0];
+    const safeName = currentPickup.name.replace(/\s+/g, '-');
+    const fileName = 'ShredRite-Receipt-' + safeName + '-' + dateStr + '.png';
+
+    // Always save a copy of the invoice image to phone
+    const downloadUrl = URL.createObjectURL(blob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = downloadUrl;
+    downloadLink.download = fileName;
+    downloadLink.click();
+    URL.revokeObjectURL(downloadUrl);
 
     // Also save PDF copy
     savePDFCopy(canvas, fileName.replace('.png', '.pdf'));
 
-    // Try Web Share API (works on mobile)
+    // Try Web Share API (works on mobile) to share via WhatsApp
     if (navigator.share && navigator.canShare) {
       const file = new File([blob], fileName, { type: 'image/png' });
       const shareData = { files: [file] };
 
       if (navigator.canShare(shareData)) {
         await navigator.share(shareData);
-        toast('Receipt shared');
+        toast('Receipt shared and saved');
         promptSaveToSheet();
         return;
       }
     }
 
-    // Fallback: download image then open WhatsApp
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    toast('Receipt saved. Attach it in WhatsApp.');
-
-    // Open WhatsApp chat with the customer
+    // Fallback: open WhatsApp chat for manual attachment
+    toast('Receipt saved to phone. Attach it in WhatsApp.');
     const phone = cleanPhone(currentPickup.phone);
     if (phone) {
       setTimeout(() => {
@@ -2647,7 +2769,7 @@ async function shareReceiptImage() {
       }, 1000);
     }
 
-    // Prompt to save after a short delay
+    // Prompt to save to Google Sheet
     setTimeout(() => promptSaveToSheet(), 2500);
   } catch (err) {
     console.error('Receipt capture error:', err);
@@ -2783,6 +2905,115 @@ function renderHistory() {
         <div class="history-amount">$${h.totalDue.toFixed(2)}</div>
       </div>`;
   }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REVENUE SUMMARY
+   ══════════════════════════════════════════════════════════════ */
+function setRevRange(preset) {
+  const today = new Date();
+  const toStr = d => d.toISOString().split('T')[0];
+  let from, to;
+
+  if (preset === 'today') {
+    from = to = toStr(today);
+  } else if (preset === 'week') {
+    const dayOfWeek = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    from = toStr(monday);
+    to = toStr(today);
+  } else if (preset === 'month') {
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    from = toStr(firstDay);
+    to = toStr(today);
+  } else {
+    from = '2026-01-01';
+    to = toStr(today);
+  }
+
+  document.getElementById('rev-from').value = from;
+  document.getElementById('rev-to').value = to;
+}
+
+async function loadRevenueSummary() {
+  const from = document.getElementById('rev-from').value;
+  const to = document.getElementById('rev-to').value;
+
+  if (!from || !to) {
+    toast('Please select a date range');
+    return;
+  }
+
+  if (!SYNC_ENABLED) {
+    toast('Google Sheet not connected');
+    return;
+  }
+
+  try {
+    toast('Loading revenue data...');
+    const resp = await fetch(APPS_SCRIPT_URL + '?action=getBookings&status=completed');
+    const data = await resp.json();
+
+    if (!data.bookings || data.bookings.length === 0) {
+      toast('No completed collections found');
+      return;
+    }
+
+    // Filter by date range
+    const bookings = data.bookings.filter(b => {
+      return b.date >= from && b.date <= to;
+    });
+
+    if (bookings.length === 0) {
+      toast('No collections in this date range');
+      return;
+    }
+
+    // Calculate totals
+    let totalRevenue = 0;
+    let totalService = 0;
+    let totalFees = 0;
+    let totalTips = 0;
+    let totalWeight = 0;
+    let totalPaper = 0;
+    let totalFrame = 0;
+
+    bookings.forEach(b => {
+      totalRevenue += b.totalCollected || 0;
+      totalService += b.serviceTotal || 0;
+      totalFees += b.bookingFee || 0;
+      totalWeight += b.netWeight || 0;
+      totalPaper += b.paperKg || 0;
+      totalFrame += b.frameKg || 0;
+    });
+
+    // Tips = total - service - fees (approximation from collected data)
+    totalTips = totalRevenue - totalService - totalFees;
+    if (totalTips < 0) totalTips = 0;
+
+    const count = bookings.length;
+    const avg = count > 0 ? totalRevenue / count : 0;
+
+    // Update UI
+    document.getElementById('rev-total').textContent = '$' + totalRevenue.toFixed(2);
+    document.getElementById('rev-count').textContent = count;
+    document.getElementById('rev-weight').textContent = totalWeight.toFixed(1) + ' kg';
+    document.getElementById('rev-avg').textContent = '$' + avg.toFixed(2);
+    document.getElementById('rev-paper').textContent = totalPaper.toFixed(1) + ' kg';
+    document.getElementById('rev-frame').textContent = totalFrame.toFixed(1) + ' kg';
+    document.getElementById('rev-tips').textContent = '$' + totalTips.toFixed(2);
+    document.getElementById('rev-service').textContent = '$' + totalService.toFixed(2);
+    document.getElementById('rev-fees').textContent = '$' + totalFees.toFixed(2);
+    document.getElementById('rev-tips2').textContent = '$' + totalTips.toFixed(2);
+    document.getElementById('rev-total2').textContent = '$' + totalRevenue.toFixed(2);
+
+    document.getElementById('rev-results').classList.remove('hidden');
+    toast('Report generated');
+  } catch (err) {
+    console.error('Revenue error:', err);
+    toast('Failed to load revenue data');
+  }
 }
 
 /* ── Audit CSV Download ──────────────────────────────────── */
