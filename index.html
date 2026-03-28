@@ -1225,6 +1225,11 @@ textarea.form-input {
   height: 40px;
   margin-bottom: 8px;
 }
+
+/* ── Sync spinner ───────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 </style>
 </head>
 <body>
@@ -1659,6 +1664,30 @@ textarea.form-input {
 
 <div class="toast" id="toast"></div>
 
+<!-- WhatsApp Queue Modal -->
+<div class="modal-overlay hidden" id="wa-queue-modal">
+  <div class="modal">
+    <h3>WhatsApp Confirmation</h3>
+    <p style="font-size:14px;color:var(--green);font-weight:600;margin-bottom:8px;">Sent to <span id="wa-queue-sent"></span></p>
+    <p style="font-size:13px;color:var(--grey-500);margin-bottom:4px;">Progress: <span id="wa-queue-progress"></span></p>
+    <p style="font-size:15px;margin-bottom:16px;">Send next to <strong id="wa-queue-next"></strong>?</p>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="hideWAQueueModal()">Stop</button>
+      <button class="btn-secondary" onclick="waQueueSkip()">Skip</button>
+      <button class="btn-primary gold" onclick="waQueueSendNext()" style="flex:2;">Send Next</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sync Loading Overlay -->
+<div id="sync-overlay" class="hidden" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:300;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--white);border-radius:var(--radius-lg);padding:32px 40px;text-align:center;box-shadow:var(--shadow-lg);">
+    <div class="sync-spinner" style="width:40px;height:40px;border:3px solid var(--grey-200);border-top-color:var(--gold);border-radius:50%;margin:0 auto 16px;animation:spin 0.8s linear infinite;"></div>
+    <p style="font-size:15px;font-weight:600;color:var(--navy);">Syncing...</p>
+    <p style="font-size:12px;color:var(--grey-400);margin-top:4px;">Fetching from Google Sheet</p>
+  </div>
+</div>
+
 <!-- On My Way Modal -->
 <div class="modal-overlay hidden" id="omw-modal" onclick="if(event.target===this)closeOnMyWay()">
   <div class="modal">
@@ -1728,6 +1757,12 @@ let currentPickup = null;
 let collectionPhotos = [];
 let currentFilter = 'upcoming';
 
+// Local date helper (avoids UTC timezone shift before 8am SGT)
+function localDateStr(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
 // ── Google Apps Script URL ──────────────────────────────────
 // REPLACE THIS with your deployed Apps Script Web App URL
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdRFi5F5Ed1qFI7eSi7eBbmuwGlt5Tx-WVZfq6WQAv0LuMe98kqVJl7/exec';
@@ -1770,11 +1805,19 @@ function loadDatePickups() {
   const history = getHistory();
   const completedIds = new Set(history.map(h => h.bookingId));
 
-  routeDatePickups = bookings.filter(b => {
+  const filtered = bookings.filter(b => {
     if (completedIds.has(b.id)) return false;
     if (b.status === 'Completed') return false;
     return b.date === selectedDate;
   }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  // Deduplicate by id
+  const seenIds = new Set();
+  routeDatePickups = filtered.filter(b => {
+    if (seenIds.has(b.id)) return false;
+    seenIds.add(b.id);
+    return true;
+  });
 
   const summary = document.getElementById('route-summary');
   if (routeDatePickups.length === 0) {
@@ -1849,7 +1892,7 @@ function openAssignTimes() {
     const bookings = getBookings();
     const history = getHistory();
     const completedIds = new Set(history.map(h => h.bookingId));
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateStr();
 
     assignList = bookings.filter(b => {
       if (completedIds.has(b.id)) return false;
@@ -2122,11 +2165,20 @@ function selectOMW(minutes) {
   closeOnMyWay();
 }
 
+// Queue for WhatsApp confirmations
+let waQueue = [];
+let waQueueIndex = 0;
+
 function sendConfirmation(list, index) {
   if (index >= list.length) {
     toast('All confirmations sent');
+    hideWAQueueModal();
     return;
   }
+
+  // Store queue state so it persists when user switches to WhatsApp
+  waQueue = list;
+  waQueueIndex = index;
 
   const b = list[index];
   const dateObj = new Date(b.date + 'T00:00:00');
@@ -2138,7 +2190,7 @@ function sendConfirmation(list, index) {
   msg += `I will arrive at around *${timeStr}*.\n\n`;
   msg += `Can i confirm if this is the address for collection?:\n${b.address}\n\n`;
   msg += `Please have your items ready for weighing. Payment is via PayNow or cash.\n\n`;
-  msg += `JazakAllahu khairan. See you tmr!`;
+  msg += `JazakAllahu khairan!`;
 
   const phone = cleanPhone(b.phone);
 
@@ -2148,13 +2200,38 @@ function sendConfirmation(list, index) {
 
   window.open(url, '_blank');
 
-  // Show a prompt to send the next one
+  // Show persistent modal for next customer (not setTimeout+confirm which fails on mobile)
   if (index < list.length - 1) {
-    setTimeout(() => {
-      if (confirm(`Sent to ${b.name}. Send next to ${list[index + 1].name}?`)) {
-        sendConfirmation(list, index + 1);
-      }
-    }, 1500);
+    showWAQueueModal(b.name, list[index + 1].name, index + 1, list.length);
+  } else {
+    toast('All confirmations sent');
+  }
+}
+
+function showWAQueueModal(sentName, nextName, nextIndex, total) {
+  const modal = document.getElementById('wa-queue-modal');
+  document.getElementById('wa-queue-sent').textContent = sentName;
+  document.getElementById('wa-queue-next').textContent = nextName;
+  document.getElementById('wa-queue-progress').textContent = nextIndex + ' of ' + total;
+  modal.classList.remove('hidden');
+}
+
+function hideWAQueueModal() {
+  document.getElementById('wa-queue-modal').classList.add('hidden');
+}
+
+function waQueueSendNext() {
+  hideWAQueueModal();
+  sendConfirmation(waQueue, waQueueIndex);
+}
+
+function waQueueSkip() {
+  hideWAQueueModal();
+  waQueueIndex++;
+  if (waQueueIndex < waQueue.length) {
+    sendConfirmation(waQueue, waQueueIndex);
+  } else {
+    toast('All confirmations sent');
   }
 }
 
@@ -2184,6 +2261,10 @@ async function syncFromSheet(status) {
 
   status = status || currentFilter || 'upcoming';
 
+  // Show loading overlay
+  const overlay = document.getElementById('sync-overlay');
+  overlay.classList.remove('hidden');
+
   try {
     document.getElementById('topbar-date').textContent = 'Syncing...';
     const resp = await fetch(APPS_SCRIPT_URL + '?action=getBookings&status=' + encodeURIComponent(status));
@@ -2192,14 +2273,24 @@ async function syncFromSheet(status) {
     if (data.bookings) {
       if (status === 'upcoming') {
         // Merge: keep local-only bookings, update/add sheet bookings
+        // Deduplicate by using a Map keyed on booking id
+        const sheetBookings = data.bookings;
         const localBookings = getBookings();
         const localOnlyBookings = localBookings.filter(b => !b.id.startsWith('row_'));
-        const sheetBookings = data.bookings;
-        const merged = [...sheetBookings, ...localOnlyBookings];
-        saveBookings(merged);
+
+        // Deduplicate sheet bookings (in case of duplicates from sheet)
+        const seen = new Map();
+        sheetBookings.forEach(b => seen.set(b.id, b));
+        // Add local-only bookings (won't conflict since different id format)
+        localOnlyBookings.forEach(b => {
+          if (!seen.has(b.id)) seen.set(b.id, b);
+        });
+        saveBookings(Array.from(seen.values()));
       } else {
-        // For completed/all views, store separately so we don't overwrite upcoming bookings
-        localStorage.setItem('sr_filtered_bookings', JSON.stringify(data.bookings));
+        // For completed/all views, deduplicate and store separately
+        const seen = new Map();
+        data.bookings.forEach(b => seen.set(b.id, b));
+        localStorage.setItem('sr_filtered_bookings', JSON.stringify(Array.from(seen.values())));
       }
     }
 
@@ -2208,10 +2299,12 @@ async function syncFromSheet(status) {
       weekday: 'short', day: 'numeric', month: 'short'
     });
 
+    overlay.classList.add('hidden');
     renderPickups();
     toast('Synced with Google Sheet');
   } catch (err) {
     console.error('Sync error:', err);
+    overlay.classList.add('hidden');
     const now = new Date();
     document.getElementById('topbar-date').textContent = now.toLocaleDateString('en-SG', {
       weekday: 'short', day: 'numeric', month: 'short'
@@ -2328,7 +2421,7 @@ function showPage(name) {
    ══════════════════════════════════════════════════════════════ */
 function renderPickups() {
   const list = document.getElementById('pickup-list');
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateStr();
   const history = getHistory();
   const completedIds = new Set(history.map(h => h.bookingId));
 
@@ -2337,8 +2430,11 @@ function renderPickups() {
   if (currentFilter === 'upcoming') {
     // Default view: show upcoming from local storage
     const bookings = getBookings();
+    const seenIds = new Set();
     displayBookings = bookings.filter(b => {
-      const d = new Date(b.date);
+      if (seenIds.has(b.id)) return false;
+      seenIds.add(b.id);
+      const d = new Date(b.date + 'T00:00:00');
       const now = new Date();
       now.setHours(0,0,0,0);
       const diff = (d - now) / (1000*60*60*24);
@@ -2539,7 +2635,7 @@ function handlePhotos(event) {
       // Auto-save photo to phone
       const photoNum = collectionPhotos.length;
       const customerName = currentPickup ? currentPickup.name.replace(/\s+/g, '-') : 'item';
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = localDateStr();
       const a = document.createElement('a');
       a.href = e.target.result;
       a.download = 'ShredRite-' + customerName + '-Photo-' + photoNum + '-' + dateStr + '.jpg';
@@ -2732,7 +2828,7 @@ async function shareReceiptImage() {
 
     // Convert to blob
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = localDateStr();
     const safeName = currentPickup.name.replace(/\s+/g, '-');
     const fileName = 'ShredRite-Receipt-' + safeName + '-' + dateStr + '.png';
 
@@ -2747,10 +2843,19 @@ async function shareReceiptImage() {
     // Also save PDF copy
     savePDFCopy(canvas, fileName.replace('.png', '.pdf'));
 
+    // Build payment WhatsApp message
+    const c = currentPickup._collection;
+    let waMsg = '';
+    if (c.paymentMethod === 'PayNow') {
+      waMsg = `Salam ${currentPickup.name}, here is your invoice.\n\nPlease pay *$${c.totalDue.toFixed(2)}* via PayNow to *83831987*.\n\nJazakAllahu khairan!`;
+    } else {
+      waMsg = `Salam ${currentPickup.name}, here is your invoice.\n\nTotal amount: *$${c.totalDue.toFixed(2)}* (Cash).\n\nJazakAllahu khairan!`;
+    }
+
     // Try Web Share API (works on mobile) to share via WhatsApp
     if (navigator.share && navigator.canShare) {
       const file = new File([blob], fileName, { type: 'image/png' });
-      const shareData = { files: [file] };
+      const shareData = { files: [file], text: waMsg };
 
       if (navigator.canShare(shareData)) {
         await navigator.share(shareData);
@@ -2760,12 +2865,12 @@ async function shareReceiptImage() {
       }
     }
 
-    // Fallback: open WhatsApp chat for manual attachment
+    // Fallback: open WhatsApp chat with message for manual attachment
     toast('Receipt saved to phone. Attach it in WhatsApp.');
     const phone = cleanPhone(currentPickup.phone);
     if (phone) {
       setTimeout(() => {
-        window.open(`https://wa.me/${phone}`, '_blank');
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(waMsg)}`, '_blank');
       }, 1000);
     }
 
@@ -2912,7 +3017,7 @@ function renderHistory() {
    ══════════════════════════════════════════════════════════════ */
 function setRevRange(preset) {
   const today = new Date();
-  const toStr = d => d.toISOString().split('T')[0];
+  const toStr = d => localDateStr(d);
   let from, to;
 
   if (preset === 'today') {
@@ -3064,7 +3169,7 @@ async function downloadAuditCSV() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = localDateStr();
     a.href = url;
     a.download = 'ShredRite-Audit-Log-' + dateStr + '.csv';
     a.click();
@@ -3095,7 +3200,7 @@ function downloadLocalCSV() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'ShredRite-Audit-Log-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.download = 'ShredRite-Audit-Log-' + localDateStr() + '.csv';
   a.click();
   URL.revokeObjectURL(url);
   toast('CSV downloaded');
@@ -3219,9 +3324,9 @@ function toast(msg) {
     weekday: 'short', day: 'numeric', month: 'short'
   });
 
-  // Set default dates on forms
-  document.getElementById('b-date').value = now.toISOString().split('T')[0];
-  document.getElementById('route-date').value = now.toISOString().split('T')[0];
+  // Set default dates on forms (use local date, not UTC)
+  document.getElementById('b-date').value = localDateStr(now);
+  document.getElementById('route-date').value = localDateStr(now);
 
   // Clear any old demo data on first load when connected to Google Sheet
   if (SYNC_ENABLED) {
