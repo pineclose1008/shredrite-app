@@ -1930,6 +1930,11 @@ async function retryFailedWrites() {
 function getBookings() {
   return safeParse('sr_bookings', []);
 }
+function findBooking(id) {
+  const b = getBookings().find(x => x.id === id);
+  if (b) return b;
+  return safeParse('sr_filtered_bookings', []).find(x => x.id === id) || null;
+}
 function saveBookings(data) {
   localStorage.setItem('sr_bookings', JSON.stringify(data));
 }
@@ -2200,9 +2205,8 @@ function sendAllConfirmations() {
 let waRescheduleId = null;
 
 function openRescheduleWA(bookingId) {
-  const bookings = getBookings();
-  const b = bookings.find(x => x.id === bookingId);
-  if (!b) return;
+  const b = findBooking(bookingId);
+  if (!b) { toast('Booking not found'); return; }
 
   waRescheduleId = bookingId;
   document.getElementById('wa-rs-customer').textContent = b.name + ' (currently ' + b.date + ')';
@@ -2217,9 +2221,8 @@ function closeWAReschedule() {
 
 function sendRescheduleWA() {
   if (!waRescheduleId) return;
-  const bookings = getBookings();
-  const b = bookings.find(x => x.id === waRescheduleId);
-  if (!b) return;
+  const b = findBooking(waRescheduleId);
+  if (!b) { toast('Booking not found'); return; }
 
   const newDate = document.getElementById('wa-rs-date').value;
   if (!newDate) {
@@ -2251,9 +2254,8 @@ function sendRescheduleWA() {
 
 /* ── Reminder WhatsApp ────────────────────────────────────── */
 function sendReminder(bookingId) {
-  const bookings = getBookings();
-  const b = bookings.find(x => x.id === bookingId);
-  if (!b) return;
+  const b = findBooking(bookingId);
+  if (!b) { toast('Booking not found'); return; }
 
   const timeStr = b.time ? formatTime(b.time) : 'to be confirmed';
 
@@ -2275,9 +2277,8 @@ function sendReminder(bookingId) {
 let omwBookingId = null;
 
 function openOnMyWay(bookingId) {
-  const bookings = getBookings();
-  const b = bookings.find(x => x.id === bookingId);
-  if (!b) return;
+  const b = findBooking(bookingId);
+  if (!b) { toast('Booking not found'); return; }
 
   omwBookingId = bookingId;
   document.getElementById('omw-customer').textContent = b.name + ' - ' + b.address.replace(/\n/g, ', ').split(',')[0];
@@ -2293,8 +2294,8 @@ function closeOnMyWay() {
 function checkGoogleMapsETA() {
   if (!omwBookingId) return;
   const bookings = getBookings();
-  const b = bookings.find(x => x.id === omwBookingId);
-  if (!b) return;
+  const b = findBooking(omwBookingId);
+  if (!b) { toast('Booking not found'); return; }
 
   let addr = b.address.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
   if (!addr.toLowerCase().includes('singapore')) addr += ' Singapore';
@@ -2310,9 +2311,8 @@ function selectOMW(minutes) {
     return;
   }
 
-  const bookings = getBookings();
-  const b = bookings.find(x => x.id === omwBookingId);
-  if (!b) return;
+  const b = findBooking(omwBookingId);
+  if (!b) { toast('Booking not found'); return; }
 
   let msg = `Salam ${b.name},\n\n`;
   msg += `Kita sekarang on the way to your place now. Will be there in about *${minutes} minutes*.\n\n`;
@@ -2518,8 +2518,7 @@ async function syncCollectionToSheet(pickup, collectionData) {
 async function syncRescheduleToSheet(bookingId, newDate, newTime) {
   if (!SYNC_ENABLED) return;
 
-  const bookings = getBookings();
-  const booking = bookings.find(b => b.id === bookingId);
+  const booking = findBooking(bookingId);
   if (!booking || !booking.row) return;
 
   const body = { action: 'reschedule', row: booking.row, newDate, newTime };
@@ -3655,9 +3654,8 @@ let rescheduleId = null;
 
 function rescheduleBooking(bookingId) {
   rescheduleId = bookingId;
-  const bookings = getBookings();
-  const booking = bookings.find(b => b.id === bookingId);
-  if (!booking) return;
+  const booking = findBooking(bookingId);
+  if (!booking) { toast('Booking not found'); return; }
 
   document.getElementById('rs-date').value = booking.date;
   document.getElementById('rs-time').value = booking.time || '';
