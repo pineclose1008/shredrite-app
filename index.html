@@ -2467,9 +2467,28 @@ async function syncFromSheet(status) {
         const localBookings = getBookings();
         const localOnlyBookings = localBookings.filter(b => !b.id.startsWith('row_'));
 
+        // Build map of locally rescheduled bookings (user intent takes priority over stale sheet data)
+        const rescheduledMap = new Map();
+        localBookings.filter(b => b.rescheduled).forEach(b => rescheduledMap.set(b.id, b));
+
+        // For each rescheduled booking, check if the sheet now agrees with the local date.
+        // If so, clear the rescheduled flag (sheet has caught up).
+        const rescheduledLocal = [];
+        rescheduledMap.forEach((local, id) => {
+          const sheetVersion = sheetBookings.find(s => s.id === id);
+          if (sheetVersion && sheetVersion.date === local.date) {
+            delete local.rescheduled; // sheet caught up, no longer need to override
+          } else {
+            rescheduledLocal.push(local);
+          }
+        });
+
+        // Filter out stale sheet entries for bookings still pending reschedule sync
+        const stillPendingIds = new Set(rescheduledLocal.map(b => b.id));
+        const freshSheetBookings = sheetBookings.filter(b => !stillPendingIds.has(b.id));
+
         // Deduplicate by name+date (same person on same date = duplicate)
-        // Keep the highest row number (most recent entry in the sheet)
-        const deduped = deduplicateBookings([...sheetBookings, ...localOnlyBookings]);
+        const deduped = deduplicateBookings([...freshSheetBookings, ...rescheduledLocal, ...localOnlyBookings]);
         saveBookings(deduped);
       } else {
         // For completed/all views, deduplicate and store separately
@@ -3689,44 +3708,57 @@ function confirmReschedule() {
     return;
   }
 
-  // Update in sr_bookings
-  const bookings = getBookings();
+  // Find the booking first so we know the old date
+  const target = findBooking(rescheduleId);
+  if (!target) { toast('Booking not found'); closeReschedule(); return; }
+  const oldDate = target.date;
+  const nameKey = (target.name || '').trim().toLowerCase();
+
+  // Helper: remove stale duplicates with the OLD date + same name from a list
+  function purgeOldEntries(list) {
+    return list.filter(b => {
+      if (b.id === rescheduleId) return true; // keep the one we are updating
+      const bName = (b.name || '').trim().toLowerCase();
+      return !(bName === nameKey && b.date === oldDate);
+    });
+  }
+
+  // Update in sr_bookings (and purge any old-date duplicates)
+  let bookings = getBookings();
+  bookings = purgeOldEntries(bookings);
   const idx = bookings.findIndex(b => b.id === rescheduleId);
   if (idx !== -1) {
     bookings[idx].date = newDate;
     if (newTime) bookings[idx].time = newTime;
     bookings[idx].rescheduled = true;
     bookings[idx].status = 'Rescheduled';
-    saveBookings(bookings);
   } else {
-    // Booking might be in sr_filtered_bookings only - add it to sr_bookings
-    const fb = findBooking(rescheduleId);
-    if (fb) {
-      fb.date = newDate;
-      if (newTime) fb.time = newTime;
-      fb.rescheduled = true;
-      fb.status = 'Rescheduled';
-      bookings.push(fb);
-      saveBookings(bookings);
-    }
+    // Booking was only in sr_filtered_bookings - add it to sr_bookings
+    target.date = newDate;
+    if (newTime) target.time = newTime;
+    target.rescheduled = true;
+    target.status = 'Rescheduled';
+    bookings.push(target);
   }
+  saveBookings(bookings);
 
-  // Also update in sr_filtered_bookings if present
-  const filtered = safeParse('sr_filtered_bookings', []);
+  // Also update in sr_filtered_bookings (and purge old-date duplicates)
+  let filtered = safeParse('sr_filtered_bookings', []);
+  filtered = purgeOldEntries(filtered);
   const fIdx = filtered.findIndex(b => b.id === rescheduleId);
   if (fIdx !== -1) {
     filtered[fIdx].date = newDate;
     if (newTime) filtered[fIdx].time = newTime;
     filtered[fIdx].rescheduled = true;
     filtered[fIdx].status = 'Rescheduled';
-    localStorage.setItem('sr_filtered_bookings', JSON.stringify(filtered));
   }
+  localStorage.setItem('sr_filtered_bookings', JSON.stringify(filtered));
 
   // Sync to Google Sheet
   syncRescheduleToSheet(rescheduleId, newDate, newTime);
 
   closeReschedule();
-  toast('Booking rescheduled to ' + newDate);
+  toast('Booking rescheduled to ' + formatDateStr(newDate, {weekday:'short', month:'short', year:'numeric'}));
   renderPickups();
 }
 
