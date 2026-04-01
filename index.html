@@ -2410,7 +2410,7 @@ function setStatusFilter(filter) {
 
   // Update title
   const titleEl = document.getElementById('home-title');
-  if (filter === 'upcoming') titleEl.textContent = 'Upcoming Pickups';
+  if (filter === 'upcoming') titleEl.textContent = 'Upcoming & Overdue';
   else if (filter === 'completed') titleEl.textContent = 'Completed';
   else titleEl.textContent = 'All Bookings';
 
@@ -2616,7 +2616,8 @@ function renderPickups() {
       const now = new Date();
       now.setHours(0,0,0,0);
       const diff = (d - now) / (1000*60*60*24);
-      return diff >= 0 && diff <= 7;
+      // Show overdue (past, not completed) + next 7 days
+      return diff <= 7;
     })).sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return (a.time || '').localeCompare(b.time || '');
@@ -2679,10 +2680,15 @@ function renderPickups() {
       html += `<div class="section-divider"><span>${dateLabel}</span></div>`;
     }
 
-    // Badge logic: if completed, show Completed badge (not Unpaid)
+    // Badge logic
     let badgeHtml = '';
+    const bDate = new Date(b.date + 'T00:00:00');
+    const todayMid = new Date(); todayMid.setHours(0,0,0,0);
+    const isOverdue = !isCompleted && bDate < todayMid;
     if (isCompleted) {
       badgeHtml += '<span class="badge badge-completed">Completed</span>';
+    } else if (isOverdue) {
+      badgeHtml += '<span class="badge" style="background:#FFEBEE;color:#C62828;">Overdue</span>';
     } else if (b.bookingPaid === 'Yes') {
       badgeHtml += '<span class="badge badge-paid">Paid</span>';
     } else {
