@@ -3677,21 +3677,44 @@ function confirmReschedule() {
     return;
   }
 
+  // Update in sr_bookings
   const bookings = getBookings();
   const idx = bookings.findIndex(b => b.id === rescheduleId);
-  if (idx === -1) return;
+  if (idx !== -1) {
+    bookings[idx].date = newDate;
+    if (newTime) bookings[idx].time = newTime;
+    bookings[idx].rescheduled = true;
+    bookings[idx].status = 'Rescheduled';
+    saveBookings(bookings);
+  } else {
+    // Booking might be in sr_filtered_bookings only - add it to sr_bookings
+    const fb = findBooking(rescheduleId);
+    if (fb) {
+      fb.date = newDate;
+      if (newTime) fb.time = newTime;
+      fb.rescheduled = true;
+      fb.status = 'Rescheduled';
+      bookings.push(fb);
+      saveBookings(bookings);
+    }
+  }
 
-  bookings[idx].date = newDate;
-  if (newTime) bookings[idx].time = newTime;
-  bookings[idx].rescheduled = true;
-  bookings[idx].status = 'Rescheduled';
-  saveBookings(bookings);
+  // Also update in sr_filtered_bookings if present
+  const filtered = safeParse('sr_filtered_bookings', []);
+  const fIdx = filtered.findIndex(b => b.id === rescheduleId);
+  if (fIdx !== -1) {
+    filtered[fIdx].date = newDate;
+    if (newTime) filtered[fIdx].time = newTime;
+    filtered[fIdx].rescheduled = true;
+    filtered[fIdx].status = 'Rescheduled';
+    localStorage.setItem('sr_filtered_bookings', JSON.stringify(filtered));
+  }
 
   // Sync to Google Sheet
   syncRescheduleToSheet(rescheduleId, newDate, newTime);
 
   closeReschedule();
-  toast('Booking rescheduled');
+  toast('Booking rescheduled to ' + newDate);
   renderPickups();
 }
 
