@@ -1940,12 +1940,11 @@ function saveHistoryData(data) {
   localStorage.setItem('sr_history', JSON.stringify(data));
 }
 
-// Deduplicate bookings: same name+date+address = duplicate, keep highest row (most recent sheet entry)
+// Deduplicate bookings: same name+date = duplicate, keep highest row (most recent sheet entry)
 function deduplicateBookings(bookings) {
   const seen = new Map();
   bookings.forEach(b => {
-    const addrKey = (b.address || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 30);
-    const key = (b.name || '').trim().toLowerCase() + '|' + (b.date || '') + '|' + addrKey;
+    const key = (b.name || '').trim().toLowerCase() + '|' + (b.date || '');
     const existing = seen.get(key);
     if (!existing) {
       seen.set(key, b);
