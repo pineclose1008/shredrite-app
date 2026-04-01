@@ -566,8 +566,8 @@ textarea.form-input {
 
 .photo-thumb .remove-photo {
   position: absolute;
-  top: 4px; right: 4px;
-  width: 22px; height: 22px;
+  top: 2px; right: 2px;
+  width: 30px; height: 30px;
   background: rgba(192,57,43,0.85);
   color: white;
   border-radius: 50%;
@@ -925,7 +925,9 @@ textarea.form-input {
   box-shadow: var(--shadow-lg);
   z-index: 1000;
   transition: transform 0.3s ease;
-  white-space: nowrap;
+  white-space: normal;
+  max-width: calc(100vw - 48px);
+  text-align: center;
 }
 
 .toast.show {
@@ -1029,8 +1031,13 @@ textarea.form-input {
   border: none;
   color: var(--grey-300);
   cursor: pointer;
-  font-size: 16px;
-  padding: 0 2px;
+  font-size: 18px;
+  padding: 8px;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
@@ -1140,14 +1147,14 @@ textarea.form-input {
 .assign-card .move-btn {
   background: none;
   border: 1px solid var(--grey-200);
-  border-radius: 4px;
-  width: 24px; height: 20px;
+  border-radius: 6px;
+  width: 36px; height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--grey-400);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* ── Modal ───────────────────────────────────────────────── */
@@ -1219,6 +1226,10 @@ textarea.form-input {
   color: var(--red);
   text-align: right;
 }
+.discount-row input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-muted);
+}
 
 /* ── Receipt logo ────────────────────────────────────────── */
 .receipt-logo {
@@ -1229,6 +1240,26 @@ textarea.form-input {
 /* ── Sync spinner ───────────────────────────────────────── */
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ── Pull to Refresh ─────────────────────────────────────── */
+.ptr-indicator {
+  text-align: center;
+  padding: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s, padding 0.2s;
+  color: var(--grey-400);
+  font-size: 12px;
+  font-weight: 600;
+}
+.ptr-indicator.visible {
+  max-height: 40px;
+  padding: 10px 0;
+}
+.ptr-indicator.refreshing {
+  max-height: 40px;
+  padding: 10px 0;
 }
 </style>
 </head>
@@ -1249,6 +1280,7 @@ textarea.form-input {
 
     <!-- ═══ HOME PAGE ═══ -->
     <div class="page active" id="page-home">
+      <div class="ptr-indicator" id="ptr-indicator">Pull down to refresh</div>
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <h2 class="section-title" style="margin-bottom:0;" id="home-title">Today's Pickups</h2>
         <button onclick="syncFromSheet()" style="background:none;border:1px solid var(--grey-200);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;font-weight:600;color:var(--grey-500);cursor:pointer;display:flex;align-items:center;gap:4px;" id="sync-btn">
@@ -1308,7 +1340,7 @@ textarea.form-input {
       <div id="assign-list"></div>
 
       <div class="mt-20">
-        <button class="btn-primary gold" onclick="saveAssignedTimes()">
+        <button class="btn-primary gold" onclick="guardSave(saveAssignedTimes)">
           Save Times to Google Sheet
         </button>
         <button class="btn-primary mt-8" onclick="sendAllConfirmations()" id="btn-send-confirmations" style="background:#25D366;display:flex;align-items:center;justify-content:center;gap:8px;">
@@ -1417,14 +1449,14 @@ textarea.form-input {
 
     <!-- ═══ RECEIPT PAGE ═══ -->
     <div class="page" id="page-receipt">
-      <button class="back-btn" onclick="showPage('collect')">
+      <button class="back-btn" onclick="syncTipBackToForm();showPage('collect')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 18l-6-6 6-6"/></svg>
         Back to form
       </button>
 
       <div id="receipt-capture">
         <div class="receipt-header">
-          <img class="receipt-logo" id="receipt-logo" src="logo.png" alt="ShredRite" crossorigin="anonymous">
+          <img class="receipt-logo" id="receipt-logo" src="shredrite-logo.png" alt="ShredRite" crossorigin="anonymous">
           <div class="receipt-tagline">Islamic Material Disposal</div>
         </div>
         <div class="receipt-body">
@@ -1494,7 +1526,7 @@ textarea.form-input {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
           Send Payment Message
         </button>
-        <button class="btn-primary" onclick="saveCollection()">Save & Complete</button>
+        <button class="btn-primary" onclick="guardSave(saveCollection)">Save & Complete</button>
       </div>
     </div>
 
@@ -1586,7 +1618,7 @@ textarea.form-input {
         <button class="toggle-btn active" data-value="No" onclick="setToggle('toggle-booking-paid', 'No')">No (Collect later)</button>
       </div>
 
-      <button class="btn-primary mt-16" onclick="saveBooking()">Save Booking</button>
+      <button class="btn-primary mt-16" onclick="guardSave(saveBooking)">Save Booking</button>
     </div>
 
     <!-- ═══ HISTORY PAGE ═══ -->
@@ -1721,7 +1753,7 @@ textarea.form-input {
 <div class="toast" id="toast"></div>
 
 <!-- WhatsApp Queue Modal -->
-<div class="modal-overlay hidden" id="wa-queue-modal">
+<div class="modal-overlay hidden" id="wa-queue-modal" onclick="if(event.target===this)hideWAQueueModal()"
   <div class="modal">
     <h3>WhatsApp Confirmation</h3>
     <p style="font-size:14px;color:var(--green);font-weight:600;margin-bottom:8px;">Sent to <span id="wa-queue-sent"></span></p>
@@ -1785,6 +1817,18 @@ textarea.form-input {
   </div>
 </div>
 
+<!-- Confirm Receipt Modal -->
+<div class="modal-overlay hidden" id="confirm-receipt-modal" onclick="if(event.target===this)document.getElementById('confirm-receipt-modal').classList.add('hidden')">
+  <div class="modal" style="max-width:380px;">
+    <h3>Confirm Figures</h3>
+    <div id="confirm-receipt-body" style="font-size:13px;color:var(--grey-600);line-height:1.7;max-height:50vh;overflow-y:auto;margin-bottom:16px;white-space:pre-line;"></div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="document.getElementById('confirm-receipt-modal').classList.add('hidden')">Edit</button>
+      <button class="btn-primary gold" onclick="document.getElementById('confirm-receipt-modal').classList.add('hidden');proceedGenerateReceipt();">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <!-- Reschedule Modal -->
 <div class="modal-overlay hidden" id="reschedule-modal" onclick="if(event.target===this)closeReschedule()">
   <div class="modal">
@@ -1822,31 +1866,86 @@ function localDateStr(d) {
 // ── Google Apps Script URL ──────────────────────────────────
 // REPLACE THIS with your deployed Apps Script Web App URL
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdRFi5F5Ed1qFI7eSi7eBbmuwGlt5Tx-WVZfq6WQAv0LuMe98kqVJl7/exec';
+const API_KEY = 'sr-2026-k8x7m3p9q2w5';
 // ─────────────────────────────────────────────────────────────
 
 const SYNC_ENABLED = APPS_SCRIPT_URL.length > 0;
+
+// Helper: append API key to GET URLs
+function apiGet(params) {
+  return APPS_SCRIPT_URL + '?' + params + '&key=' + encodeURIComponent(API_KEY);
+}
+
+// Helper: wrap POST body with API key
+function apiPost(bodyObj) {
+  return fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ ...bodyObj, key: API_KEY })
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FAILED WRITES RETRY QUEUE
+   ══════════════════════════════════════════════════════════════ */
+function safeParse(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+  catch { return fallback; }
+}
+function getFailedQueue() {
+  return safeParse('sr_failed_queue', []);
+}
+function saveFailedQueue(q) {
+  localStorage.setItem('sr_failed_queue', JSON.stringify(q));
+}
+function enqueueFailedWrite(bodyObj) {
+  const q = getFailedQueue();
+  q.push({ body: bodyObj, ts: Date.now() });
+  saveFailedQueue(q);
+}
+async function retryFailedWrites() {
+  const q = getFailedQueue();
+  if (q.length === 0) return;
+  const remaining = [];
+  for (const item of q) {
+    try {
+      const resp = await apiPost(item.body);
+      const data = await resp.json();
+      if (data.error) remaining.push(item);
+    } catch {
+      remaining.push(item);
+    }
+  }
+  saveFailedQueue(remaining);
+  if (remaining.length > 0) {
+    toast(remaining.length + ' write(s) still pending sync');
+  } else if (q.length > 0) {
+    toast('Pending writes synced successfully');
+  }
+}
 
 /* ══════════════════════════════════════════════════════════════
    STORAGE (localStorage + Google Sheets sync)
    ══════════════════════════════════════════════════════════════ */
 function getBookings() {
-  return JSON.parse(localStorage.getItem('sr_bookings') || '[]');
+  return safeParse('sr_bookings', []);
 }
 function saveBookings(data) {
   localStorage.setItem('sr_bookings', JSON.stringify(data));
 }
 function getHistory() {
-  return JSON.parse(localStorage.getItem('sr_history') || '[]');
+  return safeParse('sr_history', []);
 }
 function saveHistoryData(data) {
   localStorage.setItem('sr_history', JSON.stringify(data));
 }
 
-// Deduplicate bookings: same name+date = duplicate, keep highest row (most recent sheet entry)
+// Deduplicate bookings: same name+date+address = duplicate, keep highest row (most recent sheet entry)
 function deduplicateBookings(bookings) {
   const seen = new Map();
   bookings.forEach(b => {
-    const key = (b.name || '').trim().toLowerCase() + '|' + (b.date || '');
+    const addrKey = (b.address || '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 30);
+    const key = (b.name || '').trim().toLowerCase() + '|' + (b.date || '') + '|' + addrKey;
     const existing = seen.get(key);
     if (!existing) {
       seen.set(key, b);
@@ -2010,15 +2109,13 @@ function moveAssign(index, direction) {
   assignList[index] = assignList[newIndex];
   assignList[newIndex] = temp;
 
-  // Preserve entered times before re-render
+  // Read times from DOM BEFORE re-render (DOM still has pre-swap layout)
   const times = [];
-  assignList.forEach((b, i) => {
-    const input = document.getElementById('assign-time-' + (i === index ? newIndex : i === newIndex ? index : i));
-    if (input) times.push(input.value);
-    else times.push(b.time || '');
-  });
-
-  // Swap times too
+  for (let i = 0; i < assignList.length; i++) {
+    const input = document.getElementById('assign-time-' + i);
+    times.push(input ? input.value : (assignList[i].time || ''));
+  }
+  // Swap times to match the item swap
   const tempTime = times[index];
   times[index] = times[newIndex];
   times[newIndex] = tempTime;
@@ -2060,22 +2157,18 @@ function saveAssignedTimes() {
 
   // Sync each to Google Sheet (update rescheduled time)
   if (SYNC_ENABLED) {
-    updates.forEach(u => {
-      if (u.row) {
-        fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({
-            action: 'assignTime',
-            row: u.row,
-            time: u.time
-          })
-        }).catch(err => console.error('Assign time sync error:', err));
-      }
+    let batchFailed = 0;
+    const syncPromises = updates.filter(u => u.row).map(u => {
+      const body = { action: 'assignTime', row: u.row, time: u.time };
+      return apiPost(body).catch(() => { batchFailed++; enqueueFailedWrite(body); });
     });
+    Promise.all(syncPromises).then(() => {
+      if (batchFailed > 0) toast(updates.length + ' times saved (' + batchFailed + ' pending sync)');
+      else toast(updates.length + ' times saved and synced');
+    });
+  } else {
+    toast(updates.length + ' times saved');
   }
-
-  toast(updates.length + ' times saved');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2293,7 +2386,7 @@ function hideWAQueueModal() {
 
 function waQueueSendNext() {
   hideWAQueueModal();
-  sendConfirmation(waQueue, waQueueIndex);
+  sendConfirmation(waQueue, waQueueIndex + 1);
 }
 
 function waQueueSkip() {
@@ -2318,7 +2411,7 @@ function setStatusFilter(filter) {
 
   // Update title
   const titleEl = document.getElementById('home-title');
-  if (filter === 'upcoming') titleEl.textContent = "Today's Pickups";
+  if (filter === 'upcoming') titleEl.textContent = 'Upcoming Pickups';
   else if (filter === 'completed') titleEl.textContent = 'Completed';
   else titleEl.textContent = 'All Bookings';
 
@@ -2338,8 +2431,15 @@ async function syncFromSheet(status) {
 
   try {
     document.getElementById('topbar-date').textContent = 'Syncing...';
-    const resp = await fetch(APPS_SCRIPT_URL + '?action=getBookings&status=' + encodeURIComponent(status));
+    const resp = await fetch(apiGet('action=getBookings&status=' + encodeURIComponent(status)));
     const data = await resp.json();
+    if (data.error === 'Unauthorized') { toast('API key mismatch - check settings'); overlay.style.display = 'none'; return; }
+
+    // Race condition guard: ignore response if filter changed while fetching
+    if (status !== currentFilter && status !== (currentFilter || 'upcoming')) { overlay.style.display = 'none'; return; }
+
+    // Retry any pending failed writes while we're online
+    retryFailedWrites();
 
     if (data.bookings) {
       if (status === 'upcoming') {
@@ -2375,6 +2475,7 @@ async function syncFromSheet(status) {
     });
     // Still render from local data
     renderPickups();
+    toast('Offline - showing cached data');
   }
 }
 
@@ -2382,33 +2483,35 @@ async function syncFromSheet(status) {
 async function syncCollectionToSheet(pickup, collectionData) {
   if (!SYNC_ENABLED) return;
 
+  const body = {
+    action: 'saveCollection',
+    row: pickup.row || null,
+    name: pickup.name,
+    phone: pickup.phone,
+    address: pickup.address,
+    email: pickup.email,
+    date: pickup.date,
+    time: pickup.time,
+    bookingFee: collectionData.bookingFee,
+    bookingPaid: collectionData.bookingPaid,
+    paper: collectionData.paper,
+    frame: collectionData.frame,
+    other: collectionData.other,
+    tare: collectionData.tare,
+    tips: collectionData.tips,
+    discount: collectionData.discount,
+    paymentMethod: collectionData.paymentMethod,
+    notes: collectionData.notes || ''
+  };
+
   try {
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'saveCollection',
-        row: pickup.row || null,
-        name: pickup.name,
-        phone: pickup.phone,
-        address: pickup.address,
-        email: pickup.email,
-        date: pickup.date,
-        time: pickup.time,
-        bookingFee: collectionData.bookingFee,
-        bookingPaid: collectionData.bookingPaid,
-        paper: collectionData.paper,
-        frame: collectionData.frame,
-        other: collectionData.other,
-        tare: collectionData.tare,
-        tips: collectionData.tips,
-        discount: collectionData.discount,
-        paymentMethod: collectionData.paymentMethod
-      })
-    });
+    const resp = await apiPost(body);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
   } catch (err) {
     console.error('Save sync error:', err);
-    toast('Saved locally (sheet sync failed)');
+    enqueueFailedWrite(body);
+    toast('Saved locally (will retry sync later)');
   }
 }
 
@@ -2420,19 +2523,12 @@ async function syncRescheduleToSheet(bookingId, newDate, newTime) {
   const booking = bookings.find(b => b.id === bookingId);
   if (!booking || !booking.row) return;
 
+  const body = { action: 'reschedule', row: booking.row, newDate, newTime };
   try {
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'reschedule',
-        row: booking.row,
-        newDate: newDate,
-        newTime: newTime
-      })
-    });
+    await apiPost(body);
   } catch (err) {
     console.error('Reschedule sync error:', err);
+    enqueueFailedWrite(body);
   }
 }
 
@@ -2440,17 +2536,12 @@ async function syncRescheduleToSheet(bookingId, newDate, newTime) {
 async function syncNewBookingToSheet(bookingData) {
   if (!SYNC_ENABLED) return;
 
+  const body = { action: 'addBooking', ...bookingData };
   try {
-    await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'addBooking',
-        ...bookingData
-      })
-    });
+    await apiPost(body);
   } catch (err) {
     console.error('Add booking sync error:', err);
+    enqueueFailedWrite(body);
   }
 }
 
@@ -2458,6 +2549,22 @@ async function syncNewBookingToSheet(bookingData) {
    NAVIGATION
    ══════════════════════════════════════════════════════════════ */
 function showPage(name) {
+  // Navigation guard: warn if leaving collection form with data entered
+  const currentPage = document.querySelector('.page.active');
+  if (currentPage && currentPage.id === 'page-collect' && name !== 'collect' && name !== 'receipt') {
+    const totals = getTotalWeights();
+    const hasData = totals.paper > 0 || totals.frame > 0 || totals.other > 0 || collectionPhotos.length > 0;
+    if (hasData) {
+      if (!window.confirm('You have unsaved collection data. Leave anyway?')) return;
+    }
+  }
+
+  // Save home scroll position BEFORE removing active class
+  const leavingHome = currentPage && currentPage.id === 'page-home' && name !== 'home';
+  if (leavingHome) {
+    window._homeScroll = document.querySelector('.page-container').scrollTop;
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
 
@@ -2467,14 +2574,24 @@ function showPage(name) {
 
   // Show/hide bottom nav on sub-pages
   const bottomNav = document.querySelector('.bottomnav');
-  if (name === 'collect' || name === 'receipt' || name === 'view-completed') {
+  if (name === 'collect' || name === 'receipt' || name === 'view-completed' || name === 'assign') {
     bottomNav.style.display = 'none';
   } else {
     bottomNav.style.display = 'flex';
   }
 
-  // Scroll to top
-  document.querySelector('.page-container').scrollTop = 0;
+  // Preserve scroll position for home page, reset for others
+  if (name === 'home') {
+    const saved = window._homeScroll || 0;
+    setTimeout(() => document.querySelector('.page-container').scrollTop = saved, 0);
+  } else {
+    document.querySelector('.page-container').scrollTop = 0;
+  }
+
+  // Clear stale receipt data when navigating away from receipt flow
+  if (name !== 'receipt' && name !== 'collect') {
+    window._pendingReceipt = null;
+  }
 
   if (name === 'home') renderPickups();
   if (name === 'history') renderHistory();
@@ -2495,6 +2612,7 @@ function renderPickups() {
     // Default view: show upcoming from local storage
     const bookings = getBookings();
     displayBookings = deduplicateBookings(bookings.filter(b => {
+      if (completedIds.has(b.id) || b.status === 'Completed') return false;
       const d = new Date(b.date + 'T00:00:00');
       const now = new Date();
       now.setHours(0,0,0,0);
@@ -2506,7 +2624,7 @@ function renderPickups() {
     });
   } else {
     // Completed or All: use filtered bookings from sheet sync
-    displayBookings = JSON.parse(localStorage.getItem('sr_filtered_bookings') || '[]');
+    displayBookings = safeParse('sr_filtered_bookings', []);
   }
 
   if (displayBookings.length === 0) {
@@ -2578,12 +2696,12 @@ function renderPickups() {
       collectionInfo = `<div style="display:flex;gap:12px;font-size:12px;color:var(--grey-500);margin-top:4px;">
         ${b.netWeight ? `<span>${Number(b.netWeight).toFixed(1)} kg</span>` : ''}
         ${b.totalCollected ? `<span style="color:var(--gold);font-weight:600;">$${Number(b.totalCollected).toFixed(2)}</span>` : ''}
-        ${b.paymentMethod ? `<span>${b.paymentMethod}</span>` : ''}
+        ${b.paymentMethod ? `<span>${esc(b.paymentMethod)}</span>` : ''}
       </div>`;
     }
 
     html += `
-      <div class="pickup-card ${isCompleted ? 'completed' : ''}" onclick="${isCompleted ? `viewCompleted('${b.id}')` : `startCollection('${b.id}')`}" style="cursor:pointer;">
+      <div class="pickup-card ${isCompleted ? 'completed' : ''}" data-booking-id="${esc(b.id)}" data-action="${isCompleted ? 'view' : 'collect'}" onclick="handleCardClick(this)" style="cursor:pointer;">
         <div class="pickup-card-header">
           <div class="pickup-card-name">${esc(b.name)}</div>
           ${b.time ? `<div class="pickup-card-time">${formatTime(b.time)}</div>` : ''}
@@ -2595,11 +2713,11 @@ function renderPickups() {
           ${b.rescheduled ? '<span class="badge" style="background:#FFF3E0;color:#E65100;">Rescheduled</span>' : ''}
           ${b.phone ? `<span class="text-sm text-grey">${esc(b.phone)}</span>` : ''}
         </div>
-        ${!isCompleted ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;">
-          <button class="badge" style="cursor:pointer;background:var(--grey-100);color:var(--grey-600);border:none;padding:5px 10px;" onclick="event.stopPropagation();rescheduleBooking('${b.id}')">Reschedule</button>
-          <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:5px 10px;" onclick="event.stopPropagation();openRescheduleWA('${b.id}')">WhatsApp to Reschedule</button>
-          <button class="badge" style="cursor:pointer;background:#FFF3E0;color:#E65100;border:none;padding:5px 10px;" onclick="event.stopPropagation();sendReminder('${b.id}')">Reminder</button>
-          <button class="badge" style="cursor:pointer;background:var(--navy);color:var(--gold);border:none;padding:5px 10px;" onclick="event.stopPropagation();openOnMyWay('${b.id}')">On My Way</button>
+        ${!isCompleted ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;" data-bid="${esc(b.id)}">
+          <button class="badge" style="cursor:pointer;background:var(--grey-100);color:var(--grey-600);border:none;padding:5px 10px;" onclick="event.stopPropagation();rescheduleBooking(this.parentElement.dataset.bid)">Reschedule</button>
+          <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:5px 10px;" onclick="event.stopPropagation();openRescheduleWA(this.parentElement.dataset.bid)">WhatsApp to Reschedule</button>
+          <button class="badge" style="cursor:pointer;background:#FFF3E0;color:#E65100;border:none;padding:5px 10px;" onclick="event.stopPropagation();sendReminder(this.parentElement.dataset.bid)">Reminder</button>
+          <button class="badge" style="cursor:pointer;background:var(--navy);color:var(--gold);border:none;padding:5px 10px;" onclick="event.stopPropagation();openOnMyWay(this.parentElement.dataset.bid)">On My Way</button>
         </div>` : ''}
       </div>`;
   });
@@ -2644,19 +2762,27 @@ function viewCompleted(bookingId) {
   let rows = '';
   const tr = (label, val) => `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:8px 0;color:var(--grey-500);">${label}</td><td style="padding:8px 0;text-align:right;font-weight:600;">${val}</td></tr>`;
 
-  if (b.paperKg) rows += tr('Paper / Kitab', b.paperKg.toFixed(1) + ' kg');
-  if (b.frameKg) rows += tr('Frame', b.frameKg.toFixed(1) + ' kg');
-  if (b.otherKg) rows += tr('Other', b.otherKg.toFixed(1) + ' kg');
-  if (b.netWeight) rows += tr('Net Weight', b.netWeight.toFixed(1) + ' kg');
-  if (b.serviceTotal) rows += tr('Service Total', '$' + b.serviceTotal.toFixed(2));
-  if (b.bookingFee) rows += tr('Booking Fee', '$' + b.bookingFee.toFixed(2));
-  if (b.totalCollected) rows += `<tr><td style="padding:10px 0;font-weight:700;">Total Collected</td><td style="padding:10px 0;text-align:right;font-weight:700;color:var(--gold);">$${b.totalCollected.toFixed(2)}</td></tr>`;
-  if (b.paymentMethod) rows += tr('Payment Method', b.paymentMethod);
+  if (b.paperKg) rows += tr('Paper / Kitab', Number(b.paperKg).toFixed(1) + ' kg');
+  if (b.frameKg) rows += tr('Frame', Number(b.frameKg).toFixed(1) + ' kg');
+  if (b.otherKg) rows += tr('Other', Number(b.otherKg).toFixed(1) + ' kg');
+  if (b.netWeight) rows += tr('Net Weight', Number(b.netWeight).toFixed(1) + ' kg');
+  if (b.serviceTotal) rows += tr('Service Total', '$' + Number(b.serviceTotal).toFixed(2));
+  if (b.bookingFee) rows += tr('Booking Fee', '$' + Number(b.bookingFee).toFixed(2));
+  if (b.totalCollected) rows += `<tr><td style="padding:10px 0;font-weight:700;">Total Collected</td><td style="padding:10px 0;text-align:right;font-weight:700;color:var(--gold);">$${Number(b.totalCollected).toFixed(2)}</td></tr>`;
+  if (b.paymentMethod) rows += tr('Payment Method', esc(b.paymentMethod));
 
   document.getElementById('vc-summary-table').innerHTML = rows;
 
-  // Set tip value (tips = total - service - bookingFee, approximately)
-  const currentTips = (b.totalCollected || 0) - (b.serviceTotal || 0) - (b.bookingFee || 0);
+  // Tips: if available from local history use that, otherwise estimate from totals
+  let currentTips = 0;
+  const localHistory = getHistory();
+  const localEntry = localHistory.find(h => h.bookingId === b.id);
+  if (localEntry && localEntry.tips != null) {
+    currentTips = localEntry.tips;
+  } else {
+    // Estimate: total - service - bookingFee (may be off if discount was applied)
+    currentTips = Math.max(0, (b.totalCollected || 0) - (b.serviceTotal || 0) - (b.bookingFee || 0));
+  }
   document.getElementById('vc-tip-edit').value = currentTips > 0 ? currentTips.toFixed(0) : 0;
 
   showPage('view-completed');
@@ -2667,20 +2793,32 @@ function updateCompletedTip() {
 
   const newTips = parseFloat(document.getElementById('vc-tip-edit').value) || 0;
 
+  // Update local state: recalculate total
+  const oldTips = Math.max(0, (viewedBooking.totalCollected || 0) - (viewedBooking.serviceTotal || 0) - (viewedBooking.bookingFee || 0));
+  const newTotal = (viewedBooking.totalCollected || 0) - oldTips + newTips;
+  viewedBooking.totalCollected = newTotal;
+
+  // Update local history
+  const history = getHistory();
+  const hIdx = history.findIndex(h => h.bookingId === viewedBooking.id);
+  if (hIdx !== -1) {
+    history[hIdx].tips = newTips;
+    history[hIdx].totalCollected = newTotal;
+    saveHistoryData(history);
+  }
+
+  // Refresh summary table
+  const totalRow = document.querySelector('#vc-summary-table tr:last-child td:last-child');
+  if (totalRow && totalRow.style.color) totalRow.textContent = '$' + Number(newTotal).toFixed(2);
+
   if (viewedBooking.row && SYNC_ENABLED) {
-    fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'updateTips',
-        row: viewedBooking.row,
-        tips: newTips
-      })
-    }).then(() => {
+    const body = { action: 'updateTips', row: viewedBooking.row, tips: newTips };
+    apiPost(body).then(() => {
       toast('Tip updated to $' + newTips.toFixed(2) + ' and synced');
     }).catch(err => {
       console.error('Tip update error:', err);
-      toast('Tip saved locally (sync failed)');
+      enqueueFailedWrite(body);
+      toast('Tip saved locally (will retry sync later)');
     });
   } else {
     toast('Tip updated to $' + newTips.toFixed(2));
@@ -2831,15 +2969,6 @@ function handlePhotos(event) {
     reader.onload = (e) => {
       collectionPhotos.push(e.target.result);
       renderPhotoGrid();
-
-      // Auto-save photo to phone
-      const photoNum = collectionPhotos.length;
-      const customerName = currentPickup ? currentPickup.name.replace(/\s+/g, '-') : 'item';
-      const dateStr = localDateStr();
-      const a = document.createElement('a');
-      a.href = e.target.result;
-      a.download = 'ShredRite-' + customerName + '-Photo-' + photoNum + '-' + dateStr + '.jpg';
-      a.click();
     };
     reader.readAsDataURL(file);
   });
@@ -2906,7 +3035,18 @@ function generateReceipt() {
   if (tips > 0) confirmMsg += 'Tips: $' + tips.toFixed(2) + '\n';
   confirmMsg += '\nTOTAL TO COLLECT: $' + totalDue.toFixed(2);
 
-  if (!confirm(confirmMsg)) return;
+  // Show confirmation modal instead of blocking confirm()
+  document.getElementById('confirm-receipt-body').textContent = confirmMsg;
+  document.getElementById('confirm-receipt-modal').classList.remove('hidden');
+
+  // Store pending data so proceedGenerateReceipt can use it
+  window._pendingReceipt = { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod };
+  return;
+}
+
+function proceedGenerateReceipt() {
+  if (!window._pendingReceipt) { toast('Receipt data expired. Please generate receipt again.'); return; }
+  const { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod } = window._pendingReceipt;
 
   // Populate receipt
   document.getElementById('r-name').textContent = currentPickup.name;
@@ -3021,8 +3161,10 @@ async function shareReceiptImage() {
   try {
     const receiptEl = document.getElementById('receipt-capture');
 
+    // Use lower scale on devices with limited memory (< 4GB RAM)
+    const lowMem = navigator.deviceMemory ? navigator.deviceMemory < 4 : /Android/i.test(navigator.userAgent);
     const canvas = await html2canvas(receiptEl, {
-      scale: 2,
+      scale: lowMem ? 1.5 : 2,
       backgroundColor: '#FFFFFF',
       useCORS: true,
       logging: false
@@ -3082,6 +3224,12 @@ function sendPaymentMessage() {
   }
 }
 
+function syncTipBackToForm() {
+  const tipInput = document.getElementById('r-tip-edit');
+  const formTip = document.getElementById('c-tips');
+  if (tipInput && formTip) formTip.value = tipInput.value;
+}
+
 function updateTipAmount() {
   if (!currentPickup || !currentPickup._collection) return;
 
@@ -3104,29 +3252,14 @@ function updateTipAmount() {
 
   // Sync to Google Sheet if this booking has a row
   if (currentPickup.row && SYNC_ENABLED) {
-    fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'updateTips',
-        row: currentPickup.row,
-        tips: newTips
-      })
-    }).catch(err => console.error('Tip update sync error:', err));
+    const body = { action: 'updateTips', row: currentPickup.row, tips: newTips };
+    apiPost(body).catch(err => { console.error('Tip update sync error:', err); enqueueFailedWrite(body); });
   }
 
   toast('Tip updated to $' + newTips.toFixed(2));
 }
 
-function promptSaveToSheet() {
-  if (!currentPickup || !currentPickup._collection) return;
-
-  setTimeout(() => {
-    if (confirm('Update Google Sheet with this collection data?')) {
-      saveCollection();
-    }
-  }, 500);
-}
+// promptSaveToSheet removed - saving now happens via Save & Complete button
 
 function savePDFCopy(canvas, fileName) {
   try {
@@ -3150,9 +3283,12 @@ function savePDFCopy(canvas, fileName) {
 /* ══════════════════════════════════════════════════════════════
    SAVE COLLECTION
    ══════════════════════════════════════════════════════════════ */
-function saveCollection() {
+async function saveCollection() {
   if (!currentPickup || !currentPickup._collection) return;
   const c = currentPickup._collection;
+
+  // Show loading
+  document.getElementById('sync-overlay').style.display = 'flex';
 
   const history = getHistory();
   history.unshift({
@@ -3164,9 +3300,18 @@ function saveCollection() {
   });
   saveHistoryData(history);
 
-  // Sync to Google Sheet
-  syncCollectionToSheet(currentPickup, c);
+  // Mark booking as completed in local bookings
+  const bookings = getBookings();
+  const bIdx = bookings.findIndex(b => b.id === currentPickup.id);
+  if (bIdx !== -1) {
+    bookings[bIdx].status = 'Completed';
+    saveBookings(bookings);
+  }
 
+  // Sync to Google Sheet
+  await syncCollectionToSheet(currentPickup, c);
+
+  document.getElementById('sync-overlay').style.display = 'none';
   toast('Collection saved');
   showPage('home');
 }
@@ -3174,7 +3319,7 @@ function saveCollection() {
 /* ══════════════════════════════════════════════════════════════
    NEW BOOKING
    ══════════════════════════════════════════════════════════════ */
-function saveBooking() {
+async function saveBooking() {
   const orderNum = document.getElementById('b-order').value.trim();
   const name = document.getElementById('b-name').value.trim();
   const phone = document.getElementById('b-phone').value.trim();
@@ -3201,7 +3346,9 @@ function saveBooking() {
   saveBookings(bookings);
 
   // Sync to Google Sheet
-  syncNewBookingToSheet({ orderNum, name, phone, address, email, date, time, bookingFee: fee, bookingPaid: paid });
+  document.getElementById('sync-overlay').style.display = 'flex';
+  await syncNewBookingToSheet({ orderNum, name, phone, address, email, date, time, bookingFee: fee, bookingPaid: paid });
+  document.getElementById('sync-overlay').style.display = 'none';
 
   // Reset form
   ['b-order', 'b-name', 'b-phone', 'b-address', 'b-email'].forEach(id => {
@@ -3236,14 +3383,20 @@ function renderHistory() {
   }
 
   list.innerHTML = history.map(h => {
-    const d = new Date(h.date);
+    let dateStr = '-';
+    try {
+      const d = new Date(h.date + (h.date && !h.date.includes('T') ? 'T00:00:00' : ''));
+      if (!isNaN(d)) dateStr = d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {}
+    const weight = (h.netWeight || 0).toFixed(1);
+    const total = (h.totalDue || 0).toFixed(2);
     return `
       <div class="history-card">
         <div class="history-info">
           <h4>${esc(h.name)}</h4>
-          <p>${d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })} &middot; ${h.netWeight.toFixed(1)} kg &middot; ${h.paymentMethod}</p>
+          <p>${dateStr} &middot; ${weight} kg &middot; ${esc(h.paymentMethod || '-')}</p>
         </div>
-        <div class="history-amount">$${h.totalDue.toFixed(2)}</div>
+        <div class="history-amount">$${total}</div>
       </div>`;
   }).join('');
 }
@@ -3269,7 +3422,7 @@ function setRevRange(preset) {
     from = toStr(firstDay);
     to = toStr(today);
   } else {
-    from = '2026-01-01';
+    from = '2020-01-01';
     to = toStr(today);
   }
 
@@ -3293,7 +3446,7 @@ async function loadRevenueSummary() {
 
   try {
     toast('Loading revenue data...');
-    const resp = await fetch(APPS_SCRIPT_URL + '?action=getBookings&status=completed');
+    const resp = await fetch(apiGet('action=getBookings&status=completed'));
     const data = await resp.json();
 
     if (!data.bookings || data.bookings.length === 0) {
@@ -3329,9 +3482,13 @@ async function loadRevenueSummary() {
       totalFrame += b.frameKg || 0;
     });
 
-    // Tips = total - service - fees (approximation from collected data)
-    totalTips = totalRevenue - totalService - totalFees;
-    if (totalTips < 0) totalTips = 0;
+    // Sum tips from local history where available, else approximate
+    const localHistory = getHistory();
+    bookings.forEach(b => {
+      const local = localHistory.find(h => h.bookingId === b.id);
+      if (local && local.tips != null) totalTips += local.tips;
+      else totalTips += Math.max(0, (b.totalCollected || 0) - (b.serviceTotal || 0) - (b.bookingFee || 0));
+    });
 
     const count = bookings.length;
     const avg = count > 0 ? totalRevenue / count : 0;
@@ -3365,8 +3522,9 @@ async function exportReportImage() {
   toast('Generating report image...');
 
   try {
+    const lowMem2 = navigator.deviceMemory ? navigator.deviceMemory < 4 : /Android/i.test(navigator.userAgent);
     const canvas = await html2canvas(captureEl, {
-      scale: 2,
+      scale: lowMem2 ? 1.5 : 2,
       backgroundColor: '#F8F7F4',
       useCORS: true,
       logging: false
@@ -3409,7 +3567,7 @@ async function downloadAuditCSV() {
 
   try {
     toast('Fetching all records...');
-    const resp = await fetch(APPS_SCRIPT_URL + '?action=getBookings&status=all');
+    const resp = await fetch(apiGet('action=getBookings&status=all'));
     const data = await resp.json();
 
     if (!data.bookings || data.bookings.length === 0) {
@@ -3537,6 +3695,31 @@ function confirmReschedule() {
 /* ══════════════════════════════════════════════════════════════
    UTILITIES
    ══════════════════════════════════════════════════════════════ */
+let _saving = false;
+function guardSave(fn) {
+  if (_saving) return;
+  _saving = true;
+  try {
+    const result = fn();
+    // If fn returns a promise, wait for it to complete
+    if (result && typeof result.then === 'function') {
+      result.finally(() => _saving = false);
+    } else {
+      // For sync functions, use a short cooldown as fallback
+      setTimeout(() => _saving = false, 1000);
+    }
+  } catch (e) {
+    _saving = false;
+    throw e;
+  }
+}
+
+function handleCardClick(el) {
+  const id = el.dataset.bookingId;
+  if (el.dataset.action === 'view') viewCompleted(id);
+  else startCollection(id);
+}
+
 function esc(str) {
   if (!str) return '';
   const d = document.createElement('div');
@@ -3546,21 +3729,23 @@ function esc(str) {
 
 function cleanPhone(raw) {
   if (!raw) return '';
+  const rawStr = String(raw);
   // Remove all non-digit characters
-  let digits = String(raw).replace(/[^\d]/g, '');
-  // Remove trailing 0 from Excel decimal (e.g. "976989270" from "97698927.0")
-  // Phone numbers in SG are 8 digits. If we have 9+ digits and it ends in 0, trim it
-  if (digits.length === 9 && digits.endsWith('0')) {
+  let digits = rawStr.replace(/[^\d]/g, '');
+  // Remove trailing 0 from Excel decimal ONLY if raw value had a decimal point (e.g. "97698927.0" -> "976989270")
+  if (digits.length === 9 && digits.endsWith('0') && rawStr.includes('.')) {
     digits = digits.slice(0, 8);
-  }
-  // Add country code if not present
-  if (digits.length === 8) {
-    digits = '65' + digits;
   }
   // If starts with 065, fix to 65
   if (digits.startsWith('065')) {
     digits = digits.slice(1);
   }
+  // Only add SG country code for 8-digit numbers starting with 8 or 9 (SG mobile)
+  if (digits.length === 8 && (digits.startsWith('8') || digits.startsWith('9'))) {
+    digits = '65' + digits;
+  }
+  // Malaysian numbers: 10-11 digits starting with 60 are already fine
+  // Other international numbers (10+ digits): assume already have country code
   return digits;
 }
 
@@ -3585,12 +3770,57 @@ function toast(msg) {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   PULL TO REFRESH
+   ══════════════════════════════════════════════════════════════ */
+(function setupPTR() {
+  const container = document.querySelector('.page-container');
+  const indicator = document.getElementById('ptr-indicator');
+  let startY = 0;
+  let pulling = false;
+
+  container.addEventListener('touchstart', e => {
+    if (container.scrollTop === 0 && document.getElementById('page-home').classList.contains('active')) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  container.addEventListener('touchmove', e => {
+    if (!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 60 && container.scrollTop === 0) {
+      indicator.classList.add('visible');
+      indicator.textContent = 'Release to refresh';
+    } else if (dy > 0) {
+      indicator.classList.add('visible');
+      indicator.textContent = 'Pull down to refresh';
+    } else {
+      indicator.classList.remove('visible');
+    }
+  }, { passive: true });
+
+  container.addEventListener('touchend', () => {
+    if (!pulling) return;
+    pulling = false;
+    if (indicator.classList.contains('visible') && indicator.textContent === 'Release to refresh') {
+      indicator.textContent = 'Refreshing...';
+      indicator.classList.add('refreshing');
+      syncFromSheet().finally(() => {
+        indicator.classList.remove('visible', 'refreshing');
+      });
+    } else {
+      indicator.classList.remove('visible');
+    }
+  });
+})();
+
+/* ══════════════════════════════════════════════════════════════
    INIT
    ══════════════════════════════════════════════════════════════ */
 (function init() {
   // Load logo - use relative path (works when opened from project folder)
   const logoEl = document.getElementById('receipt-logo');
-  logoEl.src = 'logo.png';
+  logoEl.src = 'shredrite-logo.png';
   logoEl.onerror = function() {
     // Fallback: show text if logo file not found
     this.style.display = 'none';
@@ -3626,6 +3856,18 @@ function toast(msg) {
     document.getElementById('sync-status').textContent = 'Offline mode (no Google Sheet connected)';
     document.getElementById('sync-btn').style.display = 'none';
   }
+
+  // Escape key closes any visible modal
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => m.classList.add('hidden'));
+    }
+  });
+
+  // Retry failed writes when coming back online
+  window.addEventListener('online', () => {
+    retryFailedWrites();
+  });
 })();
 </script>
 </body>
