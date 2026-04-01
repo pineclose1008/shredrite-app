@@ -1863,6 +1863,31 @@ function localDateStr(d) {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
+// Format a YYYY-MM-DD string for display WITHOUT creating Date objects (timezone-safe)
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const DAY_LONG = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function formatDateStr(dateStr, opts) {
+  if (!dateStr || dateStr.length < 10) return dateStr || '';
+  const y = parseInt(dateStr.slice(0, 4));
+  const m = parseInt(dateStr.slice(5, 7)) - 1; // 0-indexed month
+  const d = parseInt(dateStr.slice(8, 10));
+  // Compute day-of-week using a known reference (2026-01-01 is Thursday=4)
+  const ref = new Date(y, m, d);
+  const dow = ref.getDay();
+  opts = opts || {};
+  let parts = [];
+  if (opts.weekday === 'short') parts.push(DAY_SHORT[dow]);
+  if (opts.weekday === 'long') parts.push(DAY_LONG[dow]);
+  if (parts.length) parts[parts.length - 1] += ',';
+  parts.push(String(d));
+  if (opts.month === 'short') parts.push(MONTH_SHORT[m]);
+  else if (opts.month === 'long') parts.push(MONTH_LONG[m]);
+  if (opts.year === 'numeric') parts.push(String(y));
+  return parts.join(' ');
+}
+
 // ── Google Apps Script URL ──────────────────────────────────
 // REPLACE THIS with your deployed Apps Script Web App URL
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdRFi5F5Ed1qFI7eSi7eBbmuwGlt5Tx-WVZfq6WQAv0LuMe98kqVJl7/exec';
@@ -2002,8 +2027,7 @@ function loadDatePickups() {
 
   // Show summary
   summary.classList.remove('hidden');
-  const dateObj = new Date(selectedDate + 'T00:00:00');
-  const dateLabel = dateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'short' });
+  const dateLabel = formatDateStr(selectedDate, { weekday: 'long', day: 'numeric', month: 'short' });
   document.getElementById('route-summary-title').textContent = dateLabel;
   document.getElementById('route-summary-count').textContent = routeDatePickups.length + ' stops';
   document.getElementById('route-summary-names').innerHTML = routeDatePickups.map((b, i) =>
@@ -2230,11 +2254,8 @@ function sendRescheduleWA() {
     return;
   }
 
-  const origDateObj = new Date(b.date + 'T00:00:00');
-  const origDateStr = origDateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' });
-
-  const newDateObj = new Date(newDate + 'T00:00:00');
-  const newDateStr = newDateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' });
+  const origDateStr = formatDateStr(b.date, { weekday: 'long', day: 'numeric', month: 'long' });
+  const newDateStr = formatDateStr(newDate, { weekday: 'long', day: 'numeric', month: 'long' });
 
   let msg = `Salam ${b.name}, ni Hambali from ShredRite.\n\n`;
   msg += `Your booking for us to pick up your items for disposal is currently scheduled for *${origDateStr}*.\n\n`;
@@ -2344,8 +2365,7 @@ function sendConfirmation(list, index) {
   waQueueIndex = index;
 
   const b = list[index];
-  const dateObj = new Date(b.date + 'T00:00:00');
-  const dateStr = dateObj.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long' });
+  const dateStr = formatDateStr(b.date, { weekday: 'long', day: 'numeric', month: 'long' });
   const timeStr = formatTime(b.time);
 
   let msg = `Salam ${b.name}, ni Hambali from ShredRite.\n\n`;
@@ -2611,12 +2631,9 @@ function renderPickups() {
     const bookings = getBookings();
     displayBookings = deduplicateBookings(bookings.filter(b => {
       if (completedIds.has(b.id) || b.status === 'Completed') return false;
-      const d = new Date(b.date + 'T00:00:00');
-      const now = new Date();
-      now.setHours(0,0,0,0);
-      const diff = (d - now) / (1000*60*60*24);
-      // Show overdue (past, not completed) + next 7 days
-      return diff <= 7;
+      // Compare date strings directly (YYYY-MM-DD sorts correctly)
+      const maxDate = localDateStr(new Date(Date.now() + 7 * 86400000));
+      return b.date <= maxDate;
     })).sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return (a.time || '').localeCompare(b.time || '');
@@ -2664,7 +2681,7 @@ function renderPickups() {
   displayBookings.forEach((b, idx) => {
     const isCompleted = completedIds.has(b.id) || b.status === 'Completed';
     const dateLabel = b.date === today ? 'Today' :
-      new Date(b.date + 'T00:00:00').toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short' });
+      formatDateStr(b.date, { weekday: 'short', day: 'numeric', month: 'short' });
 
     if (b.date !== currentDate) {
       // Close previous day with daily total
@@ -2681,9 +2698,7 @@ function renderPickups() {
 
     // Badge logic
     let badgeHtml = '';
-    const bDate = new Date(b.date + 'T00:00:00');
-    const todayMid = new Date(); todayMid.setHours(0,0,0,0);
-    const isOverdue = !isCompleted && bDate < todayMid;
+    const isOverdue = !isCompleted && b.date < today;
     if (isCompleted) {
       badgeHtml += '<span class="badge badge-completed">Completed</span>';
     } else if (isOverdue) {
@@ -2758,9 +2773,7 @@ function viewCompleted(bookingId) {
 
   document.getElementById('vc-name').textContent = b.name;
   document.getElementById('vc-address').textContent = b.address;
-  document.getElementById('vc-date').textContent = new Date(b.date + 'T00:00:00').toLocaleDateString('en-SG', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-  });
+  document.getElementById('vc-date').textContent = formatDateStr(b.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   // Build summary table
   let rows = '';
@@ -3389,8 +3402,7 @@ function renderHistory() {
   list.innerHTML = history.map(h => {
     let dateStr = '-';
     try {
-      const d = new Date(h.date + (h.date && !h.date.includes('T') ? 'T00:00:00' : ''));
-      if (!isNaN(d)) dateStr = d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
+      if (h.date && h.date.length >= 10) dateStr = formatDateStr(h.date, { day: 'numeric', month: 'short', year: 'numeric' });
     } catch {}
     const weight = (h.netWeight || 0).toFixed(1);
     const total = (h.totalDue || 0).toFixed(2);
