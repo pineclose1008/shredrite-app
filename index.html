@@ -2700,12 +2700,12 @@ function renderPickups() {
     }
 
     html += `
-      <div class="pickup-card ${isCompleted ? 'completed' : ''}" data-booking-id="${esc(b.id)}" data-action="${isCompleted ? 'view' : 'collect'}" onclick="handleCardClick(this)" style="cursor:pointer;">
+      <div class="pickup-card ${isCompleted ? 'completed' : ''}" data-booking-id="${esc(b.id)}" data-action="${isCompleted ? 'view' : 'collect'}" onclick="handleCardClick(this,event)" style="cursor:pointer;">
         <div class="pickup-card-header">
           <div class="pickup-card-name">${esc(b.name)}</div>
           ${b.time ? `<div class="pickup-card-time">${formatTime(b.time)}</div>` : ''}
         </div>
-        <div class="pickup-card-address">${esc(b.address).replace(/\n/g, '<br>')}</div>
+        <div class="pickup-card-address" style="white-space:pre-line">${esc(b.address)}</div>
         ${collectionInfo}
         <div class="pickup-card-footer">
           ${badgeHtml}
@@ -3713,7 +3713,9 @@ function guardSave(fn) {
   }
 }
 
-function handleCardClick(el) {
+function handleCardClick(el, ev) {
+  // Ignore clicks on buttons or inside the button bar
+  if (ev && (ev.target.closest('button') || ev.target.closest('[data-bid]'))) return;
   const id = el.dataset.bookingId;
   if (el.dataset.action === 'view') viewCompleted(id);
   else startCollection(id);
