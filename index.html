@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════════
    DESIGN TOKENS
@@ -1283,10 +1284,14 @@ textarea.form-input {
       <div class="ptr-indicator" id="ptr-indicator">Pull down to refresh</div>
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <h2 class="section-title" style="margin-bottom:0;" id="home-title">Today's Pickups</h2>
-        <button onclick="syncFromSheet()" style="background:none;border:1px solid var(--grey-200);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;font-weight:600;color:var(--grey-500);cursor:pointer;display:flex;align-items:center;gap:4px;" id="sync-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-          Sync
-        </button>
+        <div style="display:flex;gap:6px;">
+          <button onclick="sendDaySummary()" style="background:none;border:1px solid var(--grey-200);border-radius:var(--radius-sm);padding:6px 10px;font-size:12px;font-weight:600;color:var(--grey-500);cursor:pointer;">Day Summary</button>
+          <button onclick="syncFromSheet()" style="background:none;border:1px solid var(--grey-200);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;font-weight:600;color:var(--grey-500);cursor:pointer;display:flex;align-items:center;gap:4px;position:relative;" id="sync-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            Sync
+            <span id="sync-badge" class="hidden" style="position:absolute;top:-7px;right:-7px;min-width:18px;height:18px;background:var(--red);color:#fff;border-radius:9px;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;"></span>
+          </button>
+        </div>
       </div>
       <div class="status-filter-bar" style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;">
         <div class="toggle-group" id="toggle-status-filter" style="margin-bottom:10px;min-width:fit-content;">
@@ -1435,6 +1440,12 @@ textarea.form-input {
         <button class="toggle-btn" data-value="Cash" onclick="setToggle('toggle-payment', 'Cash')">Cash</button>
       </div>
 
+      <label class="form-label">Customer Type</label>
+      <div class="toggle-group" id="toggle-collect-type">
+        <button class="toggle-btn active" data-value="Home" onclick="setToggle('toggle-collect-type', 'Home')">Home</button>
+        <button class="toggle-btn" data-value="Institution" onclick="setToggle('toggle-collect-type', 'Institution')">Institution (B2B, gets cert)</button>
+      </div>
+
       <div class="section-divider"><span>Photos</span></div>
 
       <div class="photo-grid" id="photo-grid"></div>
@@ -1456,7 +1467,8 @@ textarea.form-input {
 
       <div id="receipt-capture">
         <div class="receipt-header">
-          <img class="receipt-logo" id="receipt-logo" src="shredrite-logo.png" alt="ShredRite" crossorigin="anonymous">
+          <!-- Logo embedded as data URI so the app works as a single standalone file -->
+        <img class="receipt-logo" id="receipt-logo" alt="ShredRite" src="data:image/png;base64,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">
           <div class="receipt-tagline">Islamic Material Disposal</div>
         </div>
         <div class="receipt-body">
@@ -1496,6 +1508,10 @@ textarea.form-input {
           </div>
 
           <div class="receipt-payment" id="r-payment"></div>
+          <div id="r-paynow-qr" class="hidden" style="text-align:center;padding:12px 0 4px;">
+            <div id="r-paynow-qr-code" style="display:inline-block;padding:8px;background:#fff;border:1px solid var(--grey-200);border-radius:8px;"></div>
+            <p style="font-size:11px;color:var(--grey-400);margin-top:6px;">Scan with any bank app to pay via PayNow</p>
+          </div>
         </div>
         <div class="receipt-footer">
           <p class="thank-you">Thank you for choosing ShredRite</p>
@@ -1548,6 +1564,16 @@ textarea.form-input {
         <table style="width:100%;font-size:13px;border-collapse:collapse;" id="vc-summary-table"></table>
       </div>
 
+      <!-- PayNow QR + payment status -->
+      <div id="vc-paynow-qr" class="hidden" style="background:var(--white);border-radius:var(--radius-md);padding:16px;border:1px solid var(--grey-100);margin-bottom:16px;text-align:center;">
+        <div id="vc-paynow-qr-code" style="display:inline-block;padding:8px;background:#fff;"></div>
+        <p style="font-size:11px;color:var(--grey-400);margin-top:6px;">Scan with any bank app to pay via PayNow</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <span class="badge" id="vc-payment-status" style="padding:6px 12px;"></span>
+        <button id="vc-mark-paid" class="hidden" onclick="markViewedPaid()" style="flex:1;padding:10px 16px;background:var(--green);color:var(--white);border:none;border-radius:var(--radius-sm);font-weight:600;font-size:13px;cursor:pointer;">Mark as Paid</button>
+      </div>
+
       <!-- Tip Edit Section -->
       <div style="background:var(--grey-50);border:1px solid var(--grey-200);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:16px;">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -1584,6 +1610,8 @@ textarea.form-input {
       <div class="form-group">
         <label class="form-label">Phone</label>
         <input type="tel" class="form-input" id="b-phone" placeholder="9XXX XXXX">
+        <button type="button" onclick="lookupCustomer()" style="margin-top:6px;background:none;border:1px solid var(--grey-200);border-radius:var(--radius-sm);padding:6px 12px;font-size:12px;font-weight:600;color:var(--grey-500);cursor:pointer;">Find returning customer</button>
+        <div id="b-lookup-results" class="hidden" style="margin-top:8px;background:var(--grey-50);border:1px solid var(--grey-200);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:var(--grey-500);line-height:1.6;"></div>
       </div>
 
       <div class="form-group">
@@ -1616,6 +1644,23 @@ textarea.form-input {
       <div class="toggle-group" id="toggle-booking-paid">
         <button class="toggle-btn" data-value="Yes" onclick="setToggle('toggle-booking-paid', 'Yes')">Yes</button>
         <button class="toggle-btn active" data-value="No" onclick="setToggle('toggle-booking-paid', 'No')">No (Collect later)</button>
+      </div>
+
+      <label class="form-label">Customer Type</label>
+      <div class="toggle-group" id="toggle-customer-type">
+        <button class="toggle-btn active" data-value="Home" onclick="setToggle('toggle-customer-type', 'Home')">Home</button>
+        <button class="toggle-btn" data-value="Institution" onclick="setToggle('toggle-customer-type', 'Institution')">Institution (B2B)</button>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Discount Code (optional)</label>
+        <select class="form-input" id="b-referral-select" onchange="onDiscountCodeChange()">
+          <option value="">None</option>
+          <option value="ALEEM10">ALEEM10</option>
+          <option value="FRIEND10">FRIEND10</option>
+          <option value="OTHER">Other (key in below)</option>
+        </select>
+        <input type="text" class="form-input hidden" id="b-referral" placeholder="Type discount code" style="text-transform:uppercase;margin-top:8px;">
       </div>
 
       <button class="btn-primary mt-16" onclick="guardSave(saveBooking)">Save Booking</button>
@@ -1655,10 +1700,15 @@ textarea.form-input {
         <button class="btn-secondary" onclick="setRevRange('all')" style="flex:1;min-width:70px;padding:8px 4px;font-size:12px;">All Time</button>
       </div>
 
-      <button class="btn-primary" onclick="loadRevenueSummary()" style="width:100%;margin-bottom:20px;">
+      <button class="btn-primary" onclick="loadRevenueSummary()" style="width:100%;margin-bottom:10px;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;vertical-align:middle;margin-right:6px;"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
         Generate Report
       </button>
+
+      <button class="btn-secondary" onclick="loadChaseList()" style="width:100%;margin-bottom:20px;border-color:#E65100;color:#E65100;">
+        Unpaid Chase List (last 60 days)
+      </button>
+      <div id="chase-list"></div>
 
       <div id="rev-results" class="hidden">
         <div id="rev-capture">
@@ -1720,6 +1770,12 @@ textarea.form-input {
             </tr>
           </table>
         </div>
+
+        <div id="rev-referral-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+          <div style="font-weight:600;margin-bottom:8px;font-size:14px;">Referral Give-Back</div>
+          <p style="font-size:11px;color:var(--grey-400);margin-bottom:8px;">Model 1 = $10/booking + $1/kg &middot; Model 2 = $2.50/kg</p>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;" id="rev-referral-table"></table>
+        </div>
         </div><!-- end rev-capture -->
         <button onclick="exportReportImage()" style="width:100%;margin-top:12px;padding:14px;background:var(--navy);color:var(--gold);border:none;border-radius:var(--radius-md);font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1753,7 +1809,7 @@ textarea.form-input {
 <div class="toast" id="toast"></div>
 
 <!-- WhatsApp Queue Modal -->
-<div class="modal-overlay hidden" id="wa-queue-modal" onclick="if(event.target===this)hideWAQueueModal()"
+<div class="modal-overlay hidden" id="wa-queue-modal" onclick="if(event.target===this)hideWAQueueModal()">
   <div class="modal">
     <h3>WhatsApp Confirmation</h3>
     <p style="font-size:14px;color:var(--green);font-weight:600;margin-bottom:8px;">Sent to <span id="wa-queue-sent"></span></p>
@@ -1849,6 +1905,27 @@ textarea.form-input {
 </div>
 
 <script>
+// Visible error reporting (the Apps Script sandbox hides console errors,
+// so surface any startup failure directly in the UI)
+window.addEventListener('error', function (e) {
+  try {
+    var detail = e.message
+      ? 'JS error: ' + e.message + ' (line ' + (e.lineno || '?') + ')'
+      : 'Failed to load: ' + ((e.target && (e.target.src || e.target.href)) || 'resource');
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#C0392B;color:#fff;font-size:11px;padding:4px 8px;z-index:9999;white-space:pre-wrap;';
+    el.textContent = detail;
+    if (document.body) document.body.appendChild(el);
+  } catch (_) {}
+}, true);
+
+// The Apps Script sandbox can evaluate this script before the body DOM is
+// parsed, so all startup work must wait for DOMContentLoaded.
+function onReady(fn) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+  else fn();
+}
+
 /* ══════════════════════════════════════════════════════════════
    STATE
    ══════════════════════════════════════════════════════════════ */
@@ -1856,6 +1933,24 @@ const RATES = { paper: 5.50, frame: 7.00, other: 7.00 };
 let currentPickup = null;
 let collectionPhotos = [];
 let currentFilter = 'upcoming';
+
+// Storage shim: inside the Apps Script sandbox iframe, localStorage can throw.
+// Fall back to in-memory storage - the Google Sheet is the source of truth,
+// so a stateless session still works (bookings re-sync on every load).
+const safeStore = (() => {
+  try {
+    localStorage.setItem('__sr_test', '1');
+    localStorage.removeItem('__sr_test');
+    return localStorage;
+  } catch (_) {
+    const mem = {};
+    return {
+      getItem: k => (k in mem ? mem[k] : null),
+      setItem: (k, v) => { mem[k] = String(v); },
+      removeItem: k => { delete mem[k]; }
+    };
+  }
+})();
 
 // Local date helper (avoids UTC timezone shift before 8am SGT)
 function localDateStr(d) {
@@ -1891,14 +1986,28 @@ function formatDateStr(dateStr, opts) {
 // ── Google Apps Script URL ──────────────────────────────────
 // REPLACE THIS with your deployed Apps Script Web App URL
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdRFi5F5Ed1qFI7eSi7eBbmuwGlt5Tx-WVZfq6WQAv0LuMe98kqVJl7/exec';
-const API_KEY = 'sr-2026-k8x7m3p9q2w5';
 // ─────────────────────────────────────────────────────────────
+
+// API key: a key saved on this device (via the sync mismatch prompt) wins over
+// the built-in legacy key. Rotate by setting the Script Property API_KEY in
+// Apps Script, then entering the new key here when prompted.
+function currentApiKey() {
+  return safeStore.getItem('sr_api_key') || 'sr-2026-k8x7m3p9q2w5';
+}
+
+function promptForApiKey() {
+  const k = window.prompt('API key mismatch. Enter the ShredRite API key:');
+  if (k && k.trim()) {
+    safeStore.setItem('sr_api_key', k.trim());
+    toast('Key saved. Tap Sync again.');
+  }
+}
 
 const SYNC_ENABLED = APPS_SCRIPT_URL.length > 0;
 
 // Helper: append API key to GET URLs
 function apiGet(params) {
-  return APPS_SCRIPT_URL + '?' + params + '&key=' + encodeURIComponent(API_KEY);
+  return APPS_SCRIPT_URL + '?' + params + '&key=' + encodeURIComponent(currentApiKey());
 }
 
 // Helper: wrap POST body with API key
@@ -1906,22 +2015,40 @@ function apiPost(bodyObj) {
   return fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({ ...bodyObj, key: API_KEY })
+    body: JSON.stringify({ ...bodyObj, key: currentApiKey() })
   });
+}
+
+// Fetch every page of a completed/all query (the backend pages responses,
+// 200 rows each, to stay under Apps Script size limits)
+async function fetchBookingsPaged(params) {
+  let all = [];
+  let offset = 0;
+  for (let page = 0; page < 50; page++) {
+    const resp = await fetch(apiGet(params + '&offset=' + offset));
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    const batch = data.bookings || [];
+    all = all.concat(batch);
+    if (!data.hasMore || batch.length === 0) break; // older backend sends no hasMore
+    offset += batch.length;
+  }
+  return all;
 }
 
 /* ══════════════════════════════════════════════════════════════
    FAILED WRITES RETRY QUEUE
    ══════════════════════════════════════════════════════════════ */
 function safeParse(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
+  try { return JSON.parse(safeStore.getItem(key) || JSON.stringify(fallback)); }
   catch { return fallback; }
 }
 function getFailedQueue() {
   return safeParse('sr_failed_queue', []);
 }
 function saveFailedQueue(q) {
-  localStorage.setItem('sr_failed_queue', JSON.stringify(q));
+  safeStore.setItem('sr_failed_queue', JSON.stringify(q));
+  if (typeof updateSyncBadge === 'function') updateSyncBadge();
 }
 function enqueueFailedWrite(bodyObj) {
   const q = getFailedQueue();
@@ -1961,13 +2088,19 @@ function findBooking(id) {
   return safeParse('sr_filtered_bookings', []).find(x => x.id === id) || null;
 }
 function saveBookings(data) {
-  localStorage.setItem('sr_bookings', JSON.stringify(data));
+  safeStore.setItem('sr_bookings', JSON.stringify(data));
 }
 function getHistory() {
   return safeParse('sr_history', []);
 }
 function saveHistoryData(data) {
-  localStorage.setItem('sr_history', JSON.stringify(data));
+  safeStore.setItem('sr_history', JSON.stringify(data));
+}
+
+// Closed statuses never show as upcoming/overdue (Cancelled bookings and
+// Duplicate rows in the sheet must not appear as pickups)
+function isClosedStatus(status) {
+  return status === 'Completed' || status === 'Cancelled' || status === 'Duplicate';
 }
 
 // Deduplicate bookings: same name+date = duplicate, keep highest row (most recent sheet entry)
@@ -2011,7 +2144,7 @@ function loadDatePickups() {
 
   const filtered = bookings.filter(b => {
     if (completedIds.has(b.id)) return false;
-    if (b.status === 'Completed') return false;
+    if (isClosedStatus(b.status)) return false;
     return b.date === selectedDate;
   }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
@@ -2094,7 +2227,7 @@ function openAssignTimes() {
 
     assignList = bookings.filter(b => {
       if (completedIds.has(b.id)) return false;
-      if (b.status === 'Completed') return false;
+      if (isClosedStatus(b.status)) return false;
       return b.date === today;
     }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
@@ -2410,12 +2543,9 @@ function waQueueSendNext() {
 
 function waQueueSkip() {
   hideWAQueueModal();
-  waQueueIndex++;
-  if (waQueueIndex < waQueue.length) {
-    sendConfirmation(waQueue, waQueueIndex);
-  } else {
-    toast('All confirmations sent');
-  }
+  // The modal offers to send to waQueue[waQueueIndex + 1]; skipping means
+  // that person gets no message and we continue with the one after them.
+  sendConfirmation(waQueue, waQueueIndex + 2);
 }
 
 /* ── Status Filter ────────────────────────────────────────── */
@@ -2452,7 +2582,7 @@ async function syncFromSheet(status) {
     document.getElementById('topbar-date').textContent = 'Syncing...';
     const resp = await fetch(apiGet('action=getBookings&status=' + encodeURIComponent(status)));
     const data = await resp.json();
-    if (data.error === 'Unauthorized') { toast('API key mismatch - check settings'); overlay.style.display = 'none'; return; }
+    if (data.error === 'Unauthorized') { overlay.style.display = 'none'; promptForApiKey(); return; }
 
     // Race condition guard: ignore response if filter changed while fetching
     if (status !== currentFilter && status !== (currentFilter || 'upcoming')) { overlay.style.display = 'none'; return; }
@@ -2492,7 +2622,7 @@ async function syncFromSheet(status) {
         saveBookings(deduped);
       } else {
         // For completed/all views, deduplicate and store separately
-        localStorage.setItem('sr_filtered_bookings', JSON.stringify(deduplicateBookings(data.bookings)));
+        safeStore.setItem('sr_filtered_bookings', JSON.stringify(deduplicateBookings(data.bookings)));
       }
     }
 
@@ -2539,17 +2669,22 @@ async function syncCollectionToSheet(pickup, collectionData) {
     tips: collectionData.tips,
     discount: collectionData.discount,
     paymentMethod: collectionData.paymentMethod,
-    notes: collectionData.notes || ''
+    notes: collectionData.notes || '',
+    referral: pickup.referral || '',
+    customerType: getToggle('toggle-collect-type') || 'Home',
+    paymentReceived: collectionData.paymentMethod === 'Cash' ? 'Yes' : 'No'
   };
 
   try {
     const resp = await apiPost(body);
     const data = await resp.json();
     if (data.error) throw new Error(data.error);
+    return data.certNum || '';
   } catch (err) {
     console.error('Save sync error:', err);
     enqueueFailedWrite(body);
     toast('Saved locally (will retry sync later)');
+    return '';
   }
 }
 
@@ -2570,15 +2705,20 @@ async function syncRescheduleToSheet(bookingId, newDate, newTime) {
 }
 
 /* ── Sync: Push new booking to Google Sheet ───────────────── */
+// Returns the sheet row number of the new booking (null if offline/failed)
 async function syncNewBookingToSheet(bookingData) {
-  if (!SYNC_ENABLED) return;
+  if (!SYNC_ENABLED) return null;
 
   const body = { action: 'addBooking', ...bookingData };
   try {
-    await apiPost(body);
+    const resp = await apiPost(body);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    return data.row || null;
   } catch (err) {
     console.error('Add booking sync error:', err);
     enqueueFailedWrite(body);
+    return null;
   }
 }
 
@@ -2586,15 +2726,22 @@ async function syncNewBookingToSheet(bookingData) {
    NAVIGATION
    ══════════════════════════════════════════════════════════════ */
 function showPage(name) {
-  // Navigation guard: warn if leaving collection form with data entered
+  // Navigation guard: warn if leaving collection form with data entered.
+  // Tap-twice pattern instead of confirm() - sandboxed iframes block modals.
   const currentPage = document.querySelector('.page.active');
   if (currentPage && currentPage.id === 'page-collect' && name !== 'collect' && name !== 'receipt') {
     const totals = getTotalWeights();
     const hasData = totals.paper > 0 || totals.frame > 0 || totals.other > 0 || collectionPhotos.length > 0;
     if (hasData) {
-      if (!window.confirm('You have unsaved collection data. Leave anyway?')) return;
+      if (window._leaveArmed !== name || Date.now() - (window._leaveArmedAt || 0) > 5000) {
+        window._leaveArmed = name;
+        window._leaveArmedAt = Date.now();
+        toast('Unsaved collection data. Tap again to leave.');
+        return;
+      }
     }
   }
+  window._leaveArmed = null;
 
   // Save home scroll position BEFORE removing active class
   const leavingHome = currentPage && currentPage.id === 'page-home' && name !== 'home';
@@ -2649,7 +2796,7 @@ function renderPickups() {
     // Default view: show upcoming from local storage
     const bookings = getBookings();
     displayBookings = deduplicateBookings(bookings.filter(b => {
-      if (completedIds.has(b.id) || b.status === 'Completed') return false;
+      if (completedIds.has(b.id) || isClosedStatus(b.status)) return false;
       // Compare date strings directly (YYYY-MM-DD sorts correctly)
       const maxDate = localDateStr(new Date(Date.now() + 7 * 86400000));
       return b.date <= maxDate;
@@ -2783,7 +2930,7 @@ function viewCompleted(bookingId) {
   let bookings = getBookings();
   let b = bookings.find(x => x.id === bookingId);
   if (!b) {
-    const filtered = JSON.parse(localStorage.getItem('sr_filtered_bookings') || '[]');
+    const filtered = JSON.parse(safeStore.getItem('sr_filtered_bookings') || '[]');
     b = filtered.find(x => x.id === bookingId);
   }
   if (!b) { toast('Booking not found'); return; }
@@ -2804,10 +2951,24 @@ function viewCompleted(bookingId) {
   if (b.netWeight) rows += tr('Net Weight', Number(b.netWeight).toFixed(1) + ' kg');
   if (b.serviceTotal) rows += tr('Service Total', '$' + Number(b.serviceTotal).toFixed(2));
   if (b.bookingFee) rows += tr('Booking Fee', '$' + Number(b.bookingFee).toFixed(2));
-  if (b.totalCollected) rows += `<tr><td style="padding:10px 0;font-weight:700;">Total Collected</td><td style="padding:10px 0;text-align:right;font-weight:700;color:var(--gold);">$${Number(b.totalCollected).toFixed(2)}</td></tr>`;
+  if (b.totalCollected) rows += `<tr><td style="padding:10px 0;font-weight:700;">Total Collected</td><td id="vc-total-cell" style="padding:10px 0;text-align:right;font-weight:700;color:var(--gold);">$${Number(b.totalCollected).toFixed(2)}</td></tr>`;
   if (b.paymentMethod) rows += tr('Payment Method', esc(b.paymentMethod));
+  if (b.certNum) rows += tr('Certificate', esc(b.certNum));
 
   document.getElementById('vc-summary-table').innerHTML = rows;
+
+  // Payment status badge + Mark as Paid + PayNow QR
+  const isReceived = b.paymentStatus === 'Received' || b.paymentMethod === 'Cash';
+  const statusEl = document.getElementById('vc-payment-status');
+  statusEl.textContent = isReceived ? 'Payment received' : (b.paymentStatus === 'Pending' ? 'Payment pending' : 'Payment not tracked');
+  statusEl.className = 'badge ' + (isReceived ? 'badge-paid' : 'badge-unpaid');
+  statusEl.style.padding = '6px 12px';
+  document.getElementById('vc-mark-paid').classList.toggle('hidden', isReceived || !b.row);
+  if (!isReceived && b.paymentMethod === 'PayNow' && b.totalCollected > 0) {
+    renderPayNowQR('vc-paynow-qr', 'vc-paynow-qr-code', b.totalCollected, b.orderNum || b.name);
+  } else {
+    document.getElementById('vc-paynow-qr').classList.add('hidden');
+  }
 
   // Tips: if available from local history use that, otherwise estimate from totals
   let currentTips = 0;
@@ -2816,8 +2977,8 @@ function viewCompleted(bookingId) {
   if (localEntry && localEntry.tips != null) {
     currentTips = localEntry.tips;
   } else {
-    // Estimate: total - service - bookingFee (may be off if discount was applied)
-    currentTips = Math.max(0, (b.totalCollected || 0) - (b.serviceTotal || 0) - (b.bookingFee || 0));
+    // Estimate: total - service - fee collected on-site (may be off if discount was applied)
+    currentTips = Math.max(0, (b.totalCollected || 0) - (b.serviceTotal || 0) - collectedFee(b));
   }
   document.getElementById('vc-tip-edit').value = currentTips > 0 ? currentTips.toFixed(0) : 0;
 
@@ -2830,7 +2991,7 @@ function updateCompletedTip() {
   const newTips = parseFloat(document.getElementById('vc-tip-edit').value) || 0;
 
   // Update local state: recalculate total
-  const oldTips = Math.max(0, (viewedBooking.totalCollected || 0) - (viewedBooking.serviceTotal || 0) - (viewedBooking.bookingFee || 0));
+  const oldTips = Math.max(0, (viewedBooking.totalCollected || 0) - (viewedBooking.serviceTotal || 0) - collectedFee(viewedBooking));
   const newTotal = (viewedBooking.totalCollected || 0) - oldTips + newTips;
   viewedBooking.totalCollected = newTotal;
 
@@ -2844,8 +3005,8 @@ function updateCompletedTip() {
   }
 
   // Refresh summary table
-  const totalRow = document.querySelector('#vc-summary-table tr:last-child td:last-child');
-  if (totalRow && totalRow.style.color) totalRow.textContent = '$' + Number(newTotal).toFixed(2);
+  const totalCell = document.getElementById('vc-total-cell');
+  if (totalCell) totalCell.textContent = '$' + Number(newTotal).toFixed(2);
 
   if (viewedBooking.row && SYNC_ENABLED) {
     const body = { action: 'updateTips', row: viewedBooking.row, tips: newTips };
@@ -2859,6 +3020,30 @@ function updateCompletedTip() {
   } else {
     toast('Tip updated to $' + newTips.toFixed(2));
   }
+}
+
+function markViewedPaid() {
+  if (!viewedBooking || !viewedBooking.row) return;
+  const body = { action: 'updatePaymentStatus', row: viewedBooking.row, status: 'Received' };
+  apiPost(body).then(r => r.json()).then(data => {
+    if (data.error) throw new Error(data.error);
+    toast('Marked as paid');
+  }).catch(err => {
+    console.error('Mark paid error:', err);
+    enqueueFailedWrite(body);
+    toast('Marked paid locally (will retry sync)');
+  });
+  viewedBooking.paymentStatus = 'Received';
+  // Persist to the filtered store so the badge stays correct after re-render
+  const filtered = safeParse('sr_filtered_bookings', []);
+  const fIdx = filtered.findIndex(x => x.id === viewedBooking.id);
+  if (fIdx !== -1) { filtered[fIdx].paymentStatus = 'Received'; safeStore.setItem('sr_filtered_bookings', JSON.stringify(filtered)); }
+  const statusEl = document.getElementById('vc-payment-status');
+  statusEl.textContent = 'Payment received';
+  statusEl.className = 'badge badge-paid';
+  statusEl.style.padding = '6px 12px';
+  document.getElementById('vc-mark-paid').classList.add('hidden');
+  document.getElementById('vc-paynow-qr').classList.add('hidden');
 }
 
 function sendCompletedPaymentMsg() {
@@ -2887,9 +3072,9 @@ function sendCompletedPaymentMsg() {
    COLLECTION FORM
    ══════════════════════════════════════════════════════════════ */
 function startCollection(bookingId) {
-  const bookings = getBookings();
-  currentPickup = bookings.find(b => b.id === bookingId);
-  if (!currentPickup) return;
+  // findBooking also searches sr_filtered_bookings so cards on the All tab work
+  currentPickup = findBooking(bookingId);
+  if (!currentPickup) { toast('Booking not found'); return; }
 
   document.getElementById('collect-name').textContent = currentPickup.name;
   document.getElementById('collect-address').textContent = currentPickup.address;
@@ -2898,7 +3083,7 @@ function startCollection(bookingId) {
   ['c-tips', 'c-discount'].forEach(id => {
     document.getElementById(id).value = '';
   });
-  document.getElementById('c-booking-fee').value = currentPickup.bookingFee || 20;
+  document.getElementById('c-booking-fee').value = (currentPickup.bookingFee != null ? currentPickup.bookingFee : 20);
   document.getElementById('net-weight-display').textContent = '0.00 kg';
 
   // Reset weight entries
@@ -2906,6 +3091,7 @@ function startCollection(bookingId) {
 
   setToggle('toggle-paid', currentPickup.bookingPaid === 'Yes' ? 'Yes' : 'No');
   setToggle('toggle-payment', 'PayNow');
+  setToggle('toggle-collect-type', currentPickup.customerType === 'Institution' ? 'Institution' : 'Home');
 
   collectionPhotos = [];
   document.getElementById('photo-grid').innerHTML = '';
@@ -3000,10 +3186,13 @@ function getToggle(groupId) {
    ══════════════════════════════════════════════════════════════ */
 function handlePhotos(event) {
   const files = event.target.files;
-  Array.from(files).forEach((file, idx) => {
+  Array.from(files).forEach(file => {
+    // Reserve a slot now so photos keep the order they were picked in,
+    // even though FileReader loads finish in any order
+    const slot = collectionPhotos.push(null) - 1;
     const reader = new FileReader();
     reader.onload = (e) => {
-      collectionPhotos.push(e.target.result);
+      collectionPhotos[slot] = e.target.result;
       renderPhotoGrid();
     };
     reader.readAsDataURL(file);
@@ -3013,13 +3202,13 @@ function handlePhotos(event) {
 
 function renderPhotoGrid() {
   const grid = document.getElementById('photo-grid');
-  grid.innerHTML = collectionPhotos.map((src, i) => `
+  grid.innerHTML = collectionPhotos.map((src, i) => src ? `
     <div class="photo-thumb">
       <img src="${src}" alt="Photo ${i+1}">
       <div class="photo-label">${i+1}</div>
       <button class="remove-photo" onclick="removePhoto(${i})">&times;</button>
     </div>
-  `).join('');
+  ` : '').join('');
 }
 
 function removePhoto(index) {
@@ -3156,16 +3345,23 @@ function proceedGenerateReceipt() {
   document.getElementById('r-total').textContent = '$' + totalDue.toFixed(2);
   document.getElementById('r-payment').textContent = 'Payment: ' + paymentMethod;
 
+  // PayNow QR with the exact amount embedded (scannable from the receipt image)
+  if (paymentMethod === 'PayNow' && totalDue > 0) {
+    renderPayNowQR('r-paynow-qr', 'r-paynow-qr-code', totalDue, currentPickup.orderNum || currentPickup.name);
+  } else {
+    document.getElementById('r-paynow-qr').classList.add('hidden');
+  }
+
   // Photos
   const photoContainer = document.getElementById('r-photos');
   const photosWrapper = document.getElementById('r-photos-container');
   if (collectionPhotos.length > 0) {
     photosWrapper.classList.remove('hidden');
-    photoContainer.innerHTML = collectionPhotos.map((src, i) =>
+    photoContainer.innerHTML = collectionPhotos.map((src, i) => src ?
       `<div style="position:relative;border-radius:var(--radius-sm);overflow:hidden;">
         <img src="${src}" alt="Photo ${i+1}">
         <div style="position:absolute;bottom:4px;left:4px;background:var(--navy);color:var(--gold);font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;">${i+1}</div>
-      </div>`
+      </div>` : ''
     ).join('');
   } else {
     photosWrapper.classList.add('hidden');
@@ -3177,7 +3373,7 @@ function proceedGenerateReceipt() {
     paperCost, frameCost, otherCost,
     serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod,
     photos: collectionPhotos.length,
-    date: new Date().toISOString()
+    date: localDateStr() // local SGT date; toISOString() is UTC and shifts back a day before 8am
   };
 
   // Set tip edit field to current value
@@ -3286,6 +3482,11 @@ function updateTipAmount() {
   }
   document.getElementById('r-total').textContent = '$' + c.totalDue.toFixed(2);
 
+  // Refresh the PayNow QR so it carries the new total
+  if (c.paymentMethod === 'PayNow' && c.totalDue > 0) {
+    renderPayNowQR('r-paynow-qr', 'r-paynow-qr-code', c.totalDue, currentPickup.orderNum || currentPickup.name);
+  }
+
   // Sync to Google Sheet if this booking has a row
   if (currentPickup.row && SYNC_ENABLED) {
     const body = { action: 'updateTips', row: currentPickup.row, tips: newTips };
@@ -3345,16 +3546,24 @@ async function saveCollection() {
   }
 
   // Sync to Google Sheet
-  await syncCollectionToSheet(currentPickup, c);
+  const certNum = await syncCollectionToSheet(currentPickup, c);
 
   document.getElementById('sync-overlay').style.display = 'none';
-  toast('Collection saved');
+  toast('Collection saved' + (certNum ? ' - Certificate ' + certNum : ''));
   showPage('home');
 }
 
 /* ══════════════════════════════════════════════════════════════
    NEW BOOKING
    ══════════════════════════════════════════════════════════════ */
+// Show the manual code input only when "Other" is selected in the dropdown
+function onDiscountCodeChange() {
+  const sel = document.getElementById('b-referral-select').value;
+  const manual = document.getElementById('b-referral');
+  manual.classList.toggle('hidden', sel !== 'OTHER');
+  if (sel !== 'OTHER') manual.value = '';
+}
+
 async function saveBooking() {
   const orderNum = document.getElementById('b-order').value.trim();
   const name = document.getElementById('b-name').value.trim();
@@ -3363,8 +3572,14 @@ async function saveBooking() {
   const email = document.getElementById('b-email').value.trim();
   const date = document.getElementById('b-date').value;
   const time = document.getElementById('b-time').value;
-  const fee = parseFloat(document.getElementById('b-fee').value) || 20;
+  const feeRaw = document.getElementById('b-fee').value;
+  const fee = feeRaw === '' ? 20 : (parseFloat(feeRaw) || 0);
   const paid = getToggle('toggle-booking-paid');
+  const referralSel = document.getElementById('b-referral-select').value;
+  const referral = (referralSel === 'OTHER'
+    ? document.getElementById('b-referral').value.trim()
+    : referralSel).toUpperCase();
+  const customerType = getToggle('toggle-customer-type') || 'Home';
 
   if (!name || !address || !date) {
     toast('Please fill in name, address, and date');
@@ -3372,28 +3587,45 @@ async function saveBooking() {
   }
 
   const bookings = getBookings();
+  const newId = 'b_' + Date.now();
   bookings.push({
-    id: 'b_' + Date.now(),
+    id: newId,
     orderNum, name, phone, address, email, date, time,
     bookingFee: fee,
     bookingPaid: paid,
+    referral: referral,
+    customerType: customerType,
     createdAt: new Date().toISOString()
   });
   saveBookings(bookings);
 
   // Sync to Google Sheet
   document.getElementById('sync-overlay').style.display = 'flex';
-  await syncNewBookingToSheet({ orderNum, name, phone, address, email, date, time, bookingFee: fee, bookingPaid: paid });
+  const sheetRow = await syncNewBookingToSheet({ orderNum, name, phone, address, email, date, time, bookingFee: fee, bookingPaid: paid, referral: referral });
+  // Link the local booking to its sheet row so completing it updates that row
+  // in place instead of appending a duplicate "Completed" row
+  if (sheetRow) {
+    const linked = getBookings();
+    const justAdded = linked.find(x => x.id === newId);
+    if (justAdded) {
+      justAdded.row = sheetRow;
+      saveBookings(linked);
+    }
+  }
   document.getElementById('sync-overlay').style.display = 'none';
 
   // Reset form
-  ['b-order', 'b-name', 'b-phone', 'b-address', 'b-email'].forEach(id => {
+  ['b-order', 'b-name', 'b-phone', 'b-address', 'b-email', 'b-referral'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  document.getElementById('b-referral-select').value = '';
+  document.getElementById('b-referral').classList.add('hidden');
   document.getElementById('b-date').value = '';
   document.getElementById('b-time').value = '';
   document.getElementById('b-fee').value = '20';
   setToggle('toggle-booking-paid', 'No');
+  setToggle('toggle-customer-type', 'Home');
+  document.getElementById('b-lookup-results').classList.add('hidden');
 
   toast('Booking saved');
   showPage('home');
@@ -3481,16 +3713,11 @@ async function loadRevenueSummary() {
 
   try {
     toast('Loading revenue data...');
-    const resp = await fetch(apiGet('action=getBookings&status=completed'));
-    const data = await resp.json();
+    // Server filters by date range and pages past the old 200-row cap
+    const fetched = await fetchBookingsPaged('action=getBookings&status=completed&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
 
-    if (!data.bookings || data.bookings.length === 0) {
-      toast('No completed collections found');
-      return;
-    }
-
-    // Filter by date range
-    const bookings = data.bookings.filter(b => {
+    // Client-side range filter kept as safeguard (older backend ignores from/to)
+    const bookings = fetched.filter(b => {
       return b.date >= from && b.date <= to;
     });
 
@@ -3511,7 +3738,8 @@ async function loadRevenueSummary() {
     bookings.forEach(b => {
       totalRevenue += b.totalCollected || 0;
       totalService += b.serviceTotal || 0;
-      totalFees += b.bookingFee || 0;
+      // Fees paid via Shopify are not part of the collected total
+      totalFees += collectedFee(b);
       totalWeight += b.netWeight || 0;
       totalPaper += b.paperKg || 0;
       totalFrame += b.frameKg || 0;
@@ -3522,7 +3750,7 @@ async function loadRevenueSummary() {
     bookings.forEach(b => {
       const local = localHistory.find(h => h.bookingId === b.id);
       if (local && local.tips != null) totalTips += local.tips;
-      else totalTips += Math.max(0, (b.totalCollected || 0) - (b.serviceTotal || 0) - (b.bookingFee || 0));
+      else totalTips += Math.max(0, (b.totalCollected || 0) - (b.serviceTotal || 0) - collectedFee(b));
     });
 
     const count = bookings.length;
@@ -3540,6 +3768,31 @@ async function loadRevenueSummary() {
     document.getElementById('rev-fees').textContent = '$' + totalFees.toFixed(2);
     document.getElementById('rev-tips2').textContent = '$' + totalTips.toFixed(2);
     document.getElementById('rev-total2').textContent = '$' + totalRevenue.toFixed(2);
+
+    // Referral give-back (Masjid partnerships): group tagged collections by code
+    const byCode = {};
+    bookings.forEach(b => {
+      const code = (b.referral || '').trim().toUpperCase();
+      if (!code) return;
+      if (!byCode[code]) byCode[code] = { count: 0, kg: 0 };
+      byCode[code].count++;
+      byCode[code].kg += b.netWeight || 0;
+    });
+    const codes = Object.keys(byCode).sort();
+    const refSection = document.getElementById('rev-referral-section');
+    if (codes.length) {
+      document.getElementById('rev-referral-table').innerHTML =
+        '<tr style="border-bottom:1px solid var(--grey-100);color:var(--grey-400);"><td style="padding:4px 0;">Code</td><td style="text-align:right;">Jobs</td><td style="text-align:right;">kg</td><td style="text-align:right;">Model 1</td><td style="text-align:right;">Model 2</td></tr>' +
+        codes.map(code => {
+          const s = byCode[code];
+          const m1 = 10 * s.count + 1 * s.kg;
+          const m2 = 2.5 * s.kg;
+          return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;font-weight:600;">${esc(code)}</td><td style="text-align:right;">${s.count}</td><td style="text-align:right;">${s.kg.toFixed(1)}</td><td style="text-align:right;font-weight:600;">$${m1.toFixed(2)}</td><td style="text-align:right;font-weight:600;">$${m2.toFixed(2)}</td></tr>`;
+        }).join('');
+      refSection.classList.remove('hidden');
+    } else {
+      refSection.classList.add('hidden');
+    }
 
     document.getElementById('rev-results').classList.remove('hidden');
     toast('Report generated');
@@ -3602,17 +3855,17 @@ async function downloadAuditCSV() {
 
   try {
     toast('Fetching all records...');
-    const resp = await fetch(apiGet('action=getBookings&status=all'));
-    const data = await resp.json();
+    // Paged fetch: downloads the complete history, not just the newest 200
+    const allBookings = await fetchBookingsPaged('action=getBookings&status=all');
 
-    if (!data.bookings || data.bookings.length === 0) {
+    if (allBookings.length === 0) {
       toast('No records to download');
       return;
     }
 
     const headers = ['Order#','Status','Date','Time','Name','Phone','Address','Email','Booking Fee','Booking Paid','Paper (kg)','Frame (kg)','Other (kg)','Net Weight (kg)','Service Total','Tips','Total Collected','Payment Method'];
 
-    const rows = data.bookings.map(b => [
+    const rows = allBookings.map(b => [
       b.orderNum || '',
       b.status || '',
       b.date || '',
@@ -3752,7 +4005,7 @@ function confirmReschedule() {
     filtered[fIdx].rescheduled = true;
     filtered[fIdx].status = 'Rescheduled';
   }
-  localStorage.setItem('sr_filtered_bookings', JSON.stringify(filtered));
+  safeStore.setItem('sr_filtered_bookings', JSON.stringify(filtered));
 
   // Sync to Google Sheet
   syncRescheduleToSheet(rescheduleId, newDate, newTime);
@@ -3799,6 +4052,213 @@ function esc(str) {
   return d.innerHTML;
 }
 
+// Booking fee that was actually collected on-site (Shopify-paid fees are not in totalCollected)
+function collectedFee(b) {
+  return b.bookingPaid === 'Yes' ? 0 : (b.bookingFee || 0);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PAYNOW QR (EMVCo SGQR, mobile proxy)
+   ══════════════════════════════════════════════════════════════ */
+const PAYNOW_MOBILE = '+6583831987';
+const PAYNOW_MERCHANT = 'SHREDRITE';
+
+function emvField(id, value) {
+  const len = String(value.length).padStart(2, '0');
+  return id + len + value;
+}
+
+// CRC-16/CCITT-FALSE (poly 0x1021, init 0xFFFF) as required by EMVCo
+function crc16ccitt(str) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) {
+      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      crc &= 0xFFFF;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function buildPayNowPayload(amount, refText) {
+  const account = emvField('00', 'SG.PAYNOW')
+    + emvField('01', '0')            // proxy type 0 = mobile number
+    + emvField('02', PAYNOW_MOBILE)
+    + emvField('03', '1');           // amount editable (prefilled)
+  let payload = emvField('00', '01')
+    + emvField('01', '12')           // dynamic QR (amount included)
+    + emvField('26', account)
+    + emvField('52', '0000')
+    + emvField('53', '702')          // SGD
+    + emvField('54', Number(amount).toFixed(2))
+    + emvField('58', 'SG')
+    + emvField('59', PAYNOW_MERCHANT)
+    + emvField('60', 'Singapore');
+  if (refText) {
+    const ref = String(refText).replace(/[^A-Za-z0-9 \-]/g, '').slice(0, 25);
+    if (ref) payload += emvField('62', emvField('01', ref));
+  }
+  payload += '6304';
+  return payload + crc16ccitt(payload);
+}
+
+// Render a PayNow QR into a container; hides the wrapper when unavailable
+function renderPayNowQR(wrapperId, codeId, amount, refText) {
+  const wrapper = document.getElementById(wrapperId);
+  const container = document.getElementById(codeId);
+  if (!wrapper || !container) return;
+  if (!window.QRCode || !(amount > 0)) { wrapper.classList.add('hidden'); return; }
+  container.innerHTML = '';
+  new QRCode(container, {
+    text: buildPayNowPayload(amount, refText),
+    width: 160, height: 160,
+    correctLevel: QRCode.CorrectLevel.M
+  });
+  wrapper.classList.remove('hidden');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UNPAID CHASE LIST
+   ══════════════════════════════════════════════════════════════ */
+let chaseList = [];
+
+async function loadChaseList() {
+  if (!SYNC_ENABLED) { toast('Google Sheet not connected'); return; }
+  toast('Loading unpaid collections...');
+  try {
+    const from = localDateStr(new Date(Date.now() - 60 * 86400000));
+    const to = localDateStr();
+    const completed = await fetchBookingsPaged('action=getBookings&status=completed&from=' + from + '&to=' + to);
+    chaseList = completed.filter(b => {
+      if (!(b.totalCollected > 0)) return false;
+      if (b.paymentStatus === 'Received') return false;
+      // Pending = tracked as unpaid; blank status on a PayNow job = not yet verified
+      return b.paymentStatus === 'Pending' || (!b.paymentStatus && b.paymentMethod === 'PayNow');
+    });
+    renderChaseList();
+    toast(chaseList.length === 0 ? 'No unpaid collections. Alhamdulillah.' : chaseList.length + ' unpaid collection(s)');
+  } catch (err) {
+    console.error('Chase list error:', err);
+    toast('Failed to load unpaid list');
+  }
+}
+
+function renderChaseList() {
+  const el = document.getElementById('chase-list');
+  if (chaseList.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = chaseList.map((b, i) => `
+    <div class="history-card" style="flex-wrap:wrap;gap:8px;">
+      <div class="history-info">
+        <h4>${esc(b.name)}</h4>
+        <p>${formatDateStr(b.date, { day: 'numeric', month: 'short' })} &middot; $${Number(b.totalCollected).toFixed(2)} &middot; ${esc(b.paymentStatus || 'not tracked')}</p>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:6px 10px;" onclick="chaseReminder(${i})">Remind</button>
+        <button class="badge" style="cursor:pointer;background:var(--green);color:white;border:none;padding:6px 10px;" onclick="chaseMarkPaid(${i})">Mark Paid</button>
+      </div>
+    </div>`).join('');
+}
+
+function chaseReminder(i) {
+  const b = chaseList[i];
+  if (!b) return;
+  const total = Number(b.totalCollected).toFixed(2);
+  let msg = `Salam ${b.name}, ni Hambali from ShredRite.\n\n`;
+  msg += `Just a gentle reminder for your collection on ${formatDateStr(b.date, { day: 'numeric', month: 'long' })}: *$${total}*.\n\n`;
+  msg += `You can PayNow to *83831987* whenever convenient, no rush.\n\nJazakAllahu khairan!`;
+  const phone = cleanPhone(b.phone);
+  window.open(phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function chaseMarkPaid(i) {
+  const b = chaseList[i];
+  if (!b || !b.row) return;
+  const body = { action: 'updatePaymentStatus', row: b.row, status: 'Received' };
+  apiPost(body).then(r => r.json()).then(data => {
+    if (data.error) throw new Error(data.error);
+    chaseList.splice(i, 1);
+    renderChaseList();
+    toast('Marked as paid');
+  }).catch(err => {
+    console.error('Mark paid error:', err);
+    enqueueFailedWrite(body);
+    chaseList.splice(i, 1);
+    renderChaseList();
+    toast('Marked paid locally (will retry sync)');
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REPEAT-CUSTOMER LOOKUP
+   ══════════════════════════════════════════════════════════════ */
+async function lookupCustomer() {
+  const phone = document.getElementById('b-phone').value.trim();
+  if (!phone) { toast('Enter a phone number first'); return; }
+  if (!SYNC_ENABLED) { toast('Google Sheet not connected'); return; }
+  const box = document.getElementById('b-lookup-results');
+  box.classList.remove('hidden');
+  box.innerHTML = 'Searching...';
+  try {
+    const resp = await fetch(apiGet('action=searchCustomer&phone=' + encodeURIComponent(phone)));
+    const data = await resp.json();
+    if (data.error) { box.innerHTML = esc(data.error); return; }
+    const matches = data.matches || [];
+    if (matches.length === 0) { box.innerHTML = 'No past collections for this number - new customer.'; return; }
+    const latest = matches[0];
+    document.getElementById('b-name').value = latest.name || '';
+    document.getElementById('b-address').value = latest.address || '';
+    if (latest.email) document.getElementById('b-email').value = latest.email;
+    box.innerHTML = '<strong>Returning customer - details filled in.</strong><br>' + matches.map(m =>
+      `${formatDateStr(m.date, { day: 'numeric', month: 'short', year: 'numeric' })} &middot; ${m.netWeight ? Number(m.netWeight).toFixed(1) + ' kg &middot; ' : ''}${m.totalCollected ? '$' + Number(m.totalCollected).toFixed(2) : esc(m.status)}`
+    ).join('<br>');
+  } catch (err) {
+    console.error('Lookup error:', err);
+    box.innerHTML = 'Search failed - check connection.';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   END-OF-DAY SUMMARY (WhatsApp to self)
+   ══════════════════════════════════════════════════════════════ */
+async function sendDaySummary() {
+  if (!SYNC_ENABLED) { toast('Google Sheet not connected'); return; }
+  toast('Building day summary...');
+  try {
+    const today = localDateStr();
+    const jobs = await fetchBookingsPaged('action=getBookings&status=completed&from=' + today + '&to=' + today);
+    if (jobs.length === 0) { toast('No completed collections today'); return; }
+    let totalKg = 0, totalCollected = 0;
+    const unpaid = [];
+    const lines = jobs.map(b => {
+      totalKg += b.netWeight || 0;
+      totalCollected += b.totalCollected || 0;
+      const isUnpaid = b.paymentStatus !== 'Received' && b.paymentMethod === 'PayNow';
+      if (isUnpaid) unpaid.push(b.name);
+      return `- ${b.name}: $${Number(b.totalCollected || 0).toFixed(2)} (${b.paymentMethod || '?'}${isUnpaid ? ', unpaid' : ''})`;
+    });
+    let msg = `*ShredRite Day Summary - ${formatDateStr(today, { weekday: 'short', day: 'numeric', month: 'short' })}*\n\n`;
+    msg += `Collections: ${jobs.length}\nWeight: ${totalKg.toFixed(1)} kg\nCollected: $${totalCollected.toFixed(2)}\n\n`;
+    msg += lines.join('\n');
+    if (unpaid.length) msg += `\n\nTo chase: ${unpaid.join(', ')}`;
+    window.open(`https://wa.me/6583831987?text=${encodeURIComponent(msg)}`, '_blank');
+  } catch (err) {
+    console.error('Day summary error:', err);
+    toast('Failed to build summary');
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PENDING-SYNC BADGE
+   ══════════════════════════════════════════════════════════════ */
+function updateSyncBadge() {
+  const badge = document.getElementById('sync-badge');
+  if (!badge) return;
+  const n = getFailedQueue().length;
+  badge.textContent = n;
+  badge.classList.toggle('hidden', n === 0);
+}
+
 function cleanPhone(raw) {
   if (!raw) return '';
   const rawStr = String(raw);
@@ -3826,6 +4286,8 @@ function formatTime(t) {
   try {
     const [h, m] = t.split(':');
     const hr = parseInt(h);
+    // Free-text times like "afternoon" or "2pm-4pm" pass through unchanged
+    if (isNaN(hr) || m === undefined) return t;
     const ampm = hr >= 12 ? 'PM' : 'AM';
     const hr12 = hr % 12 || 12;
     return `${hr12}:${m} ${ampm}`;
@@ -3844,7 +4306,7 @@ function toast(msg) {
 /* ══════════════════════════════════════════════════════════════
    PULL TO REFRESH
    ══════════════════════════════════════════════════════════════ */
-(function setupPTR() {
+function setupPTR() {
   const container = document.querySelector('.page-container');
   const indicator = document.getElementById('ptr-indicator');
   let startY = 0;
@@ -3884,20 +4346,16 @@ function toast(msg) {
       indicator.classList.remove('visible');
     }
   });
-})();
+}
+onReady(setupPTR);
 
 /* ══════════════════════════════════════════════════════════════
    INIT
    ══════════════════════════════════════════════════════════════ */
-(function init() {
-  // Load logo - use relative path (works when opened from project folder)
-  const logoEl = document.getElementById('receipt-logo');
-  logoEl.src = 'shredrite-logo.png';
-  logoEl.onerror = function() {
-    // Fallback: show text if logo file not found
-    this.style.display = 'none';
-    this.parentElement.insertAdjacentHTML('afterbegin', '<div style="font-family:DM Serif Display,Georgia,serif;font-size:24px;color:#fff;letter-spacing:1px;margin-bottom:4px;">ShredRite</div>');
-  };
+function initApp() {
+  // Logo is embedded as a data URI in the img tag - no file loading needed
+
+  updateSyncBadge();
 
   // Set today's date in topbar
   const now = new Date();
@@ -3940,7 +4398,8 @@ function toast(msg) {
   window.addEventListener('online', () => {
     retryFailedWrites();
   });
-})();
+}
+onReady(initApp);
 </script>
 </body>
 </html>
