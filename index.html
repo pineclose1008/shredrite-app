@@ -1994,7 +1994,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-07-16.1';
+const APP_VERSION = '2026-07-16.2';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2645,6 +2645,12 @@ async function syncFromSheet(status) {
           const sheetVersion = sheetBookings.find(s => s.id === id);
           if (sheetVersion && sheetVersion.date === local.date) {
             delete local.rescheduled; // sheet caught up, no longer need to override
+          } else if (!sheetVersion && id.startsWith('row_') && local.date < localDateStr()) {
+            // Sheet row no longer comes back as upcoming and the local date is
+            // already past: the row was closed in the sheet (Completed/Cancelled/
+            // Duplicate). Drop the local override instead of resurrecting an
+            // Overdue card forever. Future-dated misses are kept - they may just
+            // be beyond the sheet's 7-day upcoming window.
           } else {
             rescheduledLocal.push(local);
           }
