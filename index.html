@@ -1994,7 +1994,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-07-16.2';
+const APP_VERSION = '2026-07-16.3';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -3124,13 +3124,17 @@ function startCollection(bookingId) {
   document.getElementById('collect-name').textContent = currentPickup.name;
   document.getElementById('collect-address').textContent = currentPickup.address;
 
-  // Show the discount code so the right discount gets applied at collection
+  // Always show discount status so the right discount gets applied at collection
   const collectRef = document.getElementById('collect-referral');
+  collectRef.classList.remove('hidden');
   if (currentPickup.referral) {
     collectRef.textContent = 'Discount code: ' + currentPickup.referral;
-    collectRef.classList.remove('hidden');
+    collectRef.style.background = '#FFF8E1';
+    collectRef.style.color = '#7A5D00';
   } else {
-    collectRef.classList.add('hidden');
+    collectRef.textContent = 'No discount code';
+    collectRef.style.background = 'var(--grey-100)';
+    collectRef.style.color = 'var(--grey-500)';
   }
 
   // Reset form
