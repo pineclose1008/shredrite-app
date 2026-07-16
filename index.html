@@ -1365,6 +1365,7 @@ textarea.form-input {
       <div id="collect-customer-info" style="margin-bottom: 20px;">
         <h2 class="section-title" id="collect-name"></h2>
         <p class="text-sm text-grey" id="collect-address"></p>
+        <span class="badge hidden" id="collect-referral" style="background:#FFF8E1;color:#7A5D00;margin-top:6px;display:inline-block;"></span>
       </div>
 
       <div class="section-divider"><span>Weights</span></div>
@@ -1987,6 +1988,42 @@ function formatDateStr(dateStr, opts) {
 // REPLACE THIS with your deployed Apps Script Web App URL
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdRFi5F5Ed1qFI7eSi7eBbmuwGlt5Tx-WVZfq6WQAv0LuMe98kqVJl7/exec';
 // ─────────────────────────────────────────────────────────────
+
+// ── App version + self-update check ─────────────────────────
+// Phone browsers keep this tab alive for days without ever reloading it, so
+// new deploys never arrive on their own. The app polls GitHub Pages for a
+// newer build and offers a one-tap refresh (never auto-reloads, so an
+// in-progress collection is never lost).
+const APP_VERSION = '2026-07-16.1';
+
+function showUpdateBanner() {
+  if (document.getElementById('update-banner')) return;
+  const bar = document.createElement('div');
+  bar.id = 'update-banner';
+  bar.style.cssText = 'position:fixed;bottom:76px;left:12px;right:12px;background:var(--navy);color:#fff;padding:12px 16px;border-radius:12px;z-index:9998;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,0.25);font-size:13px;';
+  bar.innerHTML = '<span>App update available</span><button style="background:var(--gold);color:var(--navy);border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;">Update now</button>';
+  bar.querySelector('button').onclick = () => location.reload();
+  document.body.appendChild(bar);
+}
+
+async function checkForUpdate() {
+  if (location.protocol === 'file:') return; // downloaded-copy flow has no server
+  try {
+    const resp = await fetch(location.pathname + '?upd=' + Date.now(), { cache: 'no-store' });
+    if (!resp.ok) return;
+    const text = await resp.text();
+    const m = text.match(/APP_VERSION = '([^']+)'/);
+    if (m && m[1] !== APP_VERSION) showUpdateBanner();
+  } catch (_) {}
+}
+
+onReady(() => {
+  setTimeout(checkForUpdate, 3000);
+  setInterval(checkForUpdate, 30 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkForUpdate();
+  });
+});
 
 // API key: a key saved on this device (via the sync mismatch prompt) wins over
 // the built-in legacy key. Rotate by setting the Script Property API_KEY in
@@ -2896,6 +2933,7 @@ function renderPickups() {
         <div class="pickup-card-footer">
           ${badgeHtml}
           ${b.rescheduled ? '<span class="badge" style="background:#FFF3E0;color:#E65100;">Rescheduled</span>' : ''}
+          ${b.referral ? `<span class="badge" style="background:#FFF8E1;color:#7A5D00;">${esc(b.referral)}</span>` : ''}
           ${b.phone ? `<span class="text-sm text-grey">${esc(b.phone)}</span>` : ''}
         </div>
         ${!isCompleted ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;" data-bid="${esc(b.id)}">
@@ -2953,6 +2991,7 @@ function viewCompleted(bookingId) {
   if (b.bookingFee) rows += tr('Booking Fee', '$' + Number(b.bookingFee).toFixed(2));
   if (b.totalCollected) rows += `<tr><td style="padding:10px 0;font-weight:700;">Total Collected</td><td id="vc-total-cell" style="padding:10px 0;text-align:right;font-weight:700;color:var(--gold);">$${Number(b.totalCollected).toFixed(2)}</td></tr>`;
   if (b.paymentMethod) rows += tr('Payment Method', esc(b.paymentMethod));
+  if (b.referral) rows += tr('Discount Code', esc(b.referral));
   if (b.certNum) rows += tr('Certificate', esc(b.certNum));
 
   document.getElementById('vc-summary-table').innerHTML = rows;
@@ -3078,6 +3117,15 @@ function startCollection(bookingId) {
 
   document.getElementById('collect-name').textContent = currentPickup.name;
   document.getElementById('collect-address').textContent = currentPickup.address;
+
+  // Show the discount code so the right discount gets applied at collection
+  const collectRef = document.getElementById('collect-referral');
+  if (currentPickup.referral) {
+    collectRef.textContent = 'Discount code: ' + currentPickup.referral;
+    collectRef.classList.remove('hidden');
+  } else {
+    collectRef.classList.add('hidden');
+  }
 
   // Reset form
   ['c-tips', 'c-discount'].forEach(id => {
