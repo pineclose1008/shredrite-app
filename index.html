@@ -1429,6 +1429,11 @@ textarea.form-input {
         <input type="number" id="c-discount" inputmode="decimal" step="1" min="0" placeholder="0" value="">
       </div>
 
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Remarks (optional, for your reference)</label>
+        <textarea class="form-input" id="c-remarks" rows="2" placeholder="e.g. gate access, item condition, follow up needed"></textarea>
+      </div>
+
       <label class="form-label">Booking Already Paid?</label>
       <div class="toggle-group" id="toggle-paid">
         <button class="toggle-btn active" data-value="Yes" onclick="setToggle('toggle-paid', 'Yes')">Yes (Shopify)</button>
@@ -1746,6 +1751,13 @@ textarea.form-input {
           </div>
         </div>
 
+        <div id="rev-chart-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+          <div style="font-weight:600;margin-bottom:2px;font-size:14px;">Revenue by Month</div>
+          <p style="font-size:11px;color:var(--grey-400);margin-bottom:12px;">Tap a bar to see that month's breakdown</p>
+          <div id="rev-chart" style="overflow-x:auto;"></div>
+          <div id="rev-month-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
+        </div>
+
         <div style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:8px;font-size:14px;">Breakdown</div>
           <table style="width:100%;font-size:13px;border-collapse:collapse;">
@@ -1777,6 +1789,10 @@ textarea.form-input {
         <button onclick="exportReportImage()" style="width:100%;margin-top:12px;padding:14px;background:var(--navy);color:var(--gold);border:none;border-radius:var(--radius-md);font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export as Image
+        </button>
+        <button onclick="downloadRangeCSV()" style="width:100%;margin-top:8px;padding:14px;background:var(--white);color:var(--navy);border:1px solid var(--grey-200);border-radius:var(--radius-md);font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+          Download Excel (raw data)
         </button>
       </div>
     </div>
@@ -1990,7 +2006,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-07-23.2';
+const APP_VERSION = '2026-07-30.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2092,11 +2108,22 @@ async function retryFailedWrites() {
   const q = getFailedQueue();
   if (q.length === 0) return;
   const remaining = [];
+  // Only these known deterministic backend rejections can never succeed on
+  // retry. Everything else (Unauthorized, Unknown action, transient Apps
+  // Script service errors) stays queued.
+  const PERMANENT_REJECTION = /^(Invalid row|Invalid status|Missing time|Missing newDate|Missing required fields|Booking already completed|Row is (Cancelled|Duplicate))/;
   for (const item of q) {
     try {
       const resp = await apiPost(item.body);
       const data = await resp.json();
-      if (data.error) remaining.push(item);
+      if (data.error && PERMANENT_REJECTION.test(data.error)) {
+        // Drop it instead of poisoning the queue forever
+        console.warn('Dropping rejected write:', item.body && item.body.action, data.error);
+        toast((item.body && item.body.action ? item.body.action : 'Write') + ' not synced: ' + data.error);
+      } else if (data.error) {
+        remaining.push(item);
+      }
+      // success: item drained
     } catch {
       remaining.push(item);
     }
@@ -2539,6 +2566,7 @@ function sendConfirmation(list, index) {
   msg += `I will arrive at around *${timeStr}*.\n\n`;
   msg += `Can i confirm if this is the address for collection?:\n${b.address}\n\n`;
   msg += `Please have your items ready for weighing. Payment is via PayNow or cash.\n\n`;
+  msg += `If you are not at home, you can leave the items outside.\n\n`;
   msg += `JazakAllahu khairan!`;
 
   const phone = cleanPhone(b.phone);
@@ -2652,12 +2680,27 @@ async function syncFromSheet(status) {
           }
         });
 
-        // Filter out stale sheet entries for bookings still pending reschedule sync
+        // Preserve local cancel intent: a booking cancelled in the app must not
+        // be resurrected by a stale sheet row while the cancelBooking write is
+        // still queued/in flight. Once the sheet stops returning the row as
+        // upcoming (write landed), the override drops and state converges.
+        const cancelledLocal = new Map();
+        localBookings.filter(b => b.status === 'Cancelled' && (b.id.startsWith('row_') || b.row)).forEach(b => {
+          // Key by sheet row id so app-created bookings (id "b_...") linked to
+          // a sheet row also block that row's stale sheet copy
+          cancelledLocal.set(b.id.startsWith('row_') ? b.id : 'row_' + b.row, b);
+        });
+        const cancelledCarry = [];
+        cancelledLocal.forEach((local, id) => {
+          if (sheetBookings.some(s => s.id === id)) cancelledCarry.push(local);
+        });
+
+        // Filter out stale sheet entries for bookings still pending reschedule/cancel sync
         const stillPendingIds = new Set(rescheduledLocal.map(b => b.id));
-        const freshSheetBookings = sheetBookings.filter(b => !stillPendingIds.has(b.id));
+        const freshSheetBookings = sheetBookings.filter(b => !stillPendingIds.has(b.id) && !cancelledLocal.has(b.id));
 
         // Deduplicate by name+date (same person on same date = duplicate)
-        const deduped = deduplicateBookings([...freshSheetBookings, ...rescheduledLocal, ...localOnlyBookings]);
+        const deduped = deduplicateBookings([...freshSheetBookings, ...rescheduledLocal, ...cancelledCarry, ...localOnlyBookings]);
         saveBookings(deduped);
       } else {
         // For completed/all views, deduplicate and store separately
@@ -2829,6 +2872,10 @@ function renderPickups() {
   const history = getHistory();
   const completedIds = new Set(history.map(h => h.bookingId));
 
+  // Any re-render rebuilds Cancel buttons with the plain "Cancel" label, so
+  // the armed two-tap state must reset too - otherwise one tap could cancel
+  window._cancelArm = null;
+
   let displayBookings;
 
   if (currentFilter === 'upcoming') {
@@ -2903,9 +2950,12 @@ function renderPickups() {
 
     // Badge logic
     let badgeHtml = '';
-    const isOverdue = !isCompleted && b.date < today;
+    const isClosed = !isCompleted && isClosedStatus(b.status);
+    const isOverdue = !isCompleted && !isClosed && b.date < today;
     if (isCompleted) {
       badgeHtml += '<span class="badge badge-completed">Completed</span>';
+    } else if (isClosed) {
+      badgeHtml += '<span class="badge" style="background:var(--grey-100);color:var(--grey-500);">' + esc(b.status) + '</span>';
     } else if (isOverdue) {
       badgeHtml += '<span class="badge" style="background:#FFEBEE;color:#C62828;">Overdue</span>';
     } else if (b.bookingPaid === 'Yes') {
@@ -2938,11 +2988,12 @@ function renderPickups() {
           ${b.referral ? `<span class="badge" style="background:#FFF8E1;color:#7A5D00;">${esc(b.referral)}</span>` : ''}
           ${b.phone ? `<span class="text-sm text-grey">${esc(b.phone)}</span>` : ''}
         </div>
-        ${!isCompleted ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;" data-bid="${esc(b.id)}">
+        ${(!isCompleted && !isClosed) ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;border-top:1px solid var(--grey-100);padding-top:10px;" data-bid="${esc(b.id)}">
           <button class="badge" style="cursor:pointer;background:var(--grey-100);color:var(--grey-600);border:none;padding:5px 10px;" onclick="event.stopPropagation();rescheduleBooking(this.parentElement.dataset.bid)">Reschedule</button>
           <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:5px 10px;" onclick="event.stopPropagation();openRescheduleWA(this.parentElement.dataset.bid)">WhatsApp to Reschedule</button>
           <button class="badge" style="cursor:pointer;background:#FFF3E0;color:#E65100;border:none;padding:5px 10px;" onclick="event.stopPropagation();sendReminder(this.parentElement.dataset.bid)">Reminder</button>
           <button class="badge" style="cursor:pointer;background:var(--navy);color:var(--gold);border:none;padding:5px 10px;" onclick="event.stopPropagation();openOnMyWay(this.parentElement.dataset.bid)">On My Way</button>
+          <button class="badge" style="cursor:pointer;background:#FFEBEE;color:#C62828;border:none;padding:5px 10px;" onclick="event.stopPropagation();cancelPickup(this.parentElement.dataset.bid, this)">Cancel</button>
         </div>` : ''}
       </div>`;
   });
@@ -3134,7 +3185,7 @@ function startCollection(bookingId) {
   }
 
   // Reset form
-  ['c-tips', 'c-discount'].forEach(id => {
+  ['c-tips', 'c-discount', 'c-remarks'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('c-booking-fee').value = (currentPickup.bookingFee != null ? currentPickup.bookingFee : 20);
@@ -3286,6 +3337,7 @@ function generateReceipt() {
   const discount = parseFloat(document.getElementById('c-discount').value) || 0;
   const bookingPaid = getToggle('toggle-paid');
   const paymentMethod = getToggle('toggle-payment');
+  const remarks = document.getElementById('c-remarks').value.trim();
 
   if (paper === 0 && frame === 0 && other === 0) {
     toast('Please enter at least one weight');
@@ -3319,13 +3371,13 @@ function generateReceipt() {
   document.getElementById('confirm-receipt-modal').classList.remove('hidden');
 
   // Store pending data so proceedGenerateReceipt can use it
-  window._pendingReceipt = { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod };
+  window._pendingReceipt = { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod, remarks };
   return;
 }
 
 function proceedGenerateReceipt() {
   if (!window._pendingReceipt) { toast('Receipt data expired. Please generate receipt again.'); return; }
-  const { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod } = window._pendingReceipt;
+  const { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod, remarks } = window._pendingReceipt;
 
   // Populate receipt
   document.getElementById('r-name').textContent = currentPickup.name;
@@ -3420,6 +3472,7 @@ function proceedGenerateReceipt() {
     paper, frame, other, tare, netWeight,
     paperCost, frameCost, otherCost,
     serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod,
+    notes: remarks || '',
     photos: collectionPhotos.length,
     date: localDateStr() // local SGT date; toISOString() is UTC and shifts back a day before 8am
   };
@@ -3706,6 +3759,7 @@ function renderHistory() {
         <div class="history-info">
           <h4>${esc(h.name)}</h4>
           <p>${dateStr} &middot; ${weight} kg &middot; ${esc(h.paymentMethod || '-')}</p>
+          ${h.notes ? `<p style="font-size:11px;color:var(--grey-400);margin-top:3px;white-space:pre-line;">&#128221; ${esc(h.notes)}</p>` : ''}
         </div>
         <div class="history-amount">$${total}</div>
       </div>`;
@@ -3838,11 +3892,137 @@ async function loadRevenueSummary() {
       refSection.classList.add('hidden');
     }
 
+    // Monthly aggregation for the interactive bar chart
+    const monthly = {};
+    bookings.forEach(b => {
+      const key = (b.date || '').slice(0, 7); // YYYY-MM
+      if (key.length !== 7) return;
+      if (!monthly[key]) monthly[key] = { revenue: 0, count: 0, kg: 0, paper: 0, frame: 0, service: 0, fees: 0, tipsExact: 0, tipsKnown: false };
+      const m = monthly[key];
+      m.revenue += b.totalCollected || 0;
+      m.count++;
+      m.kg += b.netWeight || 0;
+      m.paper += b.paperKg || 0;
+      m.frame += b.frameKg || 0;
+      m.service += b.serviceTotal || 0;
+      m.fees += collectedFee(b);
+      // Exact tips arrive from the backend once it exports the Tips column;
+      // until then the detail view falls back to an estimate
+      if (b.tips != null) { m.tipsExact += b.tips; m.tipsKnown = true; }
+    });
+    renderRevenueChart(monthly);
+
     document.getElementById('rev-results').classList.remove('hidden');
     toast('Report generated');
   } catch (err) {
     console.error('Revenue error:', err);
     toast('Failed to load revenue data');
+  }
+}
+
+/* ── Revenue by Month: interactive bar chart ─────────────── */
+let revMonthly = null;
+
+function renderRevenueChart(monthly) {
+  revMonthly = monthly;
+  const keys = Object.keys(monthly).sort();
+  const section = document.getElementById('rev-chart-section');
+  const chartEl = document.getElementById('rev-chart');
+  document.getElementById('rev-month-detail').classList.add('hidden');
+
+  if (!keys.length) { section.classList.add('hidden'); return; }
+
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const label = k => MON[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4);
+  const max = Math.max.apply(null, keys.map(k => monthly[k].revenue));
+
+  chartEl.innerHTML = '<div style="display:flex;align-items:flex-end;gap:8px;">' + keys.map(k => {
+    const m = monthly[k];
+    const h = max > 0 ? Math.max(6, Math.round(110 * m.revenue / max)) : 6;
+    return `<div onclick="showMonthDetail('${k}')" style="cursor:pointer;flex:1;min-width:52px;text-align:center;">
+      <div style="font-size:11px;font-weight:700;margin-bottom:3px;">$${Math.round(m.revenue).toLocaleString()}</div>
+      <div style="height:${h}px;background:linear-gradient(180deg, var(--gold), #A8873A);border-radius:6px 6px 0 0;"></div>
+      <div style="font-size:10px;font-weight:600;color:var(--grey-500);margin-top:0;border-top:2px solid var(--navy);padding-top:4px;">${label(k)}</div>
+      <div style="font-size:9px;color:var(--grey-400);">${m.count} job${m.count === 1 ? '' : 's'}</div>
+    </div>`;
+  }).join('') + '</div>';
+
+  section.classList.remove('hidden');
+  // Single-month range: show its breakdown straight away
+  if (keys.length === 1) showMonthDetail(keys[0]);
+}
+
+function showMonthDetail(key) {
+  const m = revMonthly && revMonthly[key];
+  if (!m) return;
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  // If the selected range covers only part of this month, say so - a "Today"
+  // report must not present one day's takings as the month's revenue
+  const from = document.getElementById('rev-from').value;
+  const to = document.getElementById('rev-to').value;
+  const lastDay = new Date(parseInt(key.slice(0, 4), 10), parseInt(key.slice(5), 10), 0).getDate();
+  const partial = (from > key + '-01') || (to < key + '-' + String(lastDay).padStart(2, '0'));
+  const name = MONTHS[parseInt(key.slice(5), 10) - 1] + ' ' + key.slice(0, 4) + (partial ? ' (selected dates only)' : '');
+  const tips = m.tipsKnown ? m.tipsExact : Math.max(0, m.revenue - m.service - m.fees);
+  const row = (l, v, bold) => `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;color:${bold ? 'var(--navy)' : 'var(--grey-500)'};${bold ? 'font-weight:700;' : ''}">${l}</td><td style="padding:5px 0;text-align:right;font-weight:${bold ? '700' : '600'};${bold ? 'color:var(--gold);' : ''}">${v}</td></tr>`;
+
+  document.getElementById('rev-month-detail').innerHTML =
+    `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name}</div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse;">`
+    + row('Collections', m.count)
+    + row('Total Weight', m.kg.toFixed(1) + ' kg')
+    + row('Paper / Kitab', m.paper.toFixed(1) + ' kg')
+    + row('Frame', m.frame.toFixed(1) + ' kg')
+    + row('Service Charges', '$' + m.service.toFixed(2))
+    + row('Booking Fees', '$' + m.fees.toFixed(2))
+    + row('Tips / Other', '$' + tips.toFixed(2))
+    + row('Avg per Collection', '$' + (m.count ? m.revenue / m.count : 0).toFixed(2))
+    + row(partial ? 'Revenue (selected dates)' : 'Month Revenue', '$' + m.revenue.toFixed(2), true)
+    + `</table>`;
+  document.getElementById('rev-month-detail').classList.remove('hidden');
+}
+
+/* ── Raw data download (Excel-openable CSV) for date range ── */
+async function downloadRangeCSV() {
+  const from = document.getElementById('rev-from').value;
+  const to = document.getElementById('rev-to').value;
+  if (!from || !to) { toast('Please select a date range'); return; }
+  if (!SYNC_ENABLED) { toast('Google Sheet not connected'); return; }
+
+  try {
+    toast('Fetching records...');
+    const all = await fetchBookingsPaged('action=getBookings&status=all&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
+    // Keep rows whose date failed to parse (non yyyy-mm-dd) so bad sheet dates
+    // surface in the export instead of silently vanishing
+    const rows = all.filter(b => !/^\d{4}-\d{2}-\d{2}$/.test(b.date || '') || (b.date >= from && b.date <= to))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (!rows.length) { toast('No records in this date range'); return; }
+
+    const headers = ['Order#','Status','Date','Time','Name','Phone','Address','Email','Discount Code','Booking Fee','Booking Paid','Paper (kg)','Frame (kg)','Other (kg)','Box Tare (kg)','Net Weight (kg)','Service Total','Tips','Total Collected','Payment Method','Payment Status','Certificate','Notes'];
+    const data = rows.map(b => [
+      b.orderNum || '', b.status || '', b.date || '', b.time || '',
+      b.name || '', b.phone || '', (b.address || '').replace(/\n/g, ' '), b.email || '',
+      b.referral || '', b.bookingFee != null ? b.bookingFee : '', b.bookingPaid || '',
+      b.paperKg || '', b.frameKg || '', b.otherKg || '', b.boxTare || '', b.netWeight || '',
+      b.serviceTotal || '', b.tips || '', b.totalCollected || '', b.paymentMethod || '',
+      b.paymentStatus || '', b.certNum || '', (b.notes || '').replace(/\n/g, ' ')
+    ]);
+
+    let csv = headers.join(',') + '\n';
+    data.forEach(r => { csv += r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',') + '\n'; });
+
+    // BOM so Excel opens it as UTF-8
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ShredRite-Data-' + from + '-to-' + to + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Excel file downloaded');
+  } catch (err) {
+    console.error('Range CSV error:', err);
+    toast('Download failed');
   }
 }
 
@@ -3859,7 +4039,18 @@ async function exportReportImage() {
       scale: lowMem2 ? 1.5 : 2,
       backgroundColor: '#F8F7F4',
       useCORS: true,
-      logging: false
+      logging: false,
+      onclone: (doc) => {
+        // The chart scrolls horizontally on narrow screens; in the export,
+        // unclip it and let the bars share the width so no month is cut off
+        const chart = doc.getElementById('rev-chart');
+        if (chart) {
+          chart.style.overflow = 'visible';
+          chart.querySelectorAll('div').forEach(el => {
+            if (el.style && el.style.minWidth) el.style.minWidth = '0';
+          });
+        }
+      }
     });
 
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -3973,6 +4164,85 @@ function downloadLocalCSV() {
   a.click();
   URL.revokeObjectURL(url);
   toast('CSV downloaded');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CANCEL BOOKING
+   ══════════════════════════════════════════════════════════════ */
+// Two-tap confirm: first tap arms, second tap within 5s cancels.
+// Marks the sheet row Cancelled so it stops showing as Overdue.
+async function cancelPickup(bookingId, btn) {
+  if (window._cancelArm !== bookingId || Date.now() - (window._cancelArmAt || 0) > 5000) {
+    window._cancelArm = bookingId;
+    window._cancelArmAt = Date.now();
+    if (btn) btn.textContent = 'Tap again to cancel';
+    toast('Tap Cancel again to confirm');
+    return;
+  }
+  window._cancelArm = null;
+
+  const booking = findBooking(bookingId);
+  if (!booking) { toast('Booking not found'); return; }
+  const prevStatus = booking.status || 'Scheduled';
+  const prevRescheduled = !!booking.rescheduled;
+
+  // Update BOTH stores: upcoming renders from sr_bookings, the All/Completed
+  // tabs render from sr_filtered_bookings
+  const markLocal = (status) => {
+    const bookings = getBookings();
+    const idx = bookings.findIndex(b => b.id === bookingId);
+    if (idx !== -1) {
+      bookings[idx].status = status;
+      if (status === 'Cancelled') delete bookings[idx].rescheduled;
+      saveBookings(bookings);
+    }
+    const filtered = safeParse('sr_filtered_bookings', []);
+    const fIdx = filtered.findIndex(b => b.id === bookingId);
+    if (fIdx !== -1) {
+      filtered[fIdx].status = status;
+      if (status === 'Cancelled') delete filtered[fIdx].rescheduled;
+      safeStore.setItem('sr_filtered_bookings', JSON.stringify(filtered));
+    }
+  };
+  markLocal('Cancelled');
+  renderPickups();
+
+  if (booking.row && SYNC_ENABLED) {
+    const body = { action: 'cancelBooking', row: booking.row };
+    try {
+      const resp = await apiPost(body);
+      const data = await resp.json();
+      if (data.error === 'Unknown action') {
+        // Deployed backend predates cancelBooking - queue; drains after redeploy
+        enqueueFailedWrite(body);
+        toast('Cancelled in app - sheet updates after backend update');
+      } else if (data.error) {
+        // Deterministic rejection (e.g. row already completed): undo locally
+        markLocal(prevStatus);
+        if (prevRescheduled) {
+          const bs = getBookings();
+          const i2 = bs.findIndex(b => b.id === bookingId);
+          if (i2 !== -1) { bs[i2].rescheduled = true; saveBookings(bs); }
+        }
+        renderPickups();
+        toast('Could not cancel: ' + data.error);
+      } else {
+        toast('Booking cancelled');
+      }
+    } catch (err) {
+      console.error('Cancel sync error:', err);
+      enqueueFailedWrite(body);
+      toast('Cancelled locally (will sync later)');
+    }
+  } else {
+    // Booking never reached the sheet: also drop any queued addBooking for it
+    // so the retry queue cannot recreate it as a fresh Scheduled row
+    const q = getFailedQueue();
+    const kept = q.filter(item => !(item.body && item.body.action === 'addBooking'
+      && item.body.name === booking.name && item.body.date === booking.date));
+    if (kept.length !== q.length) saveFailedQueue(kept);
+    toast('Booking cancelled');
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
