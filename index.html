@@ -1789,7 +1789,7 @@ textarea.form-input {
 
         <div id="rev-referral-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:8px;font-size:14px;">Referral Give-Back</div>
-          <p style="font-size:11px;color:var(--grey-400);margin-bottom:8px;">Give-back = $10 per booking + $1 per kg of kitab/books (frames and others excluded). Mosque partnership codes only.</p>
+          <p style="font-size:11px;color:var(--grey-400);margin-bottom:8px;">Give-back = $10 per booking + $1 per kg collected (net weight, all materials). Mosque partnership codes only.</p>
           <table style="width:100%;font-size:12px;border-collapse:collapse;" id="rev-referral-table"></table>
         </div>
         </div><!-- end rev-capture -->
@@ -2013,7 +2013,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-08-03.2';
+const APP_VERSION = '2026-08-03.3';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -3879,23 +3879,23 @@ async function loadRevenueSummary() {
     bookings.forEach(b => {
       const code = (b.referral || '').trim().toUpperCase();
       if (!code) return;
-      if (!byCode[code]) byCode[code] = { count: 0, paperKg: 0 };
+      if (!byCode[code]) byCode[code] = { count: 0, kg: 0 };
       byCode[code].count++;
-      // $1/kg applies to kitab/books (paper) only - frames/others excluded
-      byCode[code].paperKg += b.paperKg || 0;
+      // $1/kg applies to all collected weight (net weight incl. frames/others)
+      byCode[code].kg += b.netWeight || 0;
     });
     const codes = Object.keys(byCode).sort();
     const refSection = document.getElementById('rev-referral-section');
     if (codes.length) {
       document.getElementById('rev-referral-table').innerHTML =
-        '<tr style="border-bottom:1px solid var(--grey-100);color:var(--grey-400);"><td style="padding:4px 0;">Code</td><td style="text-align:right;">Jobs</td><td style="text-align:right;">Kitab kg</td><td style="text-align:right;">Give-Back</td></tr>' +
+        '<tr style="border-bottom:1px solid var(--grey-100);color:var(--grey-400);"><td style="padding:4px 0;">Code</td><td style="text-align:right;">Jobs</td><td style="text-align:right;">kg</td><td style="text-align:right;">Give-Back</td></tr>' +
         codes.map(code => {
           const s = byCode[code];
           // Only mosque partnership codes earn give-back; other codes are
           // tracked (jobs/kg) but owe nothing
           const isMosque = ['ALEEM10', 'KHALID10'].includes(code);
-          const giveBack = isMosque ? 10 * s.count + 1 * s.paperKg : null;
-          return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;font-weight:600;">${esc(code)}</td><td style="text-align:right;">${s.count}</td><td style="text-align:right;">${s.paperKg.toFixed(1)}</td><td style="text-align:right;font-weight:700;color:var(--gold);">${giveBack === null ? '-' : '$' + giveBack.toFixed(2)}</td></tr>`;
+          const giveBack = isMosque ? 10 * s.count + 1 * s.kg : null;
+          return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;font-weight:600;">${esc(code)}</td><td style="text-align:right;">${s.count}</td><td style="text-align:right;">${s.kg.toFixed(1)}</td><td style="text-align:right;font-weight:700;color:var(--gold);">${giveBack === null ? '-' : '$' + giveBack.toFixed(2)}</td></tr>`;
         }).join('');
       refSection.classList.remove('hidden');
     } else {
