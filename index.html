@@ -1789,7 +1789,7 @@ textarea.form-input {
 
         <div id="rev-referral-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:8px;font-size:14px;">Referral Give-Back</div>
-          <p style="font-size:11px;color:var(--grey-400);margin-bottom:8px;">Model 1 = $10/booking + $1/kg &middot; Model 2 = $2.50/kg</p>
+          <p style="font-size:11px;color:var(--grey-400);margin-bottom:8px;">Give-back = $10 per booking + $1 per kg of kitab/books (frames and others excluded)</p>
           <table style="width:100%;font-size:12px;border-collapse:collapse;" id="rev-referral-table"></table>
         </div>
         </div><!-- end rev-capture -->
@@ -2013,7 +2013,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-07-31.1';
+const APP_VERSION = '2026-08-03.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -3879,20 +3879,20 @@ async function loadRevenueSummary() {
     bookings.forEach(b => {
       const code = (b.referral || '').trim().toUpperCase();
       if (!code) return;
-      if (!byCode[code]) byCode[code] = { count: 0, kg: 0 };
+      if (!byCode[code]) byCode[code] = { count: 0, paperKg: 0 };
       byCode[code].count++;
-      byCode[code].kg += b.netWeight || 0;
+      // $1/kg applies to kitab/books (paper) only - frames/others excluded
+      byCode[code].paperKg += b.paperKg || 0;
     });
     const codes = Object.keys(byCode).sort();
     const refSection = document.getElementById('rev-referral-section');
     if (codes.length) {
       document.getElementById('rev-referral-table').innerHTML =
-        '<tr style="border-bottom:1px solid var(--grey-100);color:var(--grey-400);"><td style="padding:4px 0;">Code</td><td style="text-align:right;">Jobs</td><td style="text-align:right;">kg</td><td style="text-align:right;">Model 1</td><td style="text-align:right;">Model 2</td></tr>' +
+        '<tr style="border-bottom:1px solid var(--grey-100);color:var(--grey-400);"><td style="padding:4px 0;">Code</td><td style="text-align:right;">Jobs</td><td style="text-align:right;">Kitab kg</td><td style="text-align:right;">Give-Back</td></tr>' +
         codes.map(code => {
           const s = byCode[code];
-          const m1 = 10 * s.count + 1 * s.kg;
-          const m2 = 2.5 * s.kg;
-          return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;font-weight:600;">${esc(code)}</td><td style="text-align:right;">${s.count}</td><td style="text-align:right;">${s.kg.toFixed(1)}</td><td style="text-align:right;font-weight:600;">$${m1.toFixed(2)}</td><td style="text-align:right;font-weight:600;">$${m2.toFixed(2)}</td></tr>`;
+          const giveBack = 10 * s.count + 1 * s.paperKg;
+          return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;font-weight:600;">${esc(code)}</td><td style="text-align:right;">${s.count}</td><td style="text-align:right;">${s.paperKg.toFixed(1)}</td><td style="text-align:right;font-weight:700;color:var(--gold);">$${giveBack.toFixed(2)}</td></tr>`;
         }).join('');
       refSection.classList.remove('hidden');
     } else {
@@ -4069,11 +4069,11 @@ async function downloadRangeCSV() {
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     if (!rows.length) { toast('No records in this date range'); return; }
 
-    const headers = ['Order#','Status','Date','Time','Name','Phone','Address','Email','Discount Code','Booking Fee','Booking Paid','Paper (kg)','Frame (kg)','Other (kg)','Box Tare (kg)','Net Weight (kg)','Service Total','Tips','Total Collected','Payment Method','Payment Status','Certificate','Notes'];
+    const headers = ['Order#','Status','Date','Time','Name','Phone','Address','Email','Discount Code','Give-Back','Booking Fee','Booking Paid','Paper (kg)','Frame (kg)','Other (kg)','Box Tare (kg)','Net Weight (kg)','Service Total','Tips','Total Collected','Payment Method','Payment Status','Certificate','Notes'];
     const data = rows.map(b => [
       b.orderNum || '', b.status || '', b.date || '', b.time || '',
       b.name || '', b.phone || '', (b.address || '').replace(/\n/g, ' '), b.email || '',
-      b.referral || '', b.bookingFee != null ? b.bookingFee : '', b.bookingPaid || '',
+      b.referral || '', b.giveBack || '', b.bookingFee != null ? b.bookingFee : '', b.bookingPaid || '',
       b.paperKg || '', b.frameKg || '', b.otherKg || '', b.boxTare || '', b.netWeight || '',
       b.serviceTotal || '', b.tips || '', b.totalCollected || '', b.paymentMethod || '',
       b.paymentStatus || '', b.certNum || '', (b.notes || '').replace(/\n/g, ' ')
