@@ -1658,8 +1658,10 @@ textarea.form-input {
         <select class="form-input" id="b-referral-select" onchange="onDiscountCodeChange()">
           <option value="">None</option>
           <option value="ALEEM10">ALEEM10</option>
-          <option value="FRIEND10">FRIEND10</option>
           <option value="KHALID10">KHALID10</option>
+          <option value="FRIEND10">FRIEND10</option>
+          <option value="UMMAH10">UMMAH10</option>
+          <option value="SUPPORT10">SUPPORT10</option>
           <option value="OTHER">Other (key in below)</option>
         </select>
         <input type="text" class="form-input hidden" id="b-referral" placeholder="Type discount code" style="text-transform:uppercase;margin-top:8px;">
@@ -1843,6 +1845,33 @@ textarea.form-input {
   </div>
 </div>
 
+<!-- Edit Booking Details Modal -->
+<div class="modal-overlay hidden" id="edit-modal" onclick="if(event.target===this)closeEditPickup()">
+  <div class="modal">
+    <h3>Edit Customer Details</h3>
+    <div class="form-group">
+      <label class="form-label">Customer Name</label>
+      <input type="text" class="form-input" id="e-name" placeholder="Full name">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Phone</label>
+      <input type="tel" class="form-input" id="e-phone" placeholder="9XXX XXXX">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Address</label>
+      <textarea class="form-input" id="e-address" rows="3" placeholder="Block, unit, postal code"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email (optional)</label>
+      <input type="email" class="form-input" id="e-email" placeholder="email@example.com">
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeEditPickup()">Cancel</button>
+      <button class="btn-primary gold" onclick="saveEditPickup()" style="flex:2;">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- Sync Loading Overlay -->
 <div id="sync-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:300;display:none;align-items:center;justify-content:center;">
   <div style="background:var(--white);border-radius:var(--radius-lg);padding:32px 40px;text-align:center;box-shadow:var(--shadow-lg);">
@@ -2013,7 +2042,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-08-03.4';
+const APP_VERSION = '2026-08-04.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2702,12 +2731,29 @@ async function syncFromSheet(status) {
           if (sheetBookings.some(s => s.id === id)) cancelledCarry.push(local);
         });
 
-        // Filter out stale sheet entries for bookings still pending reschedule/cancel sync
+        // Preserve locally edited customer details the same way: while the
+        // updateBookingDetails write is queued, the sheet still returns the
+        // old name/phone/address, which must not overwrite the local edit.
+        // Once the sheet echoes the edited values, the override is dropped.
+        const dig = s => String(s || '').replace(/\D/g, '');
+        const editedCarry = [];
+        localBookings.filter(b => b.editPending && b.id.startsWith('row_')).forEach(local => {
+          const sheetVersion = sheetBookings.find(s => s.id === local.id);
+          if (!sheetVersion) return; // row left the upcoming window; drop override
+          const caughtUp = sheetVersion.name === local.name
+            && dig(sheetVersion.phone) === dig(local.phone)
+            && String(sheetVersion.address || '').trim() === String(local.address || '').trim();
+          if (caughtUp) delete local.editPending;
+          else editedCarry.push(local);
+        });
+        const editedIds = new Set(editedCarry.map(b => b.id));
+
+        // Filter out stale sheet entries for bookings still pending reschedule/cancel/edit sync
         const stillPendingIds = new Set(rescheduledLocal.map(b => b.id));
-        const freshSheetBookings = sheetBookings.filter(b => !stillPendingIds.has(b.id) && !cancelledLocal.has(b.id));
+        const freshSheetBookings = sheetBookings.filter(b => !stillPendingIds.has(b.id) && !cancelledLocal.has(b.id) && !editedIds.has(b.id));
 
         // Deduplicate by name+date (same person on same date = duplicate)
-        const deduped = deduplicateBookings([...freshSheetBookings, ...rescheduledLocal, ...cancelledCarry, ...localOnlyBookings]);
+        const deduped = deduplicateBookings([...freshSheetBookings, ...rescheduledLocal, ...cancelledCarry, ...editedCarry, ...localOnlyBookings]);
         saveBookings(deduped);
       } else {
         // For completed/all views, deduplicate and store separately
@@ -3000,6 +3046,7 @@ function renderPickups() {
           <button class="badge" style="cursor:pointer;background:#25D366;color:white;border:none;padding:5px 10px;" onclick="event.stopPropagation();openRescheduleWA(this.parentElement.dataset.bid)">WhatsApp to Reschedule</button>
           <button class="badge" style="cursor:pointer;background:#FFF3E0;color:#E65100;border:none;padding:5px 10px;" onclick="event.stopPropagation();sendReminder(this.parentElement.dataset.bid)">Reminder</button>
           <button class="badge" style="cursor:pointer;background:var(--navy);color:var(--gold);border:none;padding:5px 10px;" onclick="event.stopPropagation();openOnMyWay(this.parentElement.dataset.bid)">On My Way</button>
+          <button class="badge" style="cursor:pointer;background:#E3F2FD;color:#1565C0;border:none;padding:5px 10px;" onclick="event.stopPropagation();editPickup(this.parentElement.dataset.bid)">Edit</button>
           <button class="badge" style="cursor:pointer;background:#FFEBEE;color:#C62828;border:none;padding:5px 10px;" onclick="event.stopPropagation();cancelPickup(this.parentElement.dataset.bid, this)">Cancel</button>
         </div>` : ''}
       </div>`;
@@ -4318,6 +4365,84 @@ async function cancelPickup(bookingId, btn) {
     if (kept.length !== q.length) saveFailedQueue(kept);
     toast('Booking cancelled');
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EDIT CUSTOMER DETAILS
+   ══════════════════════════════════════════════════════════════ */
+let editPickupId = null;
+
+function editPickup(bookingId) {
+  const booking = findBooking(bookingId);
+  if (!booking) { toast('Booking not found'); return; }
+  editPickupId = bookingId;
+  document.getElementById('e-name').value = booking.name || '';
+  document.getElementById('e-phone').value = booking.phone || '';
+  document.getElementById('e-address').value = booking.address || '';
+  document.getElementById('e-email').value = booking.email || '';
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function closeEditPickup() {
+  editPickupId = null;
+  document.getElementById('edit-modal').classList.add('hidden');
+}
+
+async function saveEditPickup() {
+  if (!editPickupId) return;
+  const booking = findBooking(editPickupId);
+  if (!booking) { toast('Booking not found'); closeEditPickup(); return; }
+
+  const name = document.getElementById('e-name').value.trim();
+  const phone = document.getElementById('e-phone').value.trim();
+  const address = document.getElementById('e-address').value.trim();
+  const email = document.getElementById('e-email').value.trim();
+  if (!name || !address) { toast('Name and address cannot be empty'); return; }
+
+  // Update BOTH stores; editPending guards the values against being
+  // overwritten by a stale sheet sync until the write lands
+  const apply = (b, pending) => {
+    b.name = name; b.phone = phone; b.address = address; b.email = email;
+    if (pending) b.editPending = true; else delete b.editPending;
+  };
+  const markLocal = (pending) => {
+    const bookings = getBookings();
+    const idx = bookings.findIndex(b => b.id === editPickupId);
+    if (idx !== -1) { apply(bookings[idx], pending); saveBookings(bookings); }
+    const filtered = safeParse('sr_filtered_bookings', []);
+    const fIdx = filtered.findIndex(b => b.id === editPickupId);
+    if (fIdx !== -1) { apply(filtered[fIdx], pending); safeStore.setItem('sr_filtered_bookings', JSON.stringify(filtered)); }
+  };
+
+  if (booking.row && SYNC_ENABLED) {
+    const body = { action: 'updateBookingDetails', row: booking.row, name, phone, address, email };
+    try {
+      const resp = await apiPost(body);
+      const data = await resp.json();
+      if (data.error === 'Unknown action') {
+        markLocal(true);
+        enqueueFailedWrite(body);
+        toast('Saved in app - sheet updates after backend update');
+      } else if (data.error) {
+        toast('Could not save: ' + data.error);
+        return;
+      } else {
+        markLocal(false);
+        toast('Customer details updated');
+      }
+    } catch (err) {
+      console.error('Edit sync error:', err);
+      markLocal(true);
+      enqueueFailedWrite(body);
+      toast('Saved locally (will sync later)');
+    }
+  } else {
+    markLocal(false);
+    toast('Customer details updated');
+  }
+
+  closeEditPickup();
+  renderPickups();
 }
 
 /* ══════════════════════════════════════════════════════════════
