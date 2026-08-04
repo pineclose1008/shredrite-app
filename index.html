@@ -2042,7 +2042,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-08-04.1';
+const APP_VERSION = '2026-08-04.2';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2692,20 +2692,24 @@ async function syncFromSheet(status) {
         // Merge: keep local-only bookings, update/add sheet bookings
         const sheetBookings = data.bookings;
         const localBookings = getBookings();
-        const localOnlyBookings = localBookings.filter(b => !b.id.startsWith('row_'));
 
-        // Build map of locally rescheduled bookings (user intent takes priority over stale sheet data)
-        const rescheduledMap = new Map();
-        localBookings.filter(b => b.rescheduled).forEach(b => rescheduledMap.set(b.id, b));
+        // A local booking's identity on the sheet: row_N ids map directly;
+        // app-created bookings (id "b_...") map via their linked row number.
+        // Every override below matches on this, so a booking created in-app
+        // can never coexist with its own sheet twin under a different date.
+        const sheetIdOf = b => b.id.startsWith('row_') ? b.id : (b.row ? 'row_' + b.row : null);
+        const sheetIds = new Set(sheetBookings.map(s => s.id));
 
-        // For each rescheduled booking, check if the sheet now agrees with the local date.
-        // If so, clear the rescheduled flag (sheet has caught up).
+        // Locally rescheduled bookings: user intent beats stale sheet data
+        // until the sheet echoes the new date.
         const rescheduledLocal = [];
-        rescheduledMap.forEach((local, id) => {
-          const sheetVersion = sheetBookings.find(s => s.id === id);
+        const rescheduledIds = new Set();
+        localBookings.filter(b => b.rescheduled).forEach(local => {
+          const sid = sheetIdOf(local);
+          const sheetVersion = sid ? sheetBookings.find(s => s.id === sid) : null;
           if (sheetVersion && sheetVersion.date === local.date) {
             delete local.rescheduled; // sheet caught up, no longer need to override
-          } else if (!sheetVersion && id.startsWith('row_') && local.date < localDateStr()) {
+          } else if (!sheetVersion && sid && local.date < localDateStr()) {
             // Sheet row no longer comes back as upcoming and the local date is
             // already past: the row was closed in the sheet (Completed/Cancelled/
             // Duplicate). Drop the local override instead of resurrecting an
@@ -2713,6 +2717,7 @@ async function syncFromSheet(status) {
             // be beyond the sheet's 7-day upcoming window.
           } else {
             rescheduledLocal.push(local);
+            if (sid) rescheduledIds.add(sid);
           }
         });
 
@@ -2721,14 +2726,13 @@ async function syncFromSheet(status) {
         // still queued/in flight. Once the sheet stops returning the row as
         // upcoming (write landed), the override drops and state converges.
         const cancelledLocal = new Map();
-        localBookings.filter(b => b.status === 'Cancelled' && (b.id.startsWith('row_') || b.row)).forEach(b => {
-          // Key by sheet row id so app-created bookings (id "b_...") linked to
-          // a sheet row also block that row's stale sheet copy
-          cancelledLocal.set(b.id.startsWith('row_') ? b.id : 'row_' + b.row, b);
+        localBookings.filter(b => b.status === 'Cancelled').forEach(b => {
+          const sid = sheetIdOf(b);
+          if (sid) cancelledLocal.set(sid, b);
         });
         const cancelledCarry = [];
-        cancelledLocal.forEach((local, id) => {
-          if (sheetBookings.some(s => s.id === id)) cancelledCarry.push(local);
+        cancelledLocal.forEach((local, sid) => {
+          if (sheetIds.has(sid)) cancelledCarry.push(local);
         });
 
         // Preserve locally edited customer details the same way: while the
@@ -2737,20 +2741,31 @@ async function syncFromSheet(status) {
         // Once the sheet echoes the edited values, the override is dropped.
         const dig = s => String(s || '').replace(/\D/g, '');
         const editedCarry = [];
-        localBookings.filter(b => b.editPending && b.id.startsWith('row_')).forEach(local => {
-          const sheetVersion = sheetBookings.find(s => s.id === local.id);
+        const editedIds = new Set();
+        localBookings.filter(b => b.editPending).forEach(local => {
+          const sid = sheetIdOf(local);
+          const sheetVersion = sid ? sheetBookings.find(s => s.id === sid) : null;
           if (!sheetVersion) return; // row left the upcoming window; drop override
           const caughtUp = sheetVersion.name === local.name
             && dig(sheetVersion.phone) === dig(local.phone)
             && String(sheetVersion.address || '').trim() === String(local.address || '').trim();
           if (caughtUp) delete local.editPending;
-          else editedCarry.push(local);
+          else { editedCarry.push(local); editedIds.add(sid); }
         });
-        const editedIds = new Set(editedCarry.map(b => b.id));
 
-        // Filter out stale sheet entries for bookings still pending reschedule/cancel/edit sync
-        const stillPendingIds = new Set(rescheduledLocal.map(b => b.id));
-        const freshSheetBookings = sheetBookings.filter(b => !stillPendingIds.has(b.id) && !cancelledLocal.has(b.id) && !editedIds.has(b.id));
+        // Filter out stale sheet entries for bookings with a pending local override
+        const freshSheetBookings = sheetBookings.filter(s => !rescheduledIds.has(s.id) && !cancelledLocal.has(s.id) && !editedIds.has(s.id));
+
+        // Local-only bookings: app-created ones the sheet doesn't cover.
+        // Drop a "b_" booking when its sheet row is either returned fresh
+        // (the sheet copy is authoritative) or carried via an override above -
+        // keeping it too is exactly how one customer shows up on two dates.
+        const coveredIds = new Set([...rescheduledIds, ...cancelledLocal.keys(), ...editedIds]);
+        const localOnlyBookings = localBookings.filter(b => {
+          if (b.id.startsWith('row_')) return false;
+          const sid = sheetIdOf(b);
+          return !(sid && (sheetIds.has(sid) || coveredIds.has(sid)));
+        });
 
         // Deduplicate by name+date (same person on same date = duplicate)
         const deduped = deduplicateBookings([...freshSheetBookings, ...rescheduledLocal, ...cancelledCarry, ...editedCarry, ...localOnlyBookings]);
@@ -2824,15 +2839,31 @@ async function syncCollectionToSheet(pickup, collectionData) {
 }
 
 /* ── Sync: Push reschedule to Google Sheet ────────────────── */
-async function syncRescheduleToSheet(bookingId, newDate, newTime) {
+async function syncRescheduleToSheet(bookingId, newDate, newTime, prevDate) {
   if (!SYNC_ENABLED) return;
 
   const booking = findBooking(bookingId);
-  if (!booking || !booking.row) return;
+  if (!booking) return;
 
-  const body = { action: 'reschedule', row: booking.row, newDate, newTime };
+  // Send name + previous date too, so the backend can locate the row even
+  // when the local booking never got its row link (offline-created). The old
+  // silent return here left reschedules unsynced and one customer showing on
+  // two different dates.
+  const body = {
+    action: 'reschedule', row: booking.row || 0,
+    name: booking.name || '', findDate: prevDate || '',
+    newDate, newTime
+  };
   try {
-    await apiPost(body);
+    const resp = await apiPost(body);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    if (data.row && !booking.row) {
+      // Backend located the row by name+date: link it back
+      const bs = getBookings();
+      const i = bs.findIndex(b => b.id === bookingId);
+      if (i !== -1) { bs[i].row = data.row; saveBookings(bs); }
+    }
   } catch (err) {
     console.error('Reschedule sync error:', err);
     enqueueFailedWrite(body);
@@ -4521,8 +4552,8 @@ function confirmReschedule() {
   }
   safeStore.setItem('sr_filtered_bookings', JSON.stringify(filtered));
 
-  // Sync to Google Sheet
-  syncRescheduleToSheet(rescheduleId, newDate, newTime);
+  // Sync to Google Sheet (oldDate lets the backend find row-less bookings)
+  syncRescheduleToSheet(rescheduleId, newDate, newTime, oldDate);
 
   closeReschedule();
   toast('Booking rescheduled to ' + formatDateStr(newDate, {weekday:'short', month:'short', year:'numeric'}));
