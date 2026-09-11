@@ -2049,7 +2049,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-01.3';
+const APP_VERSION = '2026-09-01.4';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4051,19 +4051,33 @@ const FRAMES_FROM_MONTH = '2026-08';
 // Manual frames-weight adjustments per month, set by Hambali. The sheet's
 // recorded total is shown alongside so the adjustment is never invisible.
 const FRAMES_KG_OVERRIDE = { '2026-08': 100 };
+// Spending categories that are capital purchases or refundable deposits.
+// They are real cash out, but they are not trading costs, so the breakdown
+// shows a separate trading profit that leaves them out.
+const CAPITAL_CATEGORY = 'Capital & Deposits';
+// Fallback copy of the expenses tab, taken 1 Sep 2026. Used ONLY when the
+// backend's live getMonthlySpend is unavailable, so the report still works.
+const SPEND_SNAPSHOT = {"2026-01": {"byCat": {"Boxes & Consumables": 93.19, "Equipment": 124.14}, "total": 217.33}, "2026-02": {"byCat": {"Ads": 831.26, "Boxes & Consumables": 176.59, "Capital & Deposits": 2772.0, "Equipment": 1229.86, "Transport": 226.25}, "total": 5235.96}, "2026-03": {"byCat": {"Ads": 1242.49, "Boxes & Consumables": 408.94, "Capital & Deposits": 4151.91, "Equipment": 84.77, "Professional Fees": 1035.0, "Rent & Utilities": 1340.11, "Transport": 226.89}, "total": 8490.11}, "2026-04": {"byCat": {"Ads": 258.22, "Boxes & Consumables": 143.19, "Capital & Deposits": 10589.35, "Professional Fees": 1351.0, "Transport": 79.74}, "total": 12421.5}, "2026-05": {"byCat": {"Ads": 1656.28, "Boxes & Consumables": 405.13, "Capital & Deposits": 9275.0, "Professional Fees": 264.0, "Transport": 326.27}, "total": 11926.68}, "2026-06": {"byCat": {"Ads": 413.75, "Boxes & Consumables": 282.3, "Equipment": 672.78, "Labour & Works": 146.67, "Rent & Utilities": 2650.0, "Transport": 430.12}, "total": 4595.62}, "2026-07": {"byCat": {"Ads": 765.41, "Boxes & Consumables": 273.0, "Capital & Deposits": 5294.67, "Equipment": 104.11, "Labour & Works": 460.0, "Rent & Utilities": 2676.02, "Transport": 85.42}, "total": 9658.63}, "2026-08": {"byCat": {"Ads": 749.96, "Boxes & Consumables": 305.2, "Capital & Deposits": 5294.68, "Rent & Utilities": 2689.35}, "total": 9039.19}, "2026-09": {"byCat": {"Ads": 272.66, "Rent & Utilities": 2689.7}, "total": 2962.36}};
+const SPEND_SNAPSHOT_DATE = '1 Sep 2026';
+let revSpendIsLive = false;
 let revProfit = null;
 
 async function fetchMonthlySpend() {
-  if (!SYNC_ENABLED) return {};
-  try {
-    const resp = await fetch(apiGet('action=getMonthlySpend'));
-    const data = await resp.json();
-    if (data.error) throw new Error(data.error);
-    return data.months || {};
-  } catch (err) {
-    console.error('Monthly spend error:', err);
-    return {};
+  revSpendIsLive = false;
+  if (SYNC_ENABLED) {
+    try {
+      const resp = await fetch(apiGet('action=getMonthlySpend'));
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+      if (data.months && Object.keys(data.months).length) {
+        revSpendIsLive = true;
+        return data.months;
+      }
+    } catch (err) {
+      console.error('Monthly spend error:', err);
+    }
   }
+  return SPEND_SNAPSHOT;
 }
 
 async function renderProfitChart(monthly) {
@@ -4084,6 +4098,7 @@ async function renderProfitChart(monthly) {
     const costs = (sp.total || 0) + (m.giveBack || 0) + frames;
     revProfit[k] = {
       revenue: m.revenue, expenses: sp.total || 0, byCat: sp.byCat || {},
+      capital: (sp.byCat && sp.byCat[CAPITAL_CATEGORY]) || 0,
       giveBack: m.giveBack || 0, framesKg: billableKg, recordedFramesKg: recordedKg,
       framesAdjusted: FRAMES_KG_OVERRIDE[k] != null && Math.abs(billableKg - recordedKg) > 0.05,
       framesDonation: frames, costs: costs, profit: m.revenue - costs, count: m.count
@@ -4144,7 +4159,18 @@ function showProfitDetail(key) {
   html += row('Total out', '$' + p.costs.toFixed(2));
   html += row('Approximate profit', (p.profit < 0 ? '-$' : '$') + Math.abs(p.profit).toFixed(2),
               { bold: true, color: p.profit >= 0 ? 'var(--green)' : 'var(--red)' });
+  if (p.capital > 0) {
+    const trading = p.profit + p.capital;
+    html += row('Trading profit (excl. capital)', (trading < 0 ? '-$' : '$') + Math.abs(trading).toFixed(2),
+                { bold: true, color: trading >= 0 ? 'var(--green)' : 'var(--red)' });
+  }
   html += '</table>';
+  if (p.capital > 0) {
+    html += `<p style="font-size:10px;color:var(--grey-400);margin-top:6px;">Capital &amp; deposits of $${p.capital.toFixed(2)} are cash out this month but buy an asset or are refundable, so trading profit leaves them out.</p>`;
+  }
+  if (!revSpendIsLive) {
+    html += `<p style="font-size:10px;color:#B26A00;margin-top:6px;">Spending from the ${SPEND_SNAPSHOT_DATE} snapshot of the expenses sheet (live sync unavailable).</p>`;
+  }
 
   const el = document.getElementById('rev-profit-detail');
   el.innerHTML = html;
