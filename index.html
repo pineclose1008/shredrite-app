@@ -2049,7 +2049,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-01.2';
+const APP_VERSION = '2026-09-01.3';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4048,6 +4048,9 @@ const MOSQUE_CODES = ['ALEEM10', 'KHALID10'];
 // on ALL frames regardless of referral code
 const FRAMES_RATE = 3.00;
 const FRAMES_FROM_MONTH = '2026-08';
+// Manual frames-weight adjustments per month, set by Hambali. The sheet's
+// recorded total is shown alongside so the adjustment is never invisible.
+const FRAMES_KG_OVERRIDE = { '2026-08': 100 };
 let revProfit = null;
 
 async function fetchMonthlySpend() {
@@ -4075,12 +4078,15 @@ async function renderProfitChart(monthly) {
   keys.forEach(k => {
     const m = monthly[k];
     const sp = spend[k] || { total: 0, byCat: {} };
-    const frames = k >= FRAMES_FROM_MONTH ? (m.frame || 0) * FRAMES_RATE : 0;
+    const recordedKg = m.frame || 0;
+    const billableKg = FRAMES_KG_OVERRIDE[k] != null ? FRAMES_KG_OVERRIDE[k] : recordedKg;
+    const frames = k >= FRAMES_FROM_MONTH ? billableKg * FRAMES_RATE : 0;
     const costs = (sp.total || 0) + (m.giveBack || 0) + frames;
     revProfit[k] = {
       revenue: m.revenue, expenses: sp.total || 0, byCat: sp.byCat || {},
-      giveBack: m.giveBack || 0, framesKg: m.frame || 0, framesDonation: frames,
-      costs: costs, profit: m.revenue - costs, count: m.count
+      giveBack: m.giveBack || 0, framesKg: billableKg, recordedFramesKg: recordedKg,
+      framesAdjusted: FRAMES_KG_OVERRIDE[k] != null && Math.abs(billableKg - recordedKg) > 0.05,
+      framesDonation: frames, costs: costs, profit: m.revenue - costs, count: m.count
     };
   });
 
@@ -4132,6 +4138,9 @@ function showProfitDetail(key) {
   html += row('Mosque give-back', '$' + p.giveBack.toFixed(2));
   html += row('Frames donation' + (p.framesDonation ? ` (${p.framesKg.toFixed(1)} kg x $${FRAMES_RATE.toFixed(2)})` : ''),
               p.framesDonation ? '$' + p.framesDonation.toFixed(2) : (key < FRAMES_FROM_MONTH ? 'n/a before Aug' : '$0.00'));
+  if (p.framesAdjusted) {
+    html += row('adjusted from ' + p.recordedFramesKg.toFixed(1) + ' kg recorded', '', { indent: true });
+  }
   html += row('Total out', '$' + p.costs.toFixed(2));
   html += row('Approximate profit', (p.profit < 0 ? '-$' : '$') + Math.abs(p.profit).toFixed(2),
               { bold: true, color: p.profit >= 0 ? 'var(--green)' : 'var(--red)' });
