@@ -1760,6 +1760,13 @@ textarea.form-input {
           <div id="rev-month-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
         </div>
 
+        <div id="rev-profit-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+          <div style="font-weight:600;margin-bottom:2px;font-size:14px;">Approximate Profit by Month</div>
+          <p style="font-size:11px;color:var(--grey-400);margin-bottom:12px;">Revenue minus recorded spending, mosque give-back and the frames donation. Tap a bar for that month's full breakdown.</p>
+          <div id="rev-profit-chart" style="overflow-x:auto;"></div>
+          <div id="rev-profit-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
+        </div>
+
         <div id="rev-partmonth-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:2px;font-size:14px;">Bookings by Part of Month</div>
           <p style="font-size:11px;color:var(--grey-400);margin-bottom:12px;">All months in the range combined, by day of month. Tap a bar for details.</p>
@@ -2042,7 +2049,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-01.1';
+const APP_VERSION = '2026-09-01.2';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -3986,7 +3993,7 @@ async function loadRevenueSummary() {
     bookings.forEach(b => {
       const key = (b.date || '').slice(0, 7); // YYYY-MM
       if (key.length !== 7) return;
-      if (!monthly[key]) monthly[key] = { revenue: 0, count: 0, kg: 0, paper: 0, frame: 0, service: 0, fees: 0, tipsExact: 0, tipsKnown: false };
+      if (!monthly[key]) monthly[key] = { revenue: 0, count: 0, kg: 0, paper: 0, frame: 0, service: 0, fees: 0, tipsExact: 0, tipsKnown: false, giveBack: 0 };
       const m = monthly[key];
       m.revenue += b.totalCollected || 0;
       m.count++;
@@ -3998,8 +4005,15 @@ async function loadRevenueSummary() {
       // Exact tips arrive from the backend once it exports the Tips column;
       // until then the detail view falls back to an estimate
       if (b.tips != null) { m.tipsExact += b.tips; m.tipsKnown = true; }
+      // Mosque give-back, matching the official monthly reports: mosque codes
+      // only, and a collection returning no books earns nothing at all
+      const mCode = (b.referral || '').trim().toUpperCase();
+      if (MOSQUE_CODES.includes(mCode) && (b.paperKg || 0) > 0) {
+        m.giveBack += 10 + (b.paperKg || 0);
+      }
     });
     renderRevenueChart(monthly);
+    await renderProfitChart(monthly);
 
     // Part-of-month aggregation: which stretch of the month gets more
     // bookings, combined across every month in the selected range
@@ -4025,6 +4039,107 @@ async function loadRevenueSummary() {
     console.error('Revenue error:', err);
     toast('Failed to load revenue data');
   }
+}
+
+/* ── Approximate profit by month ──────────────────────────── */
+// Mosque partnership codes that earn give-back (must match the backend list)
+const MOSQUE_CODES = ['ALEEM10', 'KHALID10'];
+// From August 2026 Hambali donates $3 for every kg of frames collected,
+// on ALL frames regardless of referral code
+const FRAMES_RATE = 3.00;
+const FRAMES_FROM_MONTH = '2026-08';
+let revProfit = null;
+
+async function fetchMonthlySpend() {
+  if (!SYNC_ENABLED) return {};
+  try {
+    const resp = await fetch(apiGet('action=getMonthlySpend'));
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    return data.months || {};
+  } catch (err) {
+    console.error('Monthly spend error:', err);
+    return {};
+  }
+}
+
+async function renderProfitChart(monthly) {
+  const spend = await fetchMonthlySpend();
+  const keys = Object.keys(monthly).sort();
+  const section = document.getElementById('rev-profit-section');
+  const chartEl = document.getElementById('rev-profit-chart');
+  document.getElementById('rev-profit-detail').classList.add('hidden');
+  if (!keys.length) { section.classList.add('hidden'); return; }
+
+  revProfit = {};
+  keys.forEach(k => {
+    const m = monthly[k];
+    const sp = spend[k] || { total: 0, byCat: {} };
+    const frames = k >= FRAMES_FROM_MONTH ? (m.frame || 0) * FRAMES_RATE : 0;
+    const costs = (sp.total || 0) + (m.giveBack || 0) + frames;
+    revProfit[k] = {
+      revenue: m.revenue, expenses: sp.total || 0, byCat: sp.byCat || {},
+      giveBack: m.giveBack || 0, framesKg: m.frame || 0, framesDonation: frames,
+      costs: costs, profit: m.revenue - costs, count: m.count
+    };
+  });
+
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const label = k => MON[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4);
+  // Bars are signed, so scale against the largest magnitude either way
+  const peak = Math.max.apply(null, keys.map(k => Math.abs(revProfit[k].profit)).concat([1]));
+
+  chartEl.innerHTML = '<div style="display:flex;align-items:flex-end;gap:8px;">' + keys.map(k => {
+    const p = revProfit[k];
+    const up = p.profit >= 0;
+    const h = Math.max(6, Math.round(110 * Math.abs(p.profit) / peak));
+    const money = (up ? '$' : '-$') + Math.abs(Math.round(p.profit)).toLocaleString();
+    return `<div onclick="showProfitDetail('${k}')" style="cursor:pointer;flex:1;min-width:56px;text-align:center;">
+      <div style="font-size:11px;font-weight:700;margin-bottom:3px;color:${up ? 'var(--navy)' : 'var(--red)'};">${money}</div>
+      <div style="height:${h}px;background:${up ? 'linear-gradient(180deg, #2E7D52, #1B5E3A)' : 'linear-gradient(180deg, #E57373, #C62828)'};border-radius:6px 6px 0 0;"></div>
+      <div style="font-size:10px;font-weight:600;color:var(--grey-500);border-top:2px solid var(--navy);padding-top:4px;">${label(k)}</div>
+      <div style="font-size:9px;color:var(--grey-400);">${p.count} job${p.count === 1 ? '' : 's'}</div>
+    </div>`;
+  }).join('') + '</div>';
+
+  section.classList.remove('hidden');
+  if (keys.length === 1) showProfitDetail(keys[0]);
+}
+
+function showProfitDetail(key) {
+  const p = revProfit && revProfit[key];
+  if (!p) return;
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const name = MONTHS[parseInt(key.slice(5), 10) - 1] + ' ' + key.slice(0, 4);
+  const row = (l, v, opt) => {
+    const o = opt || {};
+    return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;${o.indent ? 'padding-left:12px;color:var(--grey-400);' : 'color:var(--grey-500);'}${o.bold ? 'color:var(--navy);font-weight:700;' : ''}">${l}</td>`
+      + `<td style="padding:5px 0;text-align:right;font-weight:${o.bold ? '700' : '600'};${o.color ? 'color:' + o.color + ';' : ''}">${v}</td></tr>`;
+  };
+  const cats = Object.keys(p.byCat).sort((a, b) => p.byCat[b] - p.byCat[a]);
+
+  let html = `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name} - where the money went</div>`
+    + '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
+    + row('Revenue collected', '$' + p.revenue.toFixed(2), { bold: true, color: 'var(--gold)' });
+
+  if (cats.length) {
+    html += row('Recorded spending', '$' + p.expenses.toFixed(2));
+    cats.forEach(c => { html += row(esc(c), '$' + p.byCat[c].toFixed(2), { indent: true }); });
+  } else {
+    html += row('Recorded spending', 'none entered');
+  }
+
+  html += row('Mosque give-back', '$' + p.giveBack.toFixed(2));
+  html += row('Frames donation' + (p.framesDonation ? ` (${p.framesKg.toFixed(1)} kg x $${FRAMES_RATE.toFixed(2)})` : ''),
+              p.framesDonation ? '$' + p.framesDonation.toFixed(2) : (key < FRAMES_FROM_MONTH ? 'n/a before Aug' : '$0.00'));
+  html += row('Total out', '$' + p.costs.toFixed(2));
+  html += row('Approximate profit', (p.profit < 0 ? '-$' : '$') + Math.abs(p.profit).toFixed(2),
+              { bold: true, color: p.profit >= 0 ? 'var(--green)' : 'var(--red)' });
+  html += '</table>';
+
+  const el = document.getElementById('rev-profit-detail');
+  el.innerHTML = html;
+  el.classList.remove('hidden');
 }
 
 /* ── Revenue by Month: interactive bar chart ─────────────── */
