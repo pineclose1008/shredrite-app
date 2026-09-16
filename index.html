@@ -1713,6 +1713,7 @@ textarea.form-input {
         <div id="rev-filter-banner"></div>
         <div id="rev-capture" style="display:flex;flex-direction:column;">
         <div id="rev-headline" style="order:10;"></div>
+        <div id="rev-expander" style="order:14;"></div>
         <div id="rev-bridge" style="order:20;"></div>
         <div id="rev-assets-section" class="hidden" style="order:50;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">What the Business Owns</div>
@@ -1836,7 +1837,7 @@ textarea.form-input {
           <div id="rev-partmonth-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
         </div>
 
-        <div style="order:120;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-breakdown-section" style="order:120;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:8px;font-size:14px;">Breakdown</div>
           <table style="width:100%;font-size:13px;border-collapse:collapse;">
             <tr style="border-bottom:1px solid var(--grey-100);">
@@ -2117,7 +2118,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-16.12';
+const APP_VERSION = '2026-09-16.13';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4300,6 +4301,23 @@ async function renderProfitChart(monthly) {
   renderCashFlow(keys);
   renderAssets(keys);
   renderAssessment(keys, monthly);
+
+  // One figure per folded section, so a closed section still says something
+  let sRev = 0, sJobs = 0, sKg = 0, sGb = 0;
+  keys.forEach(k => { const p = revProfit[k];
+    sRev += p.revenue; sJobs += p.count; sKg += p.kg; sGb += p.giveBack; });
+  const custKeys = {};
+  (revBookings || []).forEach(b => { custKeys[custKey(b)] = 1; });
+  const nCust = Object.keys(custKeys).length;
+
+  setupFolds({
+    'rev-chart-section': '$' + Math.round(sRev).toLocaleString() + ' across ' + sJobs + ' collections',
+    'rev-unit-section': '$' + (sJobs ? sRev / sJobs : 0).toFixed(2) + ' average collection',
+    'rev-customer-section': nCust + ' customers',
+    'rev-referral-section': '$' + Math.round(sGb).toLocaleString() + ' given back to the masjids',
+    'rev-partmonth-section': 'When in the month bookings land',
+    'rev-breakdown-section': 'Service charges, booking fees and tips'
+  });
 }
 
 // Costs that rise and fall with the work itself. Everything else is a fixed
@@ -5064,6 +5082,67 @@ function drillItems(cat, items) {
   return Object.values(byVendor)
     .map(g => ({ n: g.n, v: g.c + '×', a: g.a }))
     .sort((a, b) => b.a - a.a);
+}
+
+// ---------------------------------------------------------------------------
+// Section folding. The narrative sections stay open so the report still reads
+// top to bottom in one scroll; the analysis sections start folded, each showing
+// its heading and one figure, so the page is half as long without hiding
+// anything that carries the argument.
+// ---------------------------------------------------------------------------
+const FOLDABLE = ['rev-chart-section', 'rev-unit-section', 'rev-customer-section',
+                  'rev-referral-section', 'rev-partmonth-section', 'rev-breakdown-section'];
+
+function foldSection(id, open) {
+  const sec = document.getElementById(id);
+  if (!sec || !sec.dataset.foldReady) return;
+  const body = sec.querySelector(':scope > .fold-body');
+  const caret = sec.querySelector(':scope > .fold-head .fold-caret');
+  if (!body) return;
+  const show = open === undefined ? body.classList.contains('hidden') : open;
+  body.classList.toggle('hidden', !show);
+  if (caret) caret.innerHTML = show ? '&#9662;' : '&#9656;';
+}
+
+function foldAll(open) { FOLDABLE.forEach(id => foldSection(id, open)); }
+
+function setupFolds(summaries) {
+  FOLDABLE.forEach(id => {
+    const sec = document.getElementById(id);
+    if (!sec) return;
+
+    if (!sec.dataset.foldReady) {
+      const kids = [...sec.children];
+      if (!kids.length) return;
+      const head = kids[0];
+      head.classList.add('fold-head');
+      head.style.cursor = 'pointer';
+      head.insertAdjacentHTML('afterbegin',
+        '<span class="fold-caret" style="color:var(--grey-300);margin-right:5px;">&#9656;</span>');
+      head.insertAdjacentHTML('beforeend',
+        '<span class="fold-sum" style="display:block;font-size:11px;font-weight:600;color:var(--gold);margin-top:2px;"></span>');
+      head.setAttribute('onclick', "foldSection('" + id + "')");
+
+      const body = document.createElement('div');
+      body.className = 'fold-body hidden';
+      kids.slice(1).forEach(k => body.appendChild(k));
+      sec.appendChild(body);
+      sec.dataset.foldReady = '1';
+    }
+
+    const sum = sec.querySelector(':scope > .fold-head .fold-sum');
+    if (sum) sum.textContent = (summaries && summaries[id]) || '';
+  });
+
+  const bar = document.getElementById('rev-expander');
+  if (bar) {
+    const btn = (label, open) =>
+      '<button onclick="foldAll(' + open + ')" style="flex:1;border:1px solid var(--grey-100);background:var(--white);'
+      + 'color:var(--grey-500);font-size:11px;font-weight:600;padding:7px 10px;border-radius:8px;cursor:pointer;">'
+      + label + '</button>';
+    bar.innerHTML = '<div style="display:flex;gap:8px;margin-bottom:16px;">'
+      + btn('Expand all', true) + btn('Collapse all', false) + '</div>';
+  }
 }
 
 function toggleSpendCat(id) {
