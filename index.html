@@ -2117,7 +2117,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-16.10';
+const APP_VERSION = '2026-09-16.11';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4561,7 +4561,12 @@ function renderCashFlow(keys) {
   if (!keys.length) { sec.classList.add('hidden'); return; }
   const filt = CASH_FILTERS[cashFilter];
 
-  let run = 0, tIn = 0, tOp = 0, tCap = 0, tDep = 0;
+  // Capital was put in at the start, and it sits in the same account the
+  // collections are paid into, so the running line is a real balance rather
+  // than a cumulative total of trading. Only meaningful on the "All money"
+  // view; the other filters are subtotals of one kind of spending.
+  const opening = (cashFilter === 'all' && CAPITAL_INJECTED) ? CAPITAL_INJECTED : 0;
+  let run = opening, tIn = 0, tOp = 0, tCap = 0, tDep = 0;
   const data = keys.map(k => {
     const p = revProfit[k];
     const out = filt.out(p);
@@ -4594,17 +4599,24 @@ function renderCashFlow(keys) {
       <td style="text-align:right;font-size:11px;font-weight:700;color:${d.net >= 0 ? '#1B5E3A' : '#C62828'};">${d.net >= 0 ? '' : '-'}$${Math.abs(Math.round(d.net)).toLocaleString()}</td>
       <td style="text-align:right;font-size:11px;font-weight:700;color:${d.run >= 0 ? '#1B5E3A' : '#C62828'};">${d.run >= 0 ? '' : '-'}$${Math.abs(Math.round(d.run)).toLocaleString()}</td>
     </tr>`).join('');
+    const openRow = opening ? `<tr style="border-bottom:1px solid var(--grey-100);background:#F4F7FA;">
+      <td style="padding:6px 0;font-weight:700;font-size:11px;color:var(--navy);">Start</td>
+      <td style="text-align:right;font-size:11px;font-weight:600;">$${Math.round(opening).toLocaleString()}</td>
+      <td style="text-align:right;font-size:11px;color:var(--grey-400);">-</td>
+      <td style="text-align:right;font-size:11px;">-</td>
+      <td style="text-align:right;font-size:11px;font-weight:700;color:#1B5E3A;">$${Math.round(opening).toLocaleString()}</td>
+    </tr>` : '';
     bodyHtml = `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:300px;">
       <tr style="color:var(--grey-400);font-size:10px;text-transform:uppercase;letter-spacing:.3px;">
         <td style="padding:3px 0;">Month</td><td style="text-align:right;">In</td><td style="text-align:right;">Out</td>
-        <td style="text-align:right;">Net</td><td style="text-align:right;">Running</td>
-      </tr>${rows}</table></div>`;
+        <td style="text-align:right;">Net</td><td style="text-align:right;">Balance</td>
+      </tr>${openRow}${rows}</table></div>`;
   } else {
     // Money in above the line, money out below, with the running balance over it
     const COLW = 58, H = 170, MID = 82, PAD_B = 26;
     const W = Math.max(keys.length * COLW, 240);
     const peak = Math.max.apply(null, data.map(d => Math.max(d.inn, d.out)).concat([1]));
-    const runPeak = Math.max.apply(null, data.map(d => Math.abs(d.run)).concat([1]));
+    const runPeak = Math.max.apply(null, data.map(d => Math.abs(d.run)).concat([Math.abs(opening), 1]));
     const cx = i => i * COLW + COLW / 2;
     const ry = v => MID - (MID - 12) * (v / runPeak);
     const bh = v => Math.max(1, (MID - 16) * v / peak);
@@ -4620,7 +4632,7 @@ function renderCashFlow(keys) {
              + `</g>`;
       }).join('')}
       <line x1="0" y1="${MID}" x2="${W}" y2="${MID}" stroke="#12263F" stroke-width="2"></line>
-      <polyline points="${data.map((d, i) => cx(i) + ',' + ry(d.run)).join(' ')}" fill="none"
+      <polyline points="${(opening ? ['0,' + ry(opening)] : []).concat(data.map((d, i) => cx(i) + ',' + ry(d.run))).join(' ')}" fill="none"
                 stroke="#12263F" stroke-width="2.5" stroke-dasharray="4 3" stroke-linejoin="round" vector-effect="non-scaling-stroke"></polyline>
       ${data.map((d, i) => `<circle cx="${cx(i)}" cy="${ry(d.run)}" r="3" fill="#fff" stroke="#12263F" stroke-width="2" vector-effect="non-scaling-stroke"></circle>`).join('')}
     </svg>`;
@@ -4635,17 +4647,17 @@ function renderCashFlow(keys) {
       <div style="font-size:10px;color:var(--grey-400);margin-top:6px;">
         <span style="color:#2E7D52;font-weight:700;">&#9632;</span> Money in
         &nbsp; <span style="color:#D98383;font-weight:700;">&#9632;</span> Money out
-        &nbsp; <span style="color:#12263F;font-weight:700;">&#9679;--</span> Running balance
+        &nbsp; <span style="color:#12263F;font-weight:700;">&#9679;--</span> ${opening ? 'Bank balance' : 'Running total'}
       </div>`;
   }
 
   const note = cashFilter === 'all'
-    ? `Trading brought in <strong>$${Math.round(tIn - tOp).toLocaleString()}</strong> more than it spent on running costs.
+    ? `${opening ? `Starting from the <strong>$${Math.round(opening).toLocaleString()}</strong> put in at the outset, ` : ''}trading
+       brought in <strong>$${Math.round(tIn - tOp).toLocaleString()}</strong> more than it spent on running costs.
        A further <strong>$${Math.round(tCap).toLocaleString()}</strong> went on machines and
-       <strong>$${Math.round(tDep).toLocaleString()}</strong> on the refundable Sindo deposit, which is why the running
-       line ends at ${run >= 0 ? 'a surplus' : `<strong style="color:#C62828;">-$${Math.abs(Math.round(run)).toLocaleString()}</strong>`}.
-       ${run < 0 ? `This line covers trading only. It is the amount the business needed beyond what it collected, and it
-       was met by the capital Hambali put in. The deposit is returned and the machines are already paid for.` : ''}`
+       <strong>$${Math.round(tDep).toLocaleString()}</strong> on the refundable Sindo deposit, leaving
+       <strong style="color:${run >= 0 ? '#1B5E3A' : '#C62828'};">${run < 0 ? '-' : ''}$${Math.abs(Math.round(run)).toLocaleString()}</strong>.
+       Collections and the capital are paid into the same account, so this line is the balance in it.`
     : cashFilter === 'opex'
     ? `Running costs only, against revenue. This is the business stripped of one-off purchases, and it is
        <strong>${(tIn - tOp) >= 0 ? 'positive' : 'negative'}</strong> at
@@ -4995,7 +5007,7 @@ function renderAssessment(keys, monthly) {
     </div>`;
 
   document.getElementById('rev-assess-body').innerHTML =
-    card('Is the business working?', profit >= 0 ? 'Yes' : 'Not yet', profit >= 0,
+    card('Is the business profitable?', profit >= 0 ? 'Yes' : 'Not yet', profit >= 0,
       profit >= 0
         ? `It makes money on the work it does. After everything it costs to run, the business is profitable, and it has
            been in almost every month rather than only in the strong ones.`
