@@ -1861,7 +1861,7 @@ textarea.form-input {
 
         <div id="rev-referral-section" class="hidden" style="order:90;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:8px;font-size:14px;">Referral Give-Back</div>
-          <p style="font-size:11px;color:var(--grey-400);margin-bottom:8px;">Give-back = $10 per booking + $1 per kg of kitab/books (frames and others excluded). Mosque partnership codes only.</p>
+          <p style="font-size:11px;color:var(--grey-400);margin-bottom:8px;">Give-back = $10 per booking + $1 per kg of kitab/books (frames and others excluded). Mosque partnership codes only. Paid at the end of each month, so the current month is not included until then.</p>
           <table style="width:100%;font-size:12px;border-collapse:collapse;" id="rev-referral-table"></table>
         </div>
 
@@ -2118,7 +2118,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-16.14';
+const APP_VERSION = '2026-09-16.15';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4037,8 +4037,13 @@ async function loadRevenueSummary() {
     bookings.forEach(b => {
       const code = (b.referral || '').trim().toUpperCase();
       if (!code) return;
-      if (!byCode[code]) byCode[code] = { count: 0, paperKg: 0 };
+      if (!byCode[code]) byCode[code] = { count: 0, paperKg: 0, gb: 0, pending: 0 };
       byCode[code].count++;
+      if (MOSQUE_CODES.includes(code) && (b.paperKg || 0) > 0.001) {
+        const amt = 10 + (b.paperKg || 0);
+        if ((b.date || '').slice(0, 7) < currentMonthKey()) byCode[code].gb += amt;
+        else byCode[code].pending += amt;
+      }
       // $1/kg applies to kitab/books (paper) only - frames/others excluded
       // (agreed with Masjid Aleem Siddique 2026-08-03)
       byCode[code].paperKg += b.paperKg || 0;
@@ -4052,8 +4057,8 @@ async function loadRevenueSummary() {
           const s = byCode[code];
           // Only mosque partnership codes earn give-back; other codes are
           // tracked (jobs/kg) but owe nothing
-          const isMosque = ['ALEEM10', 'KHALID10'].includes(code);
-          const giveBack = isMosque ? 10 * s.count + 1 * s.paperKg : null;
+          const isMosque = MOSQUE_CODES.includes(code);
+          const giveBack = isMosque ? s.gb : null;
           return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;font-weight:600;">${esc(code)}</td><td style="text-align:right;">${s.count}</td><td style="text-align:right;">${s.paperKg.toFixed(1)}</td><td style="text-align:right;font-weight:700;color:var(--gold);">${giveBack === null ? '-' : '$' + giveBack.toFixed(2)}</td></tr>`;
         }).join('');
       refSection.classList.remove('hidden');
@@ -4121,6 +4126,12 @@ async function loadRevenueSummary() {
 /* ── Approximate profit by month ──────────────────────────── */
 // Mosque partnership codes that earn give-back (must match the backend list)
 const MOSQUE_CODES = ['ALEEM10', 'KHALID10'];
+// Give-back is paid out at the end of each month, so only months that have
+// already closed count. Local date, not UTC, so the 1st rolls over correctly.
+function currentMonthKey() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
 const MOSQUE_NAMES = { ALEEM10: 'Masjid Abdul Aleem Siddique', KHALID10: 'Masjid Khalid' };
 // From August 2026 Hambali donates $3 for every kg of frames collected,
 // on ALL frames regardless of referral code
@@ -4137,7 +4148,7 @@ const EXCLUDED_CATEGORY = 'Excluded';   // rows that were never a business cost
 const CAPITAL_INJECTED = 20000;         // $ Hambali has put in. null = derive it from the shortfall instead.
 // Fallback copy of the expenses tab, taken 1 Sep 2026. Used ONLY when the
 // backend's live getMonthlySpend is unavailable, so the report still works.
-const SPEND_SNAPSHOT = {"2026-01":{"byCat":{"Boxes & Consumables":93.19,"Equipment":124.14},"items":{"Boxes & Consumables":[{"a":86.1,"d":"2026-01-30","n":"Storage Box (70L)","v":"Shopee"},{"a":7.09,"d":"2026-01-30","n":"3M grip gloves","v":"Shopee"}],"Equipment":[{"a":86.45,"d":"2026-01-30","n":"Prestar 150kg trolley","v":"Shopee"},{"a":37.69,"d":"2026-01-30","n":"Electronic postal scale","v":"Shopee"}]},"total":217.33,"opex":217.33,"capex":0.0,"deposits":0.0,"deprec":0.0},"2026-02":{"byCat":{"Ads":831.26,"Boxes & Consumables":176.59,"Capital & Deposits":2772.0,"Equipment":1229.86,"Transport":426.25},"items":{"Ads":[{"a":831.26,"d":"2026-02-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":72.22,"d":"2026-02-19","n":"Storage box","v":"Shopee"},{"a":65.75,"d":"2026-02-12","n":"Storage box (80L)","v":"Shopee"},{"a":21.62,"d":"2026-02-07","n":"Tussah foldable storage box (60L)","v":"Shopee"},{"a":17.0,"d":"2026-02-14","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":2772.0,"d":"2026-02-26","n":"Shredder xp520+","v":"GBC"}],"Equipment":[{"a":848.94,"d":"2026-02-06","n":"GBC Shredmaster 300M","v":"Shopee"},{"a":372.24,"d":"2026-02-11","n":"Heavy duty paper cutter","v":"5B"},{"a":8.68,"d":"2026-02-06","n":"Cutter Knife","v":"Shopee"}],"Transport":[{"a":200.0,"d":"2026-02-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":46.37,"d":"2026-02-10","n":"kona","v":"Getgo"},{"a":40.05,"d":"2026-02-24","n":"Dongfeng","v":"Getgo"},{"a":39.15,"d":"2026-02-11","n":"shuttle","v":"Getgo"},{"a":37.14,"d":"2026-02-23","n":"Tivoli","v":"Getgo"},{"a":35.58,"d":"2026-02-19","n":"Shuttle","v":"Getgo"},{"a":27.96,"d":"2026-02-12","n":"shuttle","v":"Getgo"}]},"total":5435.96,"opex":1815.02,"capex":3620.94,"deposits":0.0,"deprec":60.35},"2026-03":{"byCat":{"Ads":1242.49,"Boxes & Consumables":408.94,"Capital & Deposits":2151.91,"Equipment":84.77,"Professional Fees":1035.0,"Rent & Utilities":1340.11,"Transport":426.89},"items":{"Ads":[{"a":1242.49,"d":"2026-03-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":294.8,"d":"2026-03-10","n":"Storage box (80L)","v":"Lazada"},{"a":97.14,"d":"2026-03-02","n":"Cutter blade","v":"Lazada"},{"a":17.0,"d":"2026-03-02","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":2151.91,"d":"2026-03-26","n":"Dell laptop","v":"Dell"}],"Equipment":[{"a":84.77,"d":"2026-03-17","n":"Weighing machine","v":"Shopee"}],"Professional Fees":[{"a":1035.0,"d":"2026-03-18","n":"ACRA and Company Secretary","v":"Sleek"}],"Rent & Utilities":[{"a":1318.85,"d":"2026-03-10","n":"Rental space start 12 mar","v":"Extra space"},{"a":21.26,"d":"2026-03-13","n":"Padlock","v":"Extra space"}],"Transport":[{"a":200.0,"d":"2026-03-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":93.62,"d":"2026-03-17","n":"Tivoli","v":"Getgo"},{"a":68.58,"d":"2026-03-10","n":"Tivoli","v":"Getgo"},{"a":38.12,"d":"2026-03-24","n":"Homda shuttle","v":"Getgo"},{"a":26.57,"d":"2026-03-31","n":"Kona","v":"Getgo"}]},"total":6690.11,"opex":4538.2,"capex":2151.91,"deposits":0.0,"deprec":120.12},"2026-04":{"byCat":{"Ads":258.22,"Boxes & Consumables":143.19,"Capital & Deposits":10589.35,"Professional Fees":1351.0,"Transport":279.74},"items":{"Ads":[{"a":258.22,"d":"2026-04-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":143.19,"d":"2026-04-01","n":"blasius box (80L)","v":"jiji.sg"}],"Capital & Deposits":[{"a":10589.35,"d":"2026-04-02","n":"Deposit - EBA 6340 industrial shredder","v":"Optimum Copier Trading"}],"Professional Fees":[{"a":1026.0,"d":"2026-04-10","n":"90k SGD accounting plan","v":"Sleek"},{"a":325.0,"d":"2026-04-28","n":"Business card","v":"The Gentlemen’s Press "}],"Transport":[{"a":200.0,"d":"2026-04-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":48.76,"d":"2026-04-06","n":"Tivoli","v":"Getgo"},{"a":30.98,"d":"2026-04-09","n":"Shuttle","v":"Getgo"}]},"total":12621.5,"opex":2032.15,"capex":10589.35,"deposits":0.0,"deprec":120.12},"2026-05":{"byCat":{"Ads":1656.28,"Boxes & Consumables":405.13,"Capital & Deposits":9275.0,"Professional Fees":264.0,"Transport":526.27},"items":{"Ads":[{"a":1656.28,"d":"2026-05-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":134.7,"d":"2026-05-25","n":"Storage box ?","v":"Toyogo"},{"a":77.5,"d":"2026-05-04","n":"Storage box 74L","v":"Toyogo"},{"a":77.5,"d":"2026-05-06","n":"Storage box 74L","v":"Toyogo"},{"a":60.43,"d":"2026-05-04","n":"blasius box (80L)","v":"Shopee"},{"a":55.0,"d":"2026-05-28","n":"Storage box 60L","v":"Shopee"}],"Capital & Deposits":[{"a":6625.0,"d":"2026-05-29","n":"Balance of rental deposit - Sindo (refundable)","v":"Sindo"},{"a":2650.0,"d":"2026-05-22","n":"1 month deposit sindo rental unit","v":"Sindo"}],"Professional Fees":[{"a":264.0,"d":"2026-05-29","n":"IRAS stamping fees (tenancy)","v":"Sindo"}],"Transport":[{"a":206.0,"d":"2026-05-28","n":"Lalamove","v":"Lalamove"},{"a":200.0,"d":"2026-05-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":49.53,"d":"2026-05-28","n":"Kona","v":"Getgo"},{"a":39.36,"d":"2026-05-05","n":"Shuttle","v":"Getgo"},{"a":31.38,"d":"2026-05-06","n":"Kona","v":"Getgo"}]},"total":12126.68,"opex":2851.68,"capex":0.0,"deposits":9275.0,"deprec":120.12},"2026-06":{"byCat":{"Ads":413.75,"Boxes & Consumables":312.82,"Equipment":642.26,"Labour & Works":146.67,"Rent & Utilities":2676.02,"Transport":630.12},"items":{"Ads":[{"a":413.75,"d":"2026-06-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-06-08","n":"Storage box","v":"Toyogo"},{"a":109.2,"d":"2026-06-30","n":"Storage box 67 litres","v":"Toyogo"},{"a":63.9,"d":"2026-06-03","n":"4x 75l box","v":"Toyogo"},{"a":30.52,"d":"2026-06-09","n":"plastic bag for shredder","v":"OPTIMUM COPIER TRADING"}],"Equipment":[{"a":240.0,"d":"2026-06-05","n":"Vacuum","v":"Shopee"},{"a":189.0,"d":"2026-06-22","n":"Switchbot","v":"Shopee"},{"a":139.0,"d":"2026-06-05","n":"Trolley","v":"Shopee"},{"a":74.26,"d":"2026-06-09","n":"Trolley heavy duty","v":"Shopee"}],"Labour & Works":[{"a":96.67,"d":"2026-06-23","n":"Part-time work","v":"Rayhan"},{"a":50.0,"d":"2026-06-17","n":"Part-time work","v":"Rayhan"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-05-29","n":"June 2026 rent - Sindo","v":"Sindo"},{"a":26.02,"d":"2026-06-30","n":"Electricity - Sindo (2-15 Jun)","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-06-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":66.77,"d":"2026-06-17","n":"Samyeong","v":"Getgo"},{"a":62.74,"d":"2026-06-24","n":"Shuttle","v":"Getgo"},{"a":54.42,"d":"2026-06-03","n":"Shuttle","v":"Getgo"},{"a":54.24,"d":"2026-06-11","n":"Kona","v":"Getgo"},{"a":44.94,"d":"2026-06-16","n":"Shuttle","v":"Getgo"},{"a":44.1,"d":"2026-06-10","n":"Shuttle","v":"Getgo"},{"a":43.35,"d":"2026-06-09","n":"Kona","v":"Getgo"},{"a":34.36,"d":"2026-06-23","n":"Shuttle","v":"Getgo"},{"a":25.2,"d":"2026-06-08","n":"Moving of shredder from home","v":"Lalamove"}]},"total":4821.64,"opex":4821.64,"capex":0.0,"deposits":0.0,"deprec":120.12},"2026-07":{"byCat":{"Ads":765.41,"Boxes & Consumables":273.0,"Capital & Deposits":5294.67,"Equipment":104.11,"Labour & Works":460.0,"Rent & Utilities":2689.35,"Transport":285.42},"items":{"Ads":[{"a":765.41,"d":"2026-07-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-07-10","n":"Storage box 67 litres","v":"Toyogo"},{"a":109.2,"d":"2026-07-21","n":"Storage box 67 litres","v":"Toyogo"},{"a":54.6,"d":"2026-07-28","n":"Storage box 67 litres","v":"Toyogo"}],"Capital & Deposits":[{"a":5294.67,"d":"2026-08-03","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Equipment":[{"a":104.11,"d":"2026-07-10","n":"Weighing scale","v":"Shopee"}],"Labour & Works":[{"a":460.0,"d":"2026-07-11","n":"Electrical works","v":"Ramesh"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-06-30","n":"Rental Jul 2026","v":"Sindo"},{"a":39.35,"d":"2026-07-30","n":"Electricity - Sindo (16 Jun - 15 Jul)","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-07-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":57.32,"d":"2026-07-27","n":"Shuttle","v":"Getgo"},{"a":28.1,"d":"2026-07-22","n":"Shuttle","v":"Getgo"}]},"total":9871.96,"opex":4577.29,"capex":5294.67,"deposits":0.0,"deprec":120.12},"2026-08":{"byCat":{"Ads":749.96,"Boxes & Consumables":335.72,"Capital & Deposits":5294.68,"Rent & Utilities":2689.7,"Transport":200.0},"items":{"Ads":[{"a":749.96,"d":"2026-08-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":305.2,"d":"2026-08-28","n":"Plastic bags for shredder + oil lubricant","v":"Optimum Copier Trading"},{"a":30.52,"d":"2026-08-04","n":"Plastic bags for shredder (100x120cm, 50pcs)","v":"Optimum Copier Trading"}],"Capital & Deposits":[{"a":5294.68,"d":"2026-08-31","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-07-30","n":"Rental Aug 2026","v":"Sindo"},{"a":39.7,"d":"2026-08-30","n":"Electricity - Sindo (16 Jul - 15 Aug)","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-08-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"}]},"total":9270.06,"opex":3975.38,"capex":5294.68,"deposits":0.0,"deprec":296.61},"2026-09":{"byCat":{"Ads":272.66,"Rent & Utilities":2650.0,"Transport":200.0},"items":{"Ads":[{"a":272.66,"d":"2026-09-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-08-30","n":"Rental Sep 2026","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-09-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"}]},"total":3122.66,"opex":3122.66,"capex":0.0,"deposits":0.0,"deprec":296.61}};
+const SPEND_SNAPSHOT = {"2026-01":{"byCat":{"Boxes & Consumables":93.19,"Equipment":124.14},"items":{"Boxes & Consumables":[{"a":86.1,"d":"2026-01-30","n":"Storage Box (70L)","v":"Shopee"},{"a":7.09,"d":"2026-01-30","n":"3M grip gloves","v":"Shopee"}],"Equipment":[{"a":86.45,"d":"2026-01-30","n":"Prestar 150kg trolley","v":"Shopee"},{"a":37.69,"d":"2026-01-30","n":"Electronic postal scale","v":"Shopee"}]},"total":217.33,"opex":217.33,"capex":0.0,"deposits":0.0,"deprec":0.0},"2026-02":{"byCat":{"Ads":831.26,"Boxes & Consumables":176.59,"Capital & Deposits":2772.0,"Equipment":1229.86,"Transport":426.25},"items":{"Ads":[{"a":831.26,"d":"2026-02-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":72.22,"d":"2026-02-19","n":"Storage box","v":"Shopee"},{"a":65.75,"d":"2026-02-12","n":"Storage box (80L)","v":"Shopee"},{"a":21.62,"d":"2026-02-07","n":"Tussah foldable storage box (60L)","v":"Shopee"},{"a":17.0,"d":"2026-02-14","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":2772.0,"d":"2026-02-26","n":"Shredder xp520+","v":"GBC"}],"Equipment":[{"a":848.94,"d":"2026-02-06","n":"GBC Shredmaster 300M","v":"Shopee"},{"a":372.24,"d":"2026-02-11","n":"Heavy duty paper cutter","v":"5B"},{"a":8.68,"d":"2026-02-06","n":"Cutter Knife","v":"Shopee"}],"Transport":[{"a":200.0,"d":"2026-02-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":46.37,"d":"2026-02-10","n":"kona","v":"Getgo"},{"a":40.05,"d":"2026-02-24","n":"Dongfeng","v":"Getgo"},{"a":39.15,"d":"2026-02-11","n":"shuttle","v":"Getgo"},{"a":37.14,"d":"2026-02-23","n":"Tivoli","v":"Getgo"},{"a":35.58,"d":"2026-02-19","n":"Shuttle","v":"Getgo"},{"a":27.96,"d":"2026-02-12","n":"shuttle","v":"Getgo"}]},"total":5435.96,"opex":1815.02,"capex":3620.94,"deposits":0.0,"deprec":60.35},"2026-03":{"byCat":{"Ads":1242.49,"Boxes & Consumables":408.94,"Capital & Deposits":2151.91,"Equipment":84.77,"Professional Fees":1035.0,"Rent & Utilities":1340.11,"Transport":451.01},"items":{"Ads":[{"a":1242.49,"d":"2026-03-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":294.8,"d":"2026-03-10","n":"Storage box (80L)","v":"Lazada"},{"a":97.14,"d":"2026-03-02","n":"Cutter blade","v":"Lazada"},{"a":17.0,"d":"2026-03-02","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":2151.91,"d":"2026-03-26","n":"Dell laptop","v":"Dell"}],"Equipment":[{"a":84.77,"d":"2026-03-17","n":"Weighing machine","v":"Shopee"}],"Professional Fees":[{"a":1035.0,"d":"2026-03-18","n":"ACRA and Company Secretary","v":"Sleek"}],"Rent & Utilities":[{"a":1318.85,"d":"2026-03-10","n":"Rental space start 12 mar","v":"Extra space"},{"a":21.26,"d":"2026-03-13","n":"Padlock","v":"Extra space"}],"Transport":[{"a":200.0,"d":"2026-03-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":93.62,"d":"2026-03-17","n":"Tivoli","v":"Getgo"},{"a":68.58,"d":"2026-03-10","n":"Tivoli","v":"Getgo"},{"a":38.12,"d":"2026-03-24","n":"Homda shuttle","v":"Getgo"},{"a":26.57,"d":"2026-03-31","n":"Kona","v":"Getgo"},{"a":24.12,"d":"2026-03-31","n":"GetGo rental - Ssangyong Tivoli","v":"Getgo"}]},"total":6714.23,"opex":4562.32,"capex":2151.91,"deposits":0.0,"deprec":120.12},"2026-04":{"byCat":{"Ads":258.22,"Boxes & Consumables":143.19,"Capital & Deposits":10589.35,"Professional Fees":1351.0,"Transport":291.52},"items":{"Ads":[{"a":258.22,"d":"2026-04-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":143.19,"d":"2026-04-01","n":"blasius box (80L)","v":"jiji.sg"}],"Capital & Deposits":[{"a":10589.35,"d":"2026-04-02","n":"Deposit - EBA 6340 industrial shredder","v":"Optimum Copier Trading"}],"Professional Fees":[{"a":1026.0,"d":"2026-04-10","n":"90k SGD accounting plan","v":"Sleek"},{"a":325.0,"d":"2026-04-28","n":"Business card","v":"The Gentlemen’s Press "}],"Transport":[{"a":200.0,"d":"2026-04-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":48.76,"d":"2026-04-06","n":"Tivoli","v":"Getgo"},{"a":30.98,"d":"2026-04-09","n":"Shuttle","v":"Getgo"},{"a":11.78,"d":"2026-04-29","n":"GetGo rental - Honda Shuttle","v":"Getgo"}]},"total":12633.28,"opex":2043.93,"capex":10589.35,"deposits":0.0,"deprec":120.12},"2026-05":{"byCat":{"Ads":1656.28,"Boxes & Consumables":405.13,"Capital & Deposits":9275.0,"Professional Fees":264.0,"Transport":539.2},"items":{"Ads":[{"a":1656.28,"d":"2026-05-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":134.7,"d":"2026-05-25","n":"Storage box ?","v":"Toyogo"},{"a":77.5,"d":"2026-05-04","n":"Storage box 74L","v":"Toyogo"},{"a":77.5,"d":"2026-05-06","n":"Storage box 74L","v":"Toyogo"},{"a":60.43,"d":"2026-05-04","n":"blasius box (80L)","v":"Shopee"},{"a":55.0,"d":"2026-05-28","n":"Storage box 60L","v":"Shopee"}],"Capital & Deposits":[{"a":6625.0,"d":"2026-05-29","n":"Balance of rental deposit - Sindo (refundable)","v":"Sindo"},{"a":2650.0,"d":"2026-05-22","n":"1 month deposit sindo rental unit","v":"Sindo"}],"Professional Fees":[{"a":264.0,"d":"2026-05-29","n":"IRAS stamping fees (tenancy)","v":"Sindo"}],"Transport":[{"a":206.0,"d":"2026-05-28","n":"Lalamove","v":"Lalamove"},{"a":200.0,"d":"2026-05-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":49.53,"d":"2026-05-28","n":"Kona","v":"Getgo"},{"a":39.36,"d":"2026-05-05","n":"Shuttle","v":"Getgo"},{"a":31.83,"d":"2026-05-06","n":"Kona","v":"Getgo"},{"a":12.48,"d":"2026-05-06","n":"GetGo rental - Toyota Sienta","v":"Getgo"}]},"total":12139.61,"opex":2864.61,"capex":0.0,"deposits":9275.0,"deprec":120.12},"2026-06":{"byCat":{"Ads":413.75,"Boxes & Consumables":312.82,"Equipment":642.26,"Labour & Works":146.67,"Rent & Utilities":2676.02,"Transport":638.82},"items":{"Ads":[{"a":413.75,"d":"2026-06-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-06-08","n":"Storage box","v":"Toyogo"},{"a":109.2,"d":"2026-06-30","n":"Storage box 67 litres","v":"Toyogo"},{"a":63.9,"d":"2026-06-03","n":"4x 75l box","v":"Toyogo"},{"a":30.52,"d":"2026-06-09","n":"plastic bag for shredder","v":"OPTIMUM COPIER TRADING"}],"Equipment":[{"a":240.0,"d":"2026-06-05","n":"Vacuum","v":"Shopee"},{"a":189.0,"d":"2026-06-22","n":"Switchbot","v":"Shopee"},{"a":139.0,"d":"2026-06-05","n":"Trolley","v":"Shopee"},{"a":74.26,"d":"2026-06-09","n":"Trolley heavy duty","v":"Shopee"}],"Labour & Works":[{"a":96.67,"d":"2026-06-23","n":"Part-time work","v":"Rayhan"},{"a":50.0,"d":"2026-06-17","n":"Part-time work","v":"Rayhan"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-05-29","n":"June 2026 rent - Sindo","v":"Sindo"},{"a":26.02,"d":"2026-06-30","n":"Electricity - Sindo (2-15 Jun)","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-06-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":66.77,"d":"2026-06-17","n":"Samyeong","v":"Getgo"},{"a":62.74,"d":"2026-06-24","n":"Shuttle","v":"Getgo"},{"a":54.42,"d":"2026-06-03","n":"Shuttle","v":"Getgo"},{"a":54.24,"d":"2026-06-11","n":"Kona","v":"Getgo"},{"a":44.94,"d":"2026-06-16","n":"Shuttle","v":"Getgo"},{"a":44.1,"d":"2026-06-10","n":"Shuttle","v":"Getgo"},{"a":43.35,"d":"2026-06-09","n":"Kona","v":"Getgo"},{"a":34.36,"d":"2026-06-23","n":"Shuttle","v":"Getgo"},{"a":25.2,"d":"2026-06-08","n":"Moving of shredder from home","v":"Lalamove"},{"a":8.7,"d":"2026-06-30","n":"GetGo cancellation charge","v":"Getgo"}]},"total":4830.34,"opex":4830.34,"capex":0.0,"deposits":0.0,"deprec":120.12},"2026-07":{"byCat":{"Ads":765.41,"Boxes & Consumables":273.0,"Capital & Deposits":5294.67,"Equipment":104.11,"Labour & Works":460.0,"Rent & Utilities":2689.35,"Transport":296.22},"items":{"Ads":[{"a":765.41,"d":"2026-07-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-07-10","n":"Storage box 67 litres","v":"Toyogo"},{"a":109.2,"d":"2026-07-21","n":"Storage box 67 litres","v":"Toyogo"},{"a":54.6,"d":"2026-07-28","n":"Storage box 67 litres","v":"Toyogo"}],"Capital & Deposits":[{"a":5294.67,"d":"2026-08-03","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Equipment":[{"a":104.11,"d":"2026-07-10","n":"Weighing scale","v":"Shopee"}],"Labour & Works":[{"a":460.0,"d":"2026-07-11","n":"Electrical works","v":"Ramesh"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-06-30","n":"Rental Jul 2026","v":"Sindo"},{"a":39.35,"d":"2026-07-30","n":"Electricity - Sindo (16 Jun - 15 Jul)","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-07-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":57.32,"d":"2026-07-27","n":"Shuttle","v":"Getgo"},{"a":28.1,"d":"2026-07-22","n":"Shuttle","v":"Getgo"},{"a":10.8,"d":"2026-07-31","n":"GetGo cancellation charge","v":"Getgo"}]},"total":9882.76,"opex":4588.09,"capex":5294.67,"deposits":0.0,"deprec":120.12},"2026-08":{"byCat":{"Ads":749.96,"Boxes & Consumables":335.72,"Capital & Deposits":5294.68,"Rent & Utilities":2689.7,"Transport":461.27},"items":{"Ads":[{"a":749.96,"d":"2026-08-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":305.2,"d":"2026-08-28","n":"Plastic bags for shredder + oil lubricant","v":"Optimum Copier Trading"},{"a":30.52,"d":"2026-08-04","n":"Plastic bags for shredder (100x120cm, 50pcs)","v":"Optimum Copier Trading"}],"Capital & Deposits":[{"a":5294.68,"d":"2026-08-31","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-07-30","n":"Rental Aug 2026","v":"Sindo"},{"a":39.7,"d":"2026-08-30","n":"Electricity - Sindo (16 Jul - 15 Aug)","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-08-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":59.12,"d":"2026-08-12","n":"GetGo rental - Honda Shuttle","v":"Getgo"},{"a":54.36,"d":"2026-08-14","n":"GetGo rental - Honda Shuttle","v":"Getgo"},{"a":46.44,"d":"2026-08-05","n":"GetGo rental - Honda Shuttle","v":"Getgo"},{"a":45.87,"d":"2026-08-06","n":"GetGo rental - Hyundai Kona","v":"Getgo"},{"a":36.92,"d":"2026-08-13","n":"GetGo rental - Hyundai Kona","v":"Getgo"},{"a":18.56,"d":"2026-08-27","n":"GetGo rental - Mazda 3","v":"Getgo"}]},"total":9531.33,"opex":4236.65,"capex":5294.68,"deposits":0.0,"deprec":296.61},"2026-09":{"byCat":{"Ads":272.66,"Rent & Utilities":2650.0,"Transport":375.38},"items":{"Ads":[{"a":272.66,"d":"2026-09-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-08-30","n":"Rental Sep 2026","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-09-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":70.68,"d":"2026-09-08","n":"GetGo rental - Honda Shuttle","v":"Getgo"},{"a":36.44,"d":"2026-09-15","n":"GetGo rental - Suzuki Swift","v":"Getgo"},{"a":34.3,"d":"2026-09-09","n":"GetGo rental - Mazda 3","v":"Getgo"},{"a":33.96,"d":"2026-09-01","n":"GetGo rental - Mazda 3","v":"Getgo"}]},"total":3298.04,"opex":3298.04,"capex":0.0,"deposits":0.0,"deprec":296.61}};
 const SNAPSHOT_ASSETS = [
   { n: 'EBA 6340C industrial shredder', cost: 21178.70, start: '2026-08', life: 10, per: 176.49 },
   { n: 'Dell laptop',                   cost: 2151.91,  start: '2026-03', life: 3,  per: 59.78 },
@@ -4150,7 +4161,7 @@ const CATEGORY_BLURB = {
   'Rent & Utilities': 'Sindo unit rent and power',
   'Capital & Deposits': 'One-off asset purchases and refundable deposits',
   'Ads': 'Facebook / Meta ads for the disposal service',
-  'Transport': 'GetGo van hire and Lalamove',
+  'Transport': 'GetGo car rental, Lalamove and own car',
   'Boxes & Consumables': 'Storage boxes, bags, blades, gloves',
   'Equipment': 'Tools and smaller machines',
   'Professional Fees': 'Sleek, ACRA, stamping and filing',
@@ -4260,15 +4271,19 @@ async function renderProfitChart(monthly) {
     const opex = Math.max(0, rawOpex - excluded);
     const deprec = sp.deprec || 0;
 
-    const costs = opex + deprec + (m.giveBack || 0) + frames;
+    const monthClosed = k < currentMonthKey();
+    const gbCount = monthClosed ? (m.giveBack || 0) : 0;
+    const frCount = monthClosed ? frames : 0;
+    const costs = opex + deprec + gbCount + frCount;
     revProfit[k] = {
       revenue: m.revenue, expenses: Math.max(0, (sp.total || 0) - excluded), byCat: byCat,
       capital: capital, capex: capex, deposits: deposits, opex: opex, deprec: deprec,
       cashOut: Math.max(0, (sp.total || 0) - excluded),
       items: items,
-      giveBack: m.giveBack || 0, framesKg: billableKg, recordedFramesKg: recordedKg,
+      giveBack: gbCount, framesKg: billableKg, recordedFramesKg: recordedKg,
+      giveBackPending: monthClosed ? 0 : (m.giveBack || 0) + frames,
       framesAdjusted: FRAMES_KG_OVERRIDE[k] != null && Math.abs(billableKg - recordedKg) > 0.05,
-      framesDonation: frames, costs: costs, profit: m.revenue - costs, count: m.count,
+      framesDonation: frCount, costs: costs, profit: m.revenue - costs, count: m.count,
       kg: m.kg || 0, paper: m.paper || 0, frame: m.frame || 0
     };
   });
@@ -4308,7 +4323,7 @@ async function renderProfitChart(monthly) {
     sRev += p.revenue; sJobs += p.count; sKg += p.kg; sGb += p.giveBack;
     sOpex += p.opex; sDeprec += p.deprec; sFr += p.framesDonation; sCap += p.capex; sDep += p.deposits; });
   const sProfit = sRev - sOpex - sDeprec - sGb - sFr;
-  const sCash = sRev - sOpex - sCap - sDep;
+  const sCash = sRev - sOpex - sGb - sFr - sCap - sDep;
   const sBank = sCash + (CAPITAL_INJECTED != null ? CAPITAL_INJECTED : Math.max(0, -sCash));
   const money = v => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString();
   const custKeys = {};
@@ -4452,7 +4467,7 @@ function renderUnitEconomics(allKeys) {
     `<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:2px;">Month by month</div>
      <div style="font-size:10px;color:var(--grey-400);margin-bottom:6px;">
        Bars: revenue per kg (total revenue &divide; total kg).
-       Line: cost to handle one kg (van hire, boxes, give-back &divide; total kg).
+       Line: cost to handle one kg (transport, boxes, give-back &divide; total kg).
        The wider the gap, the more each kg contributes.</div>
      <div style="overflow-x:auto;">${svg}${cols}</div>
      <div style="font-size:10px;color:var(--grey-400);margin-top:6px;">
@@ -4576,8 +4591,8 @@ function renderCustomerEconomics(monthly) {
 let cashView = 'chart';     // chart | list
 let cashFilter = 'all';     // all | opex | capex | deposits | in
 const CASH_FILTERS = {
-  all:      { label: 'All money',  out: p => p.opex + p.capex + p.deposits },
-  opex:     { label: 'Opex only',  out: p => p.opex },
+  all:      { label: 'All money',  out: p => p.opex + p.giveBack + p.framesDonation + p.capex + p.deposits },
+  opex:     { label: 'Opex only',  out: p => p.opex + p.giveBack + p.framesDonation },
   capex:    { label: 'Capex only', out: p => p.capex },
   deposits: { label: 'Deposits',   out: p => p.deposits }
 };
@@ -4600,7 +4615,7 @@ function renderCashFlow(keys) {
     const out = filt.out(p);
     const inn = cashFilter === 'all' || cashFilter === 'opex' ? p.revenue : 0;
     const net = inn - out;
-    run += net; tIn += p.revenue; tOp += p.opex; tCap += p.capex; tDep += p.deposits;
+    run += net; tIn += p.revenue; tOp += p.opex + p.giveBack + p.framesDonation; tCap += p.capex; tDep += p.deposits;
     return { k, inn, out, net, run, p };
   });
 
@@ -4681,13 +4696,13 @@ function renderCashFlow(keys) {
 
   const note = cashFilter === 'all'
     ? `${opening ? `Starting from the <strong>$${Math.round(opening).toLocaleString()}</strong> put in at the outset, ` : ''}trading
-       brought in <strong>$${Math.round(tIn - tOp).toLocaleString()}</strong> more than it spent on running costs.
+       brought in <strong>$${Math.round(tIn - tOp).toLocaleString()}</strong> more than it spent on running costs and give-back.
        A further <strong>$${Math.round(tCap).toLocaleString()}</strong> went on machines and
        <strong>$${Math.round(tDep).toLocaleString()}</strong> on the refundable Sindo deposit, leaving
        <strong style="color:${run >= 0 ? '#1B5E3A' : '#C62828'};">${run < 0 ? '-' : ''}$${Math.abs(Math.round(run)).toLocaleString()}</strong>.
        Collections and the capital are paid into the same account, so this line is the balance in it.`
     : cashFilter === 'opex'
-    ? `Running costs only, against revenue. This is the business stripped of one-off purchases, and it is
+    ? `Running costs and give-back only, against revenue. This is the business stripped of one-off purchases, and it is
        <strong>${(tIn - tOp) >= 0 ? 'positive' : 'negative'}</strong> at
        <strong>$${Math.abs(Math.round(tIn - tOp)).toLocaleString()}</strong>. It shows whether the day-to-day operation
        covers itself.`
@@ -4732,7 +4747,7 @@ function renderHeadline(keys, monthly) {
     rev += p.revenue; jobs += p.count; opex += p.opex; deprec += p.deprec;
     gb += p.giveBack; fr += p.framesDonation; capex += p.capex; dep += p.deposits; });
   const profit = rev - opex - deprec - gb - fr;
-  const cash = rev - opex - capex - dep;
+  const cash = rev - opex - gb - fr - capex - dep;
   const putIn = CAPITAL_INJECTED != null ? CAPITAL_INJECTED : Math.max(0, -cash);
   const inBank = cash + putIn;
   const part = partialMonths(keys);
@@ -4783,12 +4798,13 @@ function renderHeadline(keys, monthly) {
 function renderBridge(keys) {
   const el = document.getElementById('rev-bridge');
   if (!keys.length) { el.innerHTML = ''; return; }
-  let rev = 0, opex = 0, deprec = 0, gb = 0, fr = 0, capex = 0, dep = 0;
+  let rev = 0, opex = 0, deprec = 0, gb = 0, fr = 0, capex = 0, dep = 0, pend = 0, pendKey = '';
   keys.forEach(k => { const p = revProfit[k];
     rev += p.revenue; opex += p.opex; deprec += p.deprec; gb += p.giveBack;
-    fr += p.framesDonation; capex += p.capex; dep += p.deposits; });
+    fr += p.framesDonation; capex += p.capex; dep += p.deposits;
+    if (p.giveBackPending) { pend += p.giveBackPending; pendKey = k; } });
   const profit = rev - opex - deprec - gb - fr;
-  const cash = rev - opex - capex - dep;
+  const cash = rev - opex - gb - fr - capex - dep;
   // The account is not overdrawn. The shortfall was funded by Hambali, so the
   // statement only balances once his money is shown as coming in.
   const putIn = CAPITAL_INJECTED != null ? CAPITAL_INJECTED : Math.max(0, -cash);
@@ -4811,12 +4827,11 @@ function renderBridge(keys) {
       <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
         <strong style="color:var(--navy);">Purpose of this section</strong><br>
         The obvious question: we collected $${Math.round(rev).toLocaleString()}, so where has it gone?
-        This walks through it line by line. Nothing else on this page will make sense until this does.
       </div>
 
       <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
         ${line('Revenue collected from customers', rev, keys.length + ' months of collections')}
-        ${line('Running the business', -opex, 'Rent, ads, van hire, boxes', { indent: true })}
+        ${line('Running the business', -opex, 'Rent, ads, GetGo car rental, Lalamove, boxes', { indent: true })}
         ${line('Given back to the masjids', -gb, '$10 a booking plus $1 a kg of books', { indent: true })}
         ${fr ? line('Frames give-back', -fr, '$3 a kg of frames, from August', { indent: true }) : ''}
         ${line('Machine cost for these months', -deprec, 'Machines are paid for once but last years, so each month carries a share of the price', { indent: true })}
@@ -4829,13 +4844,14 @@ function renderBridge(keys) {
         ${line('Revenue collected from customers', rev, '')}
         ${putIn ? line('Money put in by Hambali', putIn, 'To cover the machines and the deposit') : ''}
         ${line('Paid for running the business', -opex, '', { indent: true })}
+        ${(gb + fr) ? line('Give-back paid', -(gb + fr), 'Paid at the end of each month', { indent: true }) : ''}
         ${capex ? line('Paid for the machines', -capex, 'Paid in full on the day of purchase', { indent: true }) : ''}
         ${dep ? line('Paid the rental deposit', -dep, 'Gets returned when the unit is returned', { indent: true }) : ''}
         ${line('LEFT IN THE BANK', inBank, '', { total: true })}
       </table>
 
       <div style="font-size:11px;line-height:1.6;color:var(--grey-500);margin-top:12px;">
-        <strong style="color:var(--navy);">Why the two numbers differ.</strong> Three reasons, and none of them is a loss:
+        <strong style="color:var(--navy);">Why the two numbers differ.</strong> Two reasons, and neither is a loss:
         <br><br>
         <strong>1. The machines.</strong> Profit counts them slowly, a little each month for as long as they last.
         The bank paid the whole $${Math.round(capex).toLocaleString()} on the day.
@@ -4843,14 +4859,14 @@ function renderBridge(keys) {
         <strong>2. The deposit.</strong> $${Math.round(dep).toLocaleString()} left the bank, but it is not a cost.
         It is being held and gets returned when the unit is returned.
         <br><br>
-        <strong>3. The give-back.</strong> $${Math.round(gb + fr).toLocaleString()} is counted as a cost, because it is owed.
-        It has not been paid out of the business account yet, so the bank has not felt it.
-        <br><br>
+        ${pend ? `${monLabel(pendKey).split(' ')[0]}'s give-back of <strong>$${Math.round(pend).toLocaleString()}</strong>
+        is paid at the end of the month, so it is not in either figure yet.<br><br>` : ''}
         ${putIn > 0
           ? `So the business <strong>earned $${Math.round(profit).toLocaleString()}</strong>, and Hambali has put in
              <strong>$${Math.round(putIn).toLocaleString()}</strong> so it could buy the machines and pay the deposit
              without waiting.`
           : `The business has funded itself.`}
+      </div>
     </div>`;
 }
 
@@ -4968,16 +4984,26 @@ function showCashDetail(key) {
   } else {
     html += line('Paid out', 'nothing recorded');
   }
+  const gbPaid = p.giveBack + p.framesDonation;
+  if (gbPaid > 0) {
+    html += `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0 5px 12px;color:var(--grey-400);">Give-back paid</td>`
+      + `<td style="padding:5px 0;text-align:right;font-weight:600;">$${gbPaid.toFixed(2)}</td></tr>`;
+  }
+  if (p.giveBackPending > 0) {
+    html += `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0 5px 12px;color:var(--grey-400);">Give-back`
+      + `<div style="font-size:10px;color:var(--grey-300);">$${p.giveBackPending.toFixed(2)} due at the end of the month, not paid yet</div></td>`
+      + `<td style="padding:5px 0;text-align:right;font-weight:600;">$0.00</td></tr>`;
+  }
 
-  const net = p.revenue - p.cashOut;
+  const net = p.revenue - p.cashOut - gbPaid;
   html += line('Left in the bank this month', (net < 0 ? '-$' : '$') + Math.abs(net).toFixed(2),
                { bold: true, color: net >= 0 ? 'var(--green)' : 'var(--red)' });
   html += '</table>';
   if (p.capex > 0 || p.deposits > 0) {
     html += `<p style="font-size:10px;color:var(--grey-400);margin-top:6px;">`
-      + (p.capex > 0 ? `$${p.capex.toFixed(2)} of that was a machine. Big one-off buy, but it keeps earning for years. ` : '')
-      + (p.deposits > 0 ? `$${p.deposits.toFixed(2)} was a deposit you get back. ` : '')
-      + `That is why a bad cash month is not the same as a bad month.</p>`;
+      + (p.capex > 0 ? `$${p.capex.toFixed(2)} of that was a machine, a one-off purchase that earns for years. ` : '')
+      + (p.deposits > 0 ? `$${p.deposits.toFixed(2)} was a refundable deposit. ` : '')
+      + `That is why a weak cash month is not the same as a weak month.</p>`;
   }
   const el = document.getElementById('rev-cash-detail');
   el.innerHTML = html;
@@ -4997,7 +5023,7 @@ function renderAssessment(keys, monthly) {
     variable += VARIABLE_CATS.reduce((s, c) => s + (p.byCat[c] || 0), 0) + p.giveBack + p.framesDonation;
   });
   const profit = rev - opex - deprec - gb - fr;
-  const cash = rev - opex - capex - deposits;
+  const cash = rev - opex - gb - fr - capex - deposits;
   const months = keys.length || 1;
   const contribPerJob = jobs ? (rev - variable) / jobs : 0;
   // Break-even off the CURRENT run-rate, not the lifetime average. Early months
@@ -5019,7 +5045,8 @@ function renderAssessment(keys, monthly) {
   });
 
   // Cash payback: how long until trading has returned everything put into it
-  const recentCash = recent.reduce((s, k) => s + (revProfit[k].revenue - revProfit[k].opex), 0) / (recent.length || 1);
+  const recentCash = recent.reduce((s, k) => { const p = revProfit[k];
+    return s + (p.revenue - p.opex - p.giveBack - p.framesDonation); }, 0) / (recent.length || 1);
   const monthsToPayback = (cash < 0 && recentCash > 0) ? Math.abs(cash) / recentCash : null;
   const cashExDeposit = cash + deposits;
   const monthsExDeposit = (cashExDeposit < 0 && recentCash > 0) ? Math.abs(cashExDeposit) / recentCash : null;
@@ -5242,12 +5269,14 @@ function showProfitDetail(key) {
     if (!gbByCode[c]) gbByCode[c] = { jobs: 0, kg: 0, amt: 0 };
     gbByCode[c].jobs++; gbByCode[c].kg += b.paperKg || 0; gbByCode[c].amt += 10 + (b.paperKg || 0);
   });
-  const gbCodes = Object.keys(gbByCode).sort((a, b) => gbByCode[b].amt - gbByCode[a].amt);
+  const gbCodes = p.giveBackPending ? [] : Object.keys(gbByCode).sort((a, b) => gbByCode[b].amt - gbByCode[a].amt);
   const gId = 'gb_' + key.replace('-', '');
   html += `<tr style="border-bottom:1px solid var(--grey-100);${gbCodes.length ? 'cursor:pointer;' : ''}"`
     + (gbCodes.length ? ` onclick="toggleSpendCat('${gId}')"` : '') + '>'
     + `<td style="padding:5px 0;color:var(--grey-500);">${gbCodes.length ? '<span style="color:var(--grey-300);">&#9662;</span> ' : ''}Mosque give-back`
-    + `<div style="font-size:10px;color:var(--grey-300);padding-left:14px;">$10 per booking + $1 per kg of books</div></td>`
+    + `<div style="font-size:10px;color:var(--grey-300);padding-left:14px;">${p.giveBackPending
+        ? 'Give-back for this month, $' + p.giveBackPending.toFixed(2) + ' including frames, is paid at month end and not counted until then'
+        : '$10 per booking + $1 per kg of books'}</div></td>`
     + `<td style="padding:5px 0;text-align:right;font-weight:600;vertical-align:top;">$${p.giveBack.toFixed(2)}</td></tr>`;
   if (gbCodes.length) {
     html += `<tr id="${gId}" class="hidden"><td colspan="2" style="padding:0 0 6px 26px;">`
