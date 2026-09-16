@@ -2118,7 +2118,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-16.13';
+const APP_VERSION = '2026-09-16.14';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4303,14 +4303,24 @@ async function renderProfitChart(monthly) {
   renderAssessment(keys, monthly);
 
   // One figure per folded section, so a closed section still says something
-  let sRev = 0, sJobs = 0, sKg = 0, sGb = 0;
+  let sRev = 0, sJobs = 0, sKg = 0, sGb = 0, sOpex = 0, sDeprec = 0, sFr = 0, sCap = 0, sDep = 0;
   keys.forEach(k => { const p = revProfit[k];
-    sRev += p.revenue; sJobs += p.count; sKg += p.kg; sGb += p.giveBack; });
+    sRev += p.revenue; sJobs += p.count; sKg += p.kg; sGb += p.giveBack;
+    sOpex += p.opex; sDeprec += p.deprec; sFr += p.framesDonation; sCap += p.capex; sDep += p.deposits; });
+  const sProfit = sRev - sOpex - sDeprec - sGb - sFr;
+  const sCash = sRev - sOpex - sCap - sDep;
+  const sBank = sCash + (CAPITAL_INJECTED != null ? CAPITAL_INJECTED : Math.max(0, -sCash));
+  const money = v => (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString();
   const custKeys = {};
   (revBookings || []).forEach(b => { custKeys[custKey(b)] = 1; });
   const nCust = Object.keys(custKeys).length;
 
   setupFolds({
+    'rev-bridge-card': 'Profit ' + money(sProfit) + ' \u00B7 Cash balance ' + money(sBank),
+    'rev-profit-section': money(sProfit) + ' profit',
+    'rev-cash-section': money(sBank) + ' in the bank',
+    'rev-assets-section': money(sCap + sDep) + ' held in machines and deposit',
+    'rev-assess-section': 'Five questions, answered in plain words',
     'rev-chart-section': '$' + Math.round(sRev).toLocaleString() + ' across ' + sJobs + ' collections',
     'rev-unit-section': '$' + (sJobs ? sRev / sJobs : 0).toFixed(2) + ' average collection',
     'rev-customer-section': nCust + ' customers',
@@ -4742,8 +4752,7 @@ function renderHeadline(keys, monthly) {
   el.innerHTML = `
     <div style="background:var(--navy);border-radius:var(--radius-md);padding:16px;margin-bottom:16px;">
       <div style="font-size:16px;font-weight:700;color:var(--gold);">ShredRite Pte Ltd</div>
-      <div style="font-size:12px;color:#D6DEE7;margin-bottom:2px;">How the business is doing &mdash; ${span}</div>
-      <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">Management figures, not audited</div>
+      <div style="font-size:12px;color:#D6DEE7;margin-bottom:12px;">How the business is doing &mdash; ${span}</div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         ${big('Revenue collected', '$' + Math.round(rev).toLocaleString(), jobs + ' collections', '#fff')}
@@ -4797,7 +4806,7 @@ function renderBridge(keys) {
   };
 
   el.innerHTML = `
-    <div style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+    <div id="rev-bridge-card" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
       <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">From $${Math.round(rev).toLocaleString()} Collected to Where We Stand</div>
       <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
         <strong style="color:var(--navy);">Purpose of this section</strong><br>
@@ -5092,56 +5101,68 @@ function drillItems(cat, items) {
 // ---------------------------------------------------------------------------
 const FOLDABLE = ['rev-chart-section', 'rev-unit-section', 'rev-customer-section',
                   'rev-referral-section', 'rev-partmonth-section', 'rev-breakdown-section'];
+const FOLD_OPEN = ['rev-bridge-card', 'rev-profit-section', 'rev-cash-section',
+                   'rev-assets-section', 'rev-assess-section'];
+const ALL_FOLDS = FOLD_OPEN.concat(FOLDABLE);
 
 function foldSection(id, open) {
   const sec = document.getElementById(id);
-  if (!sec || !sec.dataset.foldReady) return;
+  if (!sec) return;
   const body = sec.querySelector(':scope > .fold-body');
-  const caret = sec.querySelector(':scope > .fold-head .fold-caret');
   if (!body) return;
   const show = open === undefined ? body.classList.contains('hidden') : open;
   body.classList.toggle('hidden', !show);
+  const caret = sec.querySelector(':scope > .fold-head .fold-caret');
   if (caret) caret.innerHTML = show ? '&#9662;' : '&#9656;';
+  // The one-line summary is only useful while the section is closed
+  const sum = sec.querySelector(':scope > .fold-head .fold-sum');
+  if (sum) sum.style.display = show ? 'none' : 'block';
 }
 
-function foldAll(open) { FOLDABLE.forEach(id => foldSection(id, open)); }
+function foldAll(open) { ALL_FOLDS.forEach(id => foldSection(id, open)); }
 
 function setupFolds(summaries) {
-  FOLDABLE.forEach(id => {
+  ALL_FOLDS.forEach(id => {
     const sec = document.getElementById(id);
     if (!sec) return;
 
-    if (!sec.dataset.foldReady) {
+    // Check for the wrapper itself rather than a flag: a section whose content
+    // is rebuilt on each run loses its wrapper and must be wrapped again.
+    let fresh = false;
+    if (!sec.querySelector(':scope > .fold-body')) {
       const kids = [...sec.children];
       if (!kids.length) return;
       const head = kids[0];
       head.classList.add('fold-head');
       head.style.cursor = 'pointer';
-      head.insertAdjacentHTML('afterbegin',
-        '<span class="fold-caret" style="color:var(--grey-300);margin-right:5px;">&#9656;</span>');
-      head.insertAdjacentHTML('beforeend',
-        '<span class="fold-sum" style="display:block;font-size:11px;font-weight:600;color:var(--gold);margin-top:2px;"></span>');
+      if (!head.querySelector('.fold-caret')) {
+        head.insertAdjacentHTML('afterbegin',
+          '<span class="fold-caret" style="color:var(--grey-300);margin-right:5px;">&#9656;</span>');
+        head.insertAdjacentHTML('beforeend',
+          '<span class="fold-sum" style="display:block;font-size:11px;font-weight:600;color:var(--gold);margin-top:2px;"></span>');
+      }
       head.setAttribute('onclick', "foldSection('" + id + "')");
-
       const body = document.createElement('div');
-      body.className = 'fold-body hidden';
+      body.className = 'fold-body';
       kids.slice(1).forEach(k => body.appendChild(k));
       sec.appendChild(body);
-      sec.dataset.foldReady = '1';
+      fresh = true;
     }
 
     const sum = sec.querySelector(':scope > .fold-head .fold-sum');
     if (sum) sum.textContent = (summaries && summaries[id]) || '';
+    const body = sec.querySelector(':scope > .fold-body');
+    foldSection(id, fresh ? FOLD_OPEN.includes(id) : !body.classList.contains('hidden'));
   });
 
   const bar = document.getElementById('rev-expander');
   if (bar) {
-    const btn = (label, open) =>
-      '<button onclick="foldAll(' + open + ')" style="flex:1;border:1px solid var(--grey-100);background:var(--white);'
-      + 'color:var(--grey-500);font-size:11px;font-weight:600;padding:7px 10px;border-radius:8px;cursor:pointer;">'
-      + label + '</button>';
+    const btn = (label, icon, open) =>
+      '<button onclick="foldAll(' + open + ')" style="flex:1;border:1px solid var(--navy);background:var(--white);'
+      + 'color:var(--navy);font-size:12px;font-weight:700;padding:9px 10px;border-radius:8px;cursor:pointer;">'
+      + icon + ' ' + label + '</button>';
     bar.innerHTML = '<div style="display:flex;gap:8px;margin-bottom:16px;">'
-      + btn('Expand all', true) + btn('Collapse all', false) + '</div>';
+      + btn('Expand all', '&#9662;', true) + btn('Collapse all', '&#9656;', false) + '</div>';
   }
 }
 
