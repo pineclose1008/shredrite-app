@@ -1764,7 +1764,8 @@ textarea.form-input {
           <div style="font-weight:600;margin-bottom:2px;font-size:14px;">Revenue by Month</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this chart</strong><br>
-            To show whether a good or bad month was about <strong>how many jobs</strong> you did, or <strong>how big</strong> they were. Those need different fixes. Tap a bar for that month's numbers.
+            To show whether a stronger or weaker month came from the <strong>number of collections</strong> or their
+            <strong>size</strong>. The two call for different responses. Tap a bar for that month's figures.
           </div>
           <div id="rev-chart" style="overflow-x:auto;"></div>
           <div id="rev-trend-insight" style="margin-top:10px;"></div>
@@ -1775,7 +1776,9 @@ textarea.form-input {
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Cash Flow</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px;">
             <strong style="color:var(--navy);">Purpose of this chart</strong><br>
-            To show the money that actually moved, the way your bank sees it. Profit spreads a machine over ten years. Cash does not: you paid for it on the day. This is why a good month can still leave you short.
+            To show the money that actually moved, as the bank records it. Profit spreads the cost of a machine across
+            its working life; cash does not, because the machine was paid for on the day. This is why a profitable month
+            can still reduce the bank balance.
           </div>
           <div id="rev-cash-controls" style="margin-bottom:8px;"></div>
           <div style="font-size:10px;color:var(--grey-400);margin-bottom:6px;">Tap a month to see exactly what the money was spent on.</div>
@@ -1788,8 +1791,9 @@ textarea.form-input {
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this chart</strong><br>
             To show whether the business truly made money each month.<br>
-            <span style="color:var(--grey-400);">money in &minus; running costs &minus; wear on machines &minus; give-back</span><br><br>
-            A machine is not counted in the month you bought it. It is counted a little each month for as long as it lasts, because that is how long it earns for you. Deposits are never counted, because you get them back. Tap a bar for the details.
+            <span style="color:var(--grey-400);">revenue &minus; running costs &minus; machine cost &minus; give-back</span><br><br>
+            A machine is not charged to the month it was bought. Its cost is spread across every month it works, because
+            that is how long it earns. Deposits are never treated as a cost, since they are returned. Tap a bar for the details.
           </div>
           <div id="rev-profit-chart" style="overflow-x:auto;"></div>
           <div id="rev-profit-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
@@ -1798,9 +1802,10 @@ textarea.form-input {
         <div id="rev-unit-section" class="hidden" style="order:70;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Where the Money Goes on One Job</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
-            <strong style="color:var(--navy);">Purpose of this chart</strong><br>
-            When money is tight there are only two things you can do: <strong>charge more</strong>, or <strong>spend less</strong>.
-            They pull in opposite directions, and picking the wrong one makes things worse. This chart tells you which one is your problem.
+            <strong style="color:var(--navy);">Purpose of this section</strong><br>
+            To separate the cost of carrying out a collection from the cost of running the business, and to show how much
+            of each job's revenue is left to cover rent, advertising and equipment. This is what determines whether
+            profitability depends on pricing or on volume.
           </div>
           <div id="rev-unit-chart" style="overflow-x:auto;"></div>
           <div id="rev-unit-verdict" style="margin-top:10px;"></div>
@@ -1809,15 +1814,17 @@ textarea.form-input {
         <div id="rev-customer-section" class="hidden" style="order:80;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Customer Economics</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.5;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px;">
-            <strong style="color:var(--navy);">Purpose of this chart</strong><br>
-            To show whether you can simply <strong>buy</strong> more business, and whether the customers you buy stay with you.<br><br>
-            <strong>CAC</strong> is short for <em>Customer Acquisition Cost</em>. In plain words: what you spend on ads to get one new customer.<br>
-            <span style="color:var(--grey-400);">ad spend for the month &divide; new customers that month</span><br><br>
-            <strong>Revenue per customer</strong>: what one customer has paid you in total.<br>
-            <span style="color:var(--grey-400);">all money collected &divide; number of different customers</span><br><br>
-            <strong>Repeat rate</strong>: how many of your customers ever came back.<br>
+            <strong style="color:var(--navy);">Purpose of this section</strong><br>
+            To show what it costs to win a customer, what that customer is worth, and whether customers return.
+            Revenue by month records what happened; this section indicates whether it is repeatable.<br><br>
+            <strong>CAC</strong> is short for <em>Customer Acquisition Cost</em>: the advertising spent to win one new customer.<br>
+            <span style="color:var(--grey-400);">advertising for the month &divide; new customers that month</span><br><br>
+            <strong>Revenue per customer</strong>: total paid by one customer across all their collections.<br>
+            <span style="color:var(--grey-400);">total revenue &divide; number of different customers</span><br><br>
+            <strong>Repeat rate</strong>: the share of customers who have booked more than once.<br>
             <span style="color:var(--grey-400);">customers who booked twice or more &divide; all customers</span><br><br>
-            If a customer pays you more than they cost to get, more ads means more money. If almost nobody comes back, you have to keep paying for new ones forever.
+            Where a customer is worth more than they cost to win, additional advertising produces additional profit.
+            Where few customers return, that advertising has to be repeated every month to hold the same level of work.
           </div>
           <div id="rev-customer-body"></div>
         </div>
@@ -1859,7 +1866,7 @@ textarea.form-input {
 
         <div id="rev-assess-section" class="hidden" style="order:100;background:var(--navy);padding:16px;border-radius:var(--radius-md);margin-bottom:16px;">
           <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:2px;">Business Assessment</div>
-          <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">Everything above, read back in plain words. Updates every time you generate a report.</div>
+          <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">The report above, summarised in plain words.</div>
           <div id="rev-assess-body"></div>
         </div>
         </div><!-- end rev-capture -->
@@ -2110,7 +2117,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-16.9';
+const APP_VERSION = '2026-09-16.10';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4126,7 +4133,7 @@ const FRAMES_KG_OVERRIDE = { '2026-08': 100 };
 // shows a separate trading profit that leaves them out.
 const CAPITAL_CATEGORY = 'Capital & Deposits';
 const EXCLUDED_CATEGORY = 'Excluded';   // rows that were never a business cost
-const CAPITAL_INJECTED = null;          // $ Hambali has put in; null = derive it from the shortfall
+const CAPITAL_INJECTED = 20000;         // $ Hambali has put in. null = derive it from the shortfall instead.
 // Fallback copy of the expenses tab, taken 1 Sep 2026. Used ONLY when the
 // backend's live getMonthlySpend is unavailable, so the report still works.
 const SPEND_SNAPSHOT = {"2026-01":{"byCat":{"Boxes & Consumables":93.19,"Equipment":124.14},"items":{"Boxes & Consumables":[{"a":86.1,"d":"2026-01-30","n":"Storage Box (70L)","v":"Shopee"},{"a":7.09,"d":"2026-01-30","n":"3M grip gloves","v":"Shopee"}],"Equipment":[{"a":86.45,"d":"2026-01-30","n":"Prestar 150kg trolley","v":"Shopee"},{"a":37.69,"d":"2026-01-30","n":"Electronic postal scale","v":"Shopee"}]},"total":217.33,"opex":217.33,"capex":0.0,"deposits":0.0,"deprec":0.0},"2026-02":{"byCat":{"Ads":831.26,"Boxes & Consumables":176.59,"Capital & Deposits":2772.0,"Equipment":1229.86,"Transport":426.25},"items":{"Ads":[{"a":831.26,"d":"2026-02-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":72.22,"d":"2026-02-19","n":"Storage box","v":"Shopee"},{"a":65.75,"d":"2026-02-12","n":"Storage box (80L)","v":"Shopee"},{"a":21.62,"d":"2026-02-07","n":"Tussah foldable storage box (60L)","v":"Shopee"},{"a":17.0,"d":"2026-02-14","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":2772.0,"d":"2026-02-26","n":"Shredder xp520+","v":"GBC"}],"Equipment":[{"a":848.94,"d":"2026-02-06","n":"GBC Shredmaster 300M","v":"Shopee"},{"a":372.24,"d":"2026-02-11","n":"Heavy duty paper cutter","v":"5B"},{"a":8.68,"d":"2026-02-06","n":"Cutter Knife","v":"Shopee"}],"Transport":[{"a":200.0,"d":"2026-02-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":46.37,"d":"2026-02-10","n":"kona","v":"Getgo"},{"a":40.05,"d":"2026-02-24","n":"Dongfeng","v":"Getgo"},{"a":39.15,"d":"2026-02-11","n":"shuttle","v":"Getgo"},{"a":37.14,"d":"2026-02-23","n":"Tivoli","v":"Getgo"},{"a":35.58,"d":"2026-02-19","n":"Shuttle","v":"Getgo"},{"a":27.96,"d":"2026-02-12","n":"shuttle","v":"Getgo"}]},"total":5435.96,"opex":1815.02,"capex":3620.94,"deposits":0.0,"deprec":60.35},"2026-03":{"byCat":{"Ads":1242.49,"Boxes & Consumables":408.94,"Capital & Deposits":2151.91,"Equipment":84.77,"Professional Fees":1035.0,"Rent & Utilities":1340.11,"Transport":426.89},"items":{"Ads":[{"a":1242.49,"d":"2026-03-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":294.8,"d":"2026-03-10","n":"Storage box (80L)","v":"Lazada"},{"a":97.14,"d":"2026-03-02","n":"Cutter blade","v":"Lazada"},{"a":17.0,"d":"2026-03-02","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":2151.91,"d":"2026-03-26","n":"Dell laptop","v":"Dell"}],"Equipment":[{"a":84.77,"d":"2026-03-17","n":"Weighing machine","v":"Shopee"}],"Professional Fees":[{"a":1035.0,"d":"2026-03-18","n":"ACRA and Company Secretary","v":"Sleek"}],"Rent & Utilities":[{"a":1318.85,"d":"2026-03-10","n":"Rental space start 12 mar","v":"Extra space"},{"a":21.26,"d":"2026-03-13","n":"Padlock","v":"Extra space"}],"Transport":[{"a":200.0,"d":"2026-03-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":93.62,"d":"2026-03-17","n":"Tivoli","v":"Getgo"},{"a":68.58,"d":"2026-03-10","n":"Tivoli","v":"Getgo"},{"a":38.12,"d":"2026-03-24","n":"Homda shuttle","v":"Getgo"},{"a":26.57,"d":"2026-03-31","n":"Kona","v":"Getgo"}]},"total":6690.11,"opex":4538.2,"capex":2151.91,"deposits":0.0,"deprec":120.12},"2026-04":{"byCat":{"Ads":258.22,"Boxes & Consumables":143.19,"Capital & Deposits":10589.35,"Professional Fees":1351.0,"Transport":279.74},"items":{"Ads":[{"a":258.22,"d":"2026-04-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":143.19,"d":"2026-04-01","n":"blasius box (80L)","v":"jiji.sg"}],"Capital & Deposits":[{"a":10589.35,"d":"2026-04-02","n":"Deposit - EBA 6340 industrial shredder","v":"Optimum Copier Trading"}],"Professional Fees":[{"a":1026.0,"d":"2026-04-10","n":"90k SGD accounting plan","v":"Sleek"},{"a":325.0,"d":"2026-04-28","n":"Business card","v":"The Gentlemen’s Press "}],"Transport":[{"a":200.0,"d":"2026-04-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":48.76,"d":"2026-04-06","n":"Tivoli","v":"Getgo"},{"a":30.98,"d":"2026-04-09","n":"Shuttle","v":"Getgo"}]},"total":12621.5,"opex":2032.15,"capex":10589.35,"deposits":0.0,"deprec":120.12},"2026-05":{"byCat":{"Ads":1656.28,"Boxes & Consumables":405.13,"Capital & Deposits":9275.0,"Professional Fees":264.0,"Transport":526.27},"items":{"Ads":[{"a":1656.28,"d":"2026-05-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":134.7,"d":"2026-05-25","n":"Storage box ?","v":"Toyogo"},{"a":77.5,"d":"2026-05-04","n":"Storage box 74L","v":"Toyogo"},{"a":77.5,"d":"2026-05-06","n":"Storage box 74L","v":"Toyogo"},{"a":60.43,"d":"2026-05-04","n":"blasius box (80L)","v":"Shopee"},{"a":55.0,"d":"2026-05-28","n":"Storage box 60L","v":"Shopee"}],"Capital & Deposits":[{"a":6625.0,"d":"2026-05-29","n":"Balance of rental deposit - Sindo (refundable)","v":"Sindo"},{"a":2650.0,"d":"2026-05-22","n":"1 month deposit sindo rental unit","v":"Sindo"}],"Professional Fees":[{"a":264.0,"d":"2026-05-29","n":"IRAS stamping fees (tenancy)","v":"Sindo"}],"Transport":[{"a":206.0,"d":"2026-05-28","n":"Lalamove","v":"Lalamove"},{"a":200.0,"d":"2026-05-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":49.53,"d":"2026-05-28","n":"Kona","v":"Getgo"},{"a":39.36,"d":"2026-05-05","n":"Shuttle","v":"Getgo"},{"a":31.38,"d":"2026-05-06","n":"Kona","v":"Getgo"}]},"total":12126.68,"opex":2851.68,"capex":0.0,"deposits":9275.0,"deprec":120.12},"2026-06":{"byCat":{"Ads":413.75,"Boxes & Consumables":312.82,"Equipment":642.26,"Labour & Works":146.67,"Rent & Utilities":2676.02,"Transport":630.12},"items":{"Ads":[{"a":413.75,"d":"2026-06-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-06-08","n":"Storage box","v":"Toyogo"},{"a":109.2,"d":"2026-06-30","n":"Storage box 67 litres","v":"Toyogo"},{"a":63.9,"d":"2026-06-03","n":"4x 75l box","v":"Toyogo"},{"a":30.52,"d":"2026-06-09","n":"plastic bag for shredder","v":"OPTIMUM COPIER TRADING"}],"Equipment":[{"a":240.0,"d":"2026-06-05","n":"Vacuum","v":"Shopee"},{"a":189.0,"d":"2026-06-22","n":"Switchbot","v":"Shopee"},{"a":139.0,"d":"2026-06-05","n":"Trolley","v":"Shopee"},{"a":74.26,"d":"2026-06-09","n":"Trolley heavy duty","v":"Shopee"}],"Labour & Works":[{"a":96.67,"d":"2026-06-23","n":"Part-time work","v":"Rayhan"},{"a":50.0,"d":"2026-06-17","n":"Part-time work","v":"Rayhan"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-05-29","n":"June 2026 rent - Sindo","v":"Sindo"},{"a":26.02,"d":"2026-06-30","n":"Electricity - Sindo (2-15 Jun)","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-06-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":66.77,"d":"2026-06-17","n":"Samyeong","v":"Getgo"},{"a":62.74,"d":"2026-06-24","n":"Shuttle","v":"Getgo"},{"a":54.42,"d":"2026-06-03","n":"Shuttle","v":"Getgo"},{"a":54.24,"d":"2026-06-11","n":"Kona","v":"Getgo"},{"a":44.94,"d":"2026-06-16","n":"Shuttle","v":"Getgo"},{"a":44.1,"d":"2026-06-10","n":"Shuttle","v":"Getgo"},{"a":43.35,"d":"2026-06-09","n":"Kona","v":"Getgo"},{"a":34.36,"d":"2026-06-23","n":"Shuttle","v":"Getgo"},{"a":25.2,"d":"2026-06-08","n":"Moving of shredder from home","v":"Lalamove"}]},"total":4821.64,"opex":4821.64,"capex":0.0,"deposits":0.0,"deprec":120.12},"2026-07":{"byCat":{"Ads":765.41,"Boxes & Consumables":273.0,"Capital & Deposits":5294.67,"Equipment":104.11,"Labour & Works":460.0,"Rent & Utilities":2689.35,"Transport":285.42},"items":{"Ads":[{"a":765.41,"d":"2026-07-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-07-10","n":"Storage box 67 litres","v":"Toyogo"},{"a":109.2,"d":"2026-07-21","n":"Storage box 67 litres","v":"Toyogo"},{"a":54.6,"d":"2026-07-28","n":"Storage box 67 litres","v":"Toyogo"}],"Capital & Deposits":[{"a":5294.67,"d":"2026-08-03","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Equipment":[{"a":104.11,"d":"2026-07-10","n":"Weighing scale","v":"Shopee"}],"Labour & Works":[{"a":460.0,"d":"2026-07-11","n":"Electrical works","v":"Ramesh"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-06-30","n":"Rental Jul 2026","v":"Sindo"},{"a":39.35,"d":"2026-07-30","n":"Electricity - Sindo (16 Jun - 15 Jul)","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-07-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"},{"a":57.32,"d":"2026-07-27","n":"Shuttle","v":"Getgo"},{"a":28.1,"d":"2026-07-22","n":"Shuttle","v":"Getgo"}]},"total":9871.96,"opex":4577.29,"capex":5294.67,"deposits":0.0,"deprec":120.12},"2026-08":{"byCat":{"Ads":749.96,"Boxes & Consumables":335.72,"Capital & Deposits":5294.68,"Rent & Utilities":2689.7,"Transport":200.0},"items":{"Ads":[{"a":749.96,"d":"2026-08-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":305.2,"d":"2026-08-28","n":"Plastic bags for shredder + oil lubricant","v":"Optimum Copier Trading"},{"a":30.52,"d":"2026-08-04","n":"Plastic bags for shredder (100x120cm, 50pcs)","v":"Optimum Copier Trading"}],"Capital & Deposits":[{"a":5294.68,"d":"2026-08-31","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-07-30","n":"Rental Aug 2026","v":"Sindo"},{"a":39.7,"d":"2026-08-30","n":"Electricity - Sindo (16 Jul - 15 Aug)","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-08-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"}]},"total":9270.06,"opex":3975.38,"capex":5294.68,"deposits":0.0,"deprec":296.61},"2026-09":{"byCat":{"Ads":272.66,"Rent & Utilities":2650.0,"Transport":200.0},"items":{"Ads":[{"a":272.66,"d":"2026-09-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-08-30","n":"Rental Sep 2026","v":"Sindo"}],"Transport":[{"a":200.0,"d":"2026-09-28","n":"Own car - charging + cashcard (estimate)","v":"Hambali (own vehicle)"}]},"total":3122.66,"opex":3122.66,"capex":0.0,"deposits":0.0,"deprec":296.61}};
@@ -4298,14 +4305,9 @@ async function renderProfitChart(monthly) {
 // Costs that rise and fall with the work itself. Everything else is a fixed
 // cost you carry whether or not the phone rings.
 const VARIABLE_CATS = ['Transport', 'Boxes & Consumables', 'Labour & Works', 'Equipment'];
-const COST_PLAIN = {
-  'Transport': 'Getting there (van hire, own car, Lalamove)',
-  'Boxes & Consumables': 'Boxes, bags, blades, gloves',
-  'Equipment': 'Tools and small equipment',
-  'Labour & Works': 'Part-time help',
-  'Mosque give-back': 'Given back to the masjids',
-  'Frames give-back': 'Frames give-back'
-};
+// Names match the Profit by Month breakdown exactly, so the same cost means the
+// same word wherever it appears in the report.
+const COST_PLAIN = {};
 
 function unitRow(k) {
   const p = revProfit[k];
@@ -4404,27 +4406,26 @@ function renderUnitEconomics(allKeys) {
 
   const priceHealthy = marginPct >= 60;
   const verdict = priceHealthy
-    ? `<strong>Your prices are fine. Do not touch them.</strong><br><br>
-       Out of the $${revPerJob.toFixed(2)} an average job brings in, only <strong>$${varPerJob.toFixed(2)}</strong> is spent
-       actually doing the job. The other <strong>$${(revPerJob - varPerJob).toFixed(2)}</strong> is yours to keep before
-       rent. That leftover is called <strong>contribution</strong>, and it is the most useful number you have.
-       <br><br><strong>Why contribution matters:</strong> rent and ads cost the same whether you do 20 jobs or 60.
-       So every extra job past the ones that cover your rent adds about <strong>$${(revPerJob - varPerJob).toFixed(2)}</strong>
-       straight to profit. One more job a week is roughly
-       <strong>$${Math.round((revPerJob - varPerJob) * 4.3).toLocaleString()} a month</strong> of profit, with no price change at all.
-       <br><br>Cutting your price would throw that away. Raising it risks losing the jobs that create it.
-       <strong>Your problem is never price. It is getting more jobs and keeping rent under control.</strong>`
-    : `<strong>Margin is thin.</strong> Of the $${revPerJob.toFixed(2)} an average job brings in,
-       <strong>$${varPerJob.toFixed(2)}</strong> goes on doing the job itself, leaving only
-       <strong>$${(revPerJob - varPerJob).toFixed(2)}</strong> towards rent. Here price, or the cost of serving,
-       really is the thing to fix. More jobs alone will not save it.`;
+    ? `An average collection generates <strong>$${revPerJob.toFixed(2)}</strong>. Carrying out that collection costs
+       <strong>$${varPerJob.toFixed(2)}</strong>, leaving <strong>$${(revPerJob - varPerJob).toFixed(2)}</strong>
+       towards rent, advertising and equipment.
+       <br><br>Rent and advertising do not change with the number of collections. Once they are covered, each further
+       collection therefore adds close to the full <strong>$${(revPerJob - varPerJob).toFixed(2)}</strong> to profit.
+       One additional collection per week is approximately
+       <strong>$${Math.round((revPerJob - varPerJob) * 4.3).toLocaleString()} per month</strong>.
+       <br><br>On these figures pricing is not the constraint. Profit is driven by the number of collections and by
+       keeping fixed costs in check.`
+    : `An average collection generates <strong>$${revPerJob.toFixed(2)}</strong>, of which
+       <strong>$${varPerJob.toFixed(2)}</strong> is spent carrying it out, leaving only
+       <strong>$${(revPerJob - varPerJob).toFixed(2)}</strong> towards fixed costs. At this level the pricing or the
+       cost of delivery is the constraint, and additional volume alone will not resolve it.`;
 
   document.getElementById('rev-unit-chart').innerHTML = bar +
     `<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:2px;">Month by month</div>
      <div style="font-size:10px;color:var(--grey-400);margin-bottom:6px;">
-       Bars: what one kg earns you (total revenue &divide; total kg).
-       Line: what one kg costs you to handle (van, bags, helpers, give-back &divide; total kg).
-       The wider the gap, the healthier you are.</div>
+       Bars: revenue per kg (total revenue &divide; total kg).
+       Line: cost to handle one kg (van hire, boxes, give-back &divide; total kg).
+       The wider the gap, the more each kg contributes.</div>
      <div style="overflow-x:auto;">${svg}${cols}</div>
      <div style="font-size:10px;color:var(--grey-400);margin-top:6px;">
        <span style="color:#8FA9C4;font-weight:700;">&#9632;</span> Earned per kg
@@ -4439,7 +4440,8 @@ function renderUnitEconomics(allKeys) {
         <td style="padding:3px 0;">Cost</td><td style="text-align:right;">Total</td><td style="text-align:right;">Per job</td>
       </tr>
       ${jobCostParts.map(x => `<tr style="border-bottom:1px solid var(--grey-100);">
-        <td style="padding:5px 0;font-size:11px;color:var(--grey-500);">${esc(COST_PLAIN[x.n] || x.n)}</td>
+        <td style="padding:5px 0;font-size:11px;color:var(--grey-500);">${esc(COST_PLAIN[x.n] || x.n)}
+          ${CATEGORY_BLURB[x.n] ? `<div style="font-size:10px;color:var(--grey-300);">${esc(CATEGORY_BLURB[x.n])}</div>` : ''}</td>
         <td style="text-align:right;font-size:11px;">$${Math.round(x.v).toLocaleString()}</td>
         <td style="text-align:right;font-size:11px;font-weight:600;">$${(tot.jobs ? x.v / tot.jobs : 0).toFixed(2)}</td>
       </tr>`).join('')}
@@ -4531,14 +4533,14 @@ function renderCustomerEconomics(monthly) {
     </table>
     <div style="font-size:11px;line-height:1.55;color:var(--grey-500);margin-top:10px;">
       ${followUps ? `<span style="color:var(--grey-400);">${followUps} zero-weight return trip${followUps === 1 ? '' : 's'} within three weeks of the original job ${followUps === 1 ? 'was' : 'were'} treated as part of that job, not as a repeat customer.</span><br><br>` : ''}
-      You pay about <strong>$${cac.toFixed(2)}</strong> in ads to win a customer who is worth
-      <strong>$${ltv.toFixed(2)}</strong>, a return of <strong>${ratio.toFixed(1)}x</strong>. That is a
-      very efficient top of funnel and it is the strongest number in this business.
+      It costs about <strong>$${cac.toFixed(2)}</strong> in advertising to win a customer worth
+      <strong>$${ltv.toFixed(2)}</strong>, a return of <strong>${ratio.toFixed(1)} times</strong>. This is the
+      strongest figure in the business.
       ${repeatPct < 15 ? `<br><br><strong style="color:#C62828;">But only ${repeatPct.toFixed(1)}% of customers ever come back.</strong>
-      A home is cleared once and then has nothing left to clear, so most customers are one-time by nature. That means
-      every month starts from zero and the work has to be bought again. Two ways out: bring the household back on a
-      cycle (a yearly reminder, a Ramadan clear-out), or win <strong>regular work from offices, schools and
-      companies</strong>, where one arrangement produces repeat volume without repeat ad spend.` : ''}
+      A home is cleared once and then has little left to clear, so most customers are one-time by nature. Each month
+      therefore begins with no committed work. Two routes address this: bringing households back on a cycle through a
+      yearly or Ramadan reminder, or winning <strong>regular work from offices, schools and companies</strong>, where a
+      single arrangement produces recurring volume without recurring advertising.` : ''}
     </div>`;
   sec.classList.remove('hidden');
 }
@@ -4639,21 +4641,21 @@ function renderCashFlow(keys) {
 
   const note = cashFilter === 'all'
     ? `Trading brought in <strong>$${Math.round(tIn - tOp).toLocaleString()}</strong> more than it spent on running costs.
-       Then <strong>$${Math.round(tCap).toLocaleString()}</strong> went on machines and
+       A further <strong>$${Math.round(tCap).toLocaleString()}</strong> went on machines and
        <strong>$${Math.round(tDep).toLocaleString()}</strong> on the refundable Sindo deposit, which is why the running
-       balance ends at ${run >= 0 ? 'a surplus' : `<strong style="color:#C62828;">-$${Math.abs(Math.round(run)).toLocaleString()}</strong>`}.
-       ${run < 0 ? `That is what you have funded personally. It is a <strong>funding gap, not a loss</strong>: the deposit
-       comes back and the machines are already paid for.` : ''}`
+       line ends at ${run >= 0 ? 'a surplus' : `<strong style="color:#C62828;">-$${Math.abs(Math.round(run)).toLocaleString()}</strong>`}.
+       ${run < 0 ? `This line covers trading only. It is the amount the business needed beyond what it collected, and it
+       was met by the capital Hambali put in. The deposit is returned and the machines are already paid for.` : ''}`
     : cashFilter === 'opex'
     ? `Running costs only, against revenue. This is the business stripped of one-off purchases, and it is
        <strong>${(tIn - tOp) >= 0 ? 'positive' : 'negative'}</strong> at
-       <strong>$${Math.abs(Math.round(tIn - tOp)).toLocaleString()}</strong>. This is the line that shows whether the
-       day-to-day operation works.`
+       <strong>$${Math.abs(Math.round(tIn - tOp)).toLocaleString()}</strong>. It shows whether the day-to-day operation
+       covers itself.`
     : cashFilter === 'capex'
     ? `Machines only: <strong>$${Math.round(tCap).toLocaleString()}</strong> of one-off asset purchases. These are the
-       spikes that make a good month look terrible in the cash column. They are investment, not cost.`
-    : `Refundable deposits only: <strong>$${Math.round(tDep).toLocaleString()}</strong>. This money is still yours and
-       comes back when the Sindo tenancy ends. It should never be read as a loss.`;
+       spikes that make a strong month look poor in the cash column. They are investment rather than cost.`
+    : `Refundable deposits only: <strong>$${Math.round(tDep).toLocaleString()}</strong>. This money is still held and
+       is returned when the Sindo tenancy ends. It is not a loss.`;
 
   document.getElementById('rev-cash-body').innerHTML =
     bodyHtml + `<div style="font-size:11px;line-height:1.55;color:var(--grey-500);margin-top:10px;">${note}</div>`;
@@ -4713,7 +4715,7 @@ function renderHeadline(keys, monthly) {
       <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">Management figures, not audited</div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        ${big('Money collected', '$' + Math.round(rev).toLocaleString(), jobs + ' collections', '#fff')}
+        ${big('Revenue collected', '$' + Math.round(rev).toLocaleString(), jobs + ' collections', '#fff')}
         ${big('Profit', (profit < 0 ? '-$' : '$') + Math.abs(Math.round(profit)).toLocaleString(), 'after everything it costs to run', profit >= 0 ? '#4CAF7D' : '#EF7B7B')}
         ${big('Put in by Hambali', '$' + Math.round(putIn).toLocaleString(), 'to cover machines and the deposit', '#fff')}
         ${big('The business owns', '$' + Math.round(capex + dep).toLocaleString(), '$' + Math.round(capex).toLocaleString() + ' machines, $' + Math.round(dep).toLocaleString() + ' deposit', '#fff')}
@@ -4772,7 +4774,7 @@ function renderBridge(keys) {
       </div>
 
       <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
-        ${line('Money collected from customers', rev, keys.length + ' months of collections')}
+        ${line('Revenue collected from customers', rev, keys.length + ' months of collections')}
         ${line('Running the business', -opex, 'Rent, ads, van hire, boxes', { indent: true })}
         ${line('Given back to the masjids', -gb, '$10 a booking plus $1 a kg of books', { indent: true })}
         ${fr ? line('Frames give-back', -fr, '$3 a kg of frames, from August', { indent: true }) : ''}
@@ -4783,7 +4785,7 @@ function renderBridge(keys) {
       <div style="font-size:11px;color:var(--grey-500);margin-bottom:6px;"><strong style="color:var(--navy);">Now the bank account.</strong> Profit and cash are not the same thing. This is simply money in, money out.</div>
 
       <table style="width:100%;border-collapse:collapse;">
-        ${line('Money collected from customers', rev, '')}
+        ${line('Revenue collected from customers', rev, '')}
         ${putIn ? line('Money put in by Hambali', putIn, 'To cover the machines and the deposit') : ''}
         ${line('Paid for running the business', -opex, '', { indent: true })}
         ${capex ? line('Paid for the machines', -capex, 'Paid in full on the day of purchase', { indent: true }) : ''}
@@ -4995,32 +4997,30 @@ function renderAssessment(keys, monthly) {
   document.getElementById('rev-assess-body').innerHTML =
     card('Is the business working?', profit >= 0 ? 'Yes' : 'Not yet', profit >= 0,
       profit >= 0
-        ? `It makes money on the work it does. After everything it costs to run, about
-           <strong>${rev ? (100 * profit / rev).toFixed(0) : 0} cents of every dollar</strong> collected is profit.
-           That has been true in almost every month, not just good ones.`
-        : `The work is not yet covering what it costs to run. That has to change before anything else matters.`) +
+        ? `It makes money on the work it does. After everything it costs to run, the business is profitable, and it has
+           been in almost every month rather than only in the strong ones.`
+        : `The work is not yet covering what it costs to run the business. That has to change before anything else matters.`) +
 
-    card('Then why is the bank account low?', 'Machines, not losses', true,
-      `Nearly every dollar that is missing went on the shredders and the rental deposit. Those were bought once
-       and are still owned and still working. The business has not lost this money, it has spent it on what it
-       needed to operate.`) +
+    card('Why is the bank balance lower than the profit?', 'Machines and the deposit', true,
+      `Almost all of the difference went on the shredders and the rental deposit. Both were paid once, up front. The
+       machines are owned and in daily use, and the deposit is returned when the unit is returned.`) +
 
-    card('When does that money come back?', monthsToPayback != null ? 'Around ' + addMonths(monthsToPayback) : 'On track', true,
+    card('When is that money recovered?', monthsToPayback != null ? 'Around ' + addMonths(monthsToPayback) : 'On track', true,
       monthsToPayback != null
-        ? `At the rate the business is currently keeping money, it should have paid back everything put into it by
-           around <strong>${addMonths(monthsToPayback)}</strong>. That assumes no more machines are bought.
-           The rental deposit gets returned on top of that, whenever the unit is returned.`
-        : `The business is now keeping more than it spends each month.`) +
+        ? `At the rate the business is currently retaining money, the amount put into it should be recovered by around
+           <strong>${addMonths(monthsToPayback)}</strong>, assuming no further machines are bought. The rental deposit
+           is returned separately, whenever the unit is given up.`
+        : `The business is now retaining more each month than it spends.`) +
 
-    card('What is the real risk?', 'Every month starts from nothing', false,
-      `Almost no customer comes back. Each month the work has to be found again, mostly through advertising.
-       And one person does the collecting, the shredding and the admin. If Hambali cannot work, the income stops
-       that week. That is the honest weak point, and it is not a money problem, it is a structure problem.`) +
+    card('What is the main risk?', 'Work has to be found again every month', false,
+      `A household clears its books once, so most customers are one-time by nature and each month begins with no
+       committed work. The business also depends on one person for collection, shredding and administration, which
+       caps how much work can be taken on and leaves no cover if he is unavailable.`) +
 
-    card('What would change it?', 'Regular work, not one-off jobs', true,
-      `Standing arrangements with offices, schools and companies that need regular document shredding. Work that
-       arrives on a schedule instead of being bought fresh with ads every month, and big enough to be worth the trip.
-       That is the difference between a job that pays well and a business that keeps going without him.`);
+    card('What would reduce that risk?', 'Regular, contracted work', true,
+      `Standing arrangements with offices, schools and companies that need document shredding on a schedule. Work that
+       recurs without being bought again through advertising, and large enough to be worth the trip, is what would turn
+       this from something dependent on constant effort into something that runs steadily.`);
 
   sec.classList.remove('hidden');
 }
@@ -5295,42 +5295,42 @@ function renderTrendInsight(keys, monthly, vals, metric) {
 
   let body;
   if (revTrendMetric === 'jobs') {
-    body = `Your busiest month had <strong>${f(hi)}</strong> jobs (${hiM}). Your quietest had
-      <strong>${f(lo)}</strong> (${loM}). That is <strong>${spread.toFixed(1)} times</strong> more work in a good month.
-      Now switch to <em>Avg job value</em>: it barely moves.
-      <br><br><strong>So a good month is simply a month with more jobs, not bigger ones.</strong>
+    body = `The busiest month had <strong>${f(hi)}</strong> collections (${hiM}); the quietest had
+      <strong>${f(lo)}</strong> (${loM}), a <strong>${spread.toFixed(1)} times</strong> difference.
+      Average job value over the same period barely moves.
+      <br><br><strong>Revenue therefore follows the number of collections, not their size.</strong>
       ${Math.abs(jobEffect) > Math.abs(priceEffect)
-        ? `Job numbers moved your takings by about <strong>$${Math.abs(Math.round(jobEffect)).toLocaleString()}</strong>.
-           Job size moved it by only <strong>$${Math.abs(Math.round(priceEffect)).toLocaleString()}</strong>.`
-        : `Unusually, job size mattered more than job count here. Worth a look.`}
-      ${keys.includes('2026-04') ? `<br><br><strong>April was reservist</strong>, so the drop that month is you being away, not demand disappearing. Read the trend without it.` : ''}
-      <br><br>When a month is quiet, the answer is more enquiries. Check your ads. Never drop your prices.`;
+        ? `Collection numbers accounted for about <strong>$${Math.abs(Math.round(jobEffect)).toLocaleString()}</strong>
+           of the change in revenue, against <strong>$${Math.abs(Math.round(priceEffect)).toLocaleString()}</strong> from job size.`
+        : `Job size accounted for more of the change than collection numbers, which is unusual for this business.`}
+      ${keys.includes('2026-04') ? `<br><br><strong>April was reservist duty</strong>, so that month reflects availability rather than demand.` : ''}
+      <br><br>A quiet month is a demand issue, addressed through enquiries and advertising rather than pricing.`;
   } else if (revTrendMetric === 'avg') {
-    body = `Every month lands between <strong>${f(lo)}</strong> and <strong>${f(hi)}</strong>. That is a very
-      steady number, which is good: your pricing works and a typical home always has about the same amount to clear.
-      <br><br>But it also means <strong>you cannot grow by getting more out of each customer</strong>. One family has
-      one cupboard of kitab, and it is a similar size in every flat. Growth has to come from
-      <strong>more homes</strong>, or from mosques, schools and offices where one job is many times bigger.`;
+    body = `Every month falls between <strong>${f(lo)}</strong> and <strong>${f(hi)}</strong>. The consistency
+      indicates stable pricing and a typical household load of similar size.
+      <br><br>It also means <strong>growth is unlikely to come from larger individual collections</strong>. A household
+      holds roughly the same amount of kitab regardless of the flat. Growth has to come from
+      <strong>more households</strong>, or from commercial work where a single collection is several times larger.`;
   } else if (revTrendMetric === 'kgjob') {
     body = `A typical collection weighs between <strong>${f(lo)}</strong> and <strong>${f(hi)}</strong>.
-      This is how heavy the work is, and it decides your van time far more than your takings do.
-      <br><br>Watch this against the jobs line. If jobs go <strong>up</strong> but weight per job goes
-      <strong>down</strong>, you are driving just as far for smaller loads and less money. That is the early warning
-      that a round is becoming not worth doing, even while the job count still looks healthy.`;
+      This drives vehicle time and handling far more than it drives revenue.
+      <br><br>Read against the collections line: if collections rise while weight per collection falls, the same
+      distance is being travelled for smaller loads, which reduces the return on each trip even while the collection
+      count still looks healthy.`;
   } else {
     body = `<span style="color:var(--grey-400);">total money collected &divide; total kg collected</span><br><br>
       This has moved from <strong>${f(first)}</strong> to <strong>${f(last)}</strong>
-      (average <strong>${f(avg)}</strong>). It is what you <em>really</em> get per kg once the masjid $10 discount is
-      given and the flat booking fee is shared across a big or small load. It is not your price list.
+      (average <strong>${f(avg)}</strong>). It is the realised rate per kg once the $10 masjid discount is applied and
+      the flat booking fee is spread across a larger or smaller load. It is not the price list.
       <br><br>${last < first
-        ? `It is <strong>slowly falling</strong>. Usually that means bigger loads, so the one booking fee is spread
-           thinner, plus more masjid discounts. Not a worry by itself. But if it keeps sliding while your costs stay
-           the same, you are quietly earning less on every job.`
-        : `It is holding steady or improving, so discounts are not getting out of hand.`}`;
+        ? `It is <strong>drifting downward</strong>, generally because loads are larger, which spreads the single
+           booking fee more thinly, together with more masjid discounts. Not a concern in itself, but a continued
+           decline against steady costs would reduce the return on each collection.`
+        : `It is holding steady or improving, so discounting is not eroding the rate.`}`;
   }
 
   box.innerHTML = `<div style="font-size:11px;line-height:1.55;color:var(--grey-500);background:#F7F8FA;border-left:3px solid #1B5E3A;padding:8px 10px;border-radius:0 6px 6px 0;">
-    <strong style="color:var(--navy);">What ${metric.label.toLowerCase()} tells you</strong><br>${body}</div>`;
+    <strong style="color:var(--navy);">What ${metric.label.toLowerCase()} shows</strong><br>${body}</div>`;
 }
 
 function showMonthDetail(key) {
