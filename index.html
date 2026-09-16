@@ -1709,12 +1709,8 @@ textarea.form-input {
         Generate Report
       </button>
 
-      <button class="btn-secondary" onclick="loadChaseList()" style="width:100%;margin-bottom:20px;border-color:#E65100;color:#E65100;">
-        Unpaid Chase List (last 60 days)
-      </button>
-      <div id="chase-list"></div>
-
       <div id="rev-results" class="hidden">
+        <div id="rev-filter-banner"></div>
         <div id="rev-capture">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
           <div style="background:var(--navy);color:var(--white);padding:16px;border-radius:var(--radius-md);text-align:center;">
@@ -1728,7 +1724,7 @@ textarea.form-input {
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-          <div style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;">
+          <div style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;cursor:pointer;" onclick="setMaterialFilter('all')" id="tile-all">
             <div style="font-size:11px;color:var(--grey-400);margin-bottom:4px;">Total Weight</div>
             <div style="font-size:18px;font-weight:600;" id="rev-weight">0 kg</div>
           </div>
@@ -1739,15 +1735,15 @@ textarea.form-input {
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
-          <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;">
+          <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;cursor:pointer;" onclick="setMaterialFilter('paper')" id="tile-paper">
             <div style="font-size:10px;color:var(--grey-400);margin-bottom:2px;">Paper</div>
             <div style="font-size:14px;font-weight:600;" id="rev-paper">0 kg</div>
           </div>
-          <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;">
+          <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;cursor:pointer;" onclick="setMaterialFilter('frame')" id="tile-frame">
             <div style="font-size:10px;color:var(--grey-400);margin-bottom:2px;">Frame</div>
             <div style="font-size:14px;font-weight:600;" id="rev-frame">0 kg</div>
           </div>
-          <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;">
+          <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;cursor:pointer;" onclick="setMaterialFilter('tips')" id="tile-tips">
             <div style="font-size:10px;color:var(--grey-400);margin-bottom:2px;">Tips</div>
             <div style="font-size:14px;font-weight:600;" id="rev-tips">$0.00</div>
           </div>
@@ -1755,7 +1751,10 @@ textarea.form-input {
 
         <div id="rev-chart-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:2px;font-size:14px;">Revenue by Month</div>
-          <p style="font-size:11px;color:var(--grey-400);margin-bottom:12px;">Tap a bar to see that month's breakdown</p>
+          <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
+            <strong style="color:var(--navy);">Purpose of this chart</strong><br>
+            To show whether a good or bad month was about <strong>how many jobs</strong> you did, or <strong>how big</strong> they were. Those need different fixes. Tap a bar for that month's numbers.
+          </div>
           <div id="rev-chart" style="overflow-x:auto;"></div>
           <div id="rev-trend-insight" style="margin-top:10px;"></div>
           <div id="rev-month-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
@@ -1763,26 +1762,34 @@ textarea.form-input {
 
         <div id="rev-cash-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Cash Flow</div>
-          <div style="font-size:10px;color:var(--grey-400);margin-bottom:10px;">Every dollar that actually moved. Profit spreads a machine over ten years; cash does not. This is the bank's view.</div>
+          <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px;">
+            <strong style="color:var(--navy);">Purpose of this chart</strong><br>
+            To show the money that actually moved, the way your bank sees it. Profit spreads a machine over ten years. Cash does not: you paid for it on the day. This is why a good month can still leave you short.
+          </div>
           <div id="rev-cash-controls" style="margin-bottom:8px;"></div>
+          <div style="font-size:10px;color:var(--grey-400);margin-bottom:6px;">Tap a month to see exactly what the money was spent on.</div>
           <div id="rev-cash-body"></div>
+          <div id="rev-cash-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
         </div>
 
         <div id="rev-profit-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:2px;font-size:14px;">Profit by Month</div>
-          <p style="font-size:11px;color:var(--grey-400);margin-bottom:12px;">Revenue minus running costs, wear on the machines, mosque give-back and the frames give-back. Machines are charged a bit at a time over their life, not all in the month you paid for them, and refundable deposits never count as a cost. Tap a bar for the full breakdown.</p>
+          <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
+            <strong style="color:var(--navy);">Purpose of this chart</strong><br>
+            To show whether the business truly made money each month.<br>
+            <span style="color:var(--grey-400);">money in &minus; running costs &minus; wear on machines &minus; give-back</span><br><br>
+            A machine is not counted in the month you bought it. It is counted a little each month for as long as it lasts, because that is how long it earns for you. Deposits are never counted, because you get them back. Tap a bar for the details.
+          </div>
           <div id="rev-profit-chart" style="overflow-x:auto;"></div>
           <div id="rev-profit-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
         </div>
 
         <div id="rev-unit-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
-          <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Pricing vs Cost</div>
-          <div style="font-size:11px;color:var(--grey-500);line-height:1.5;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px;">
-            <strong>What this answers:</strong> when money is tight, should you raise the price, or cut costs?<br>
-            Those are opposite moves and doing the wrong one hurts. This chart settles it.<br><br>
-            <strong>Revenue per kg</strong> is what a kilo of work actually earns you after discounts, once the booking fee is spread across the load. Not your rate card, your real take.<br>
-            <strong>Cost to serve per kg</strong> is what that same kilo costs you to handle: van, bags, helpers, and give-back. Rent and ads are excluded, because they do not change if you collect one more bag.<br><br>
-            The gap between them is your <strong>contribution</strong>. A wide gap means the price is fine and the answer is more jobs or lower fixed costs. A narrow gap means the price really is too low.
+          <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Where the Money Goes on One Job</div>
+          <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
+            <strong style="color:var(--navy);">Purpose of this chart</strong><br>
+            When money is tight there are only two things you can do: <strong>charge more</strong>, or <strong>spend less</strong>.
+            They pull in opposite directions, and picking the wrong one makes things worse. This chart tells you which one is your problem.
           </div>
           <div id="rev-unit-chart" style="overflow-x:auto;"></div>
           <div id="rev-unit-verdict" style="margin-top:10px;"></div>
@@ -1791,11 +1798,15 @@ textarea.form-input {
         <div id="rev-customer-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Customer Economics</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.5;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px;">
-            <strong>What this answers:</strong> is growth something you can buy, and does it compound?<br>
-            Revenue by month tells you what happened. This tells you whether it will happen again.<br><br>
-            <strong>CAC</strong> stands for Customer Acquisition Cost: what you spend on ads to win one new customer. Ad spend for the month divided by new customers that month. If a customer is worth more than their CAC, spending more on ads makes money.<br>
-            <strong>Revenue per customer</strong> is what the average customer has paid you in total, across every visit.<br>
-            <strong>Repeat rate</strong> is the share of customers who have ever booked a second time. This is the number that decides whether you are building something that compounds, or renting demand month by month.
+            <strong style="color:var(--navy);">Purpose of this chart</strong><br>
+            To show whether you can simply <strong>buy</strong> more business, and whether the customers you buy stay with you.<br><br>
+            <strong>CAC</strong> is short for <em>Customer Acquisition Cost</em>. In plain words: what you spend on ads to get one new customer.<br>
+            <span style="color:var(--grey-400);">ad spend for the month &divide; new customers that month</span><br><br>
+            <strong>Revenue per customer</strong>: what one customer has paid you in total.<br>
+            <span style="color:var(--grey-400);">all money collected &divide; number of different customers</span><br><br>
+            <strong>Repeat rate</strong>: how many of your customers ever came back.<br>
+            <span style="color:var(--grey-400);">customers who booked twice or more &divide; all customers</span><br><br>
+            If a customer pays you more than they cost to get, more ads means more money. If almost nobody comes back, you have to keep paying for new ones forever.
           </div>
           <div id="rev-customer-body"></div>
         </div>
@@ -1837,7 +1848,7 @@ textarea.form-input {
 
         <div id="rev-assess-section" class="hidden" style="background:var(--navy);padding:16px;border-radius:var(--radius-md);margin-bottom:16px;">
           <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:2px;">Business Assessment</div>
-          <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">The whole report read back as a verdict. Recomputed every time you generate.</div>
+          <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">Everything above, read back in plain words. Updates every time you generate a report.</div>
           <div id="rev-assess-body"></div>
         </div>
         </div><!-- end rev-capture -->
@@ -2088,7 +2099,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-16.2';
+const APP_VERSION = '2026-09-16.3';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -3946,12 +3957,16 @@ async function loadRevenueSummary() {
     const fetched = await fetchBookingsPaged('action=getBookings&status=completed&from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to));
 
     // Client-side range filter kept as safeguard (older backend ignores from/to)
+    const matTest = (MATERIAL_FILTERS[materialFilter] || MATERIAL_FILTERS.all).test;
     const bookings = fetched.filter(b => {
-      return b.date >= from && b.date <= to;
+      return b.date >= from && b.date <= to && matTest(b);
     });
+    paintMaterialTiles();
 
     if (bookings.length === 0) {
-      toast('No collections in this date range');
+      toast(materialFilter === 'all' ? 'No collections in this date range'
+                                     : 'No ' + MATERIAL_FILTERS[materialFilter].label + ' in this date range');
+      if (materialFilter !== 'all') materialFilter = 'all';
       return;
     }
 
@@ -4087,6 +4102,7 @@ async function loadRevenueSummary() {
 /* ── Approximate profit by month ──────────────────────────── */
 // Mosque partnership codes that earn give-back (must match the backend list)
 const MOSQUE_CODES = ['ALEEM10', 'KHALID10'];
+const MOSQUE_NAMES = { ALEEM10: 'Masjid Abdul Aleem Siddique', KHALID10: 'Masjid Khalid' };
 // From August 2026 Hambali donates $3 for every kg of frames collected,
 // on ALL frames regardless of referral code
 const FRAMES_RATE = 3.00;
@@ -4098,12 +4114,13 @@ const FRAMES_KG_OVERRIDE = { '2026-08': 100 };
 // They are real cash out, but they are not trading costs, so the breakdown
 // shows a separate trading profit that leaves them out.
 const CAPITAL_CATEGORY = 'Capital & Deposits';
+const EXCLUDED_CATEGORY = 'Excluded';   // rows that were never a business cost
 // Fallback copy of the expenses tab, taken 1 Sep 2026. Used ONLY when the
 // backend's live getMonthlySpend is unavailable, so the report still works.
-const SPEND_SNAPSHOT = {"2026-01":{"byCat":{"Boxes & Consumables":93.19,"Equipment":124.14},"items":{"Boxes & Consumables":[{"a":86.1,"d":"2026-01-30","n":"Storage Box (70L)","v":"Shopee"},{"a":7.09,"d":"2026-01-30","n":"3M grip gloves","v":"Shopee"}],"Equipment":[{"a":86.45,"d":"2026-01-30","n":"Prestar 150kg trolley","v":"Shopee"},{"a":37.69,"d":"2026-01-30","n":"Electronic postal scale","v":"Shopee"}]},"total":217.33,"opex":217.33,"capex":0.0,"deposits":0.0,"deprec":0.0},"2026-02":{"byCat":{"Ads":831.26,"Boxes & Consumables":176.59,"Capital & Deposits":2772.0,"Equipment":1229.86,"Transport":226.25},"items":{"Ads":[{"a":831.26,"d":"2026-02-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":72.22,"d":"2026-02-19","n":"Storage box","v":"Shopee"},{"a":65.75,"d":"2026-02-12","n":"Storage box (80L)","v":"Shopee"},{"a":21.62,"d":"2026-02-07","n":"Tussah foldable storage box (60L)","v":"Shopee"},{"a":17.0,"d":"2026-02-14","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":2772.0,"d":"2026-02-26","n":"Shredder xp520+","v":"GBC"}],"Equipment":[{"a":848.94,"d":"2026-02-06","n":"GBC Shredmaster 300M","v":"Shopee"},{"a":372.24,"d":"2026-02-11","n":"Heavy duty paper cutter","v":"5B"},{"a":8.68,"d":"2026-02-06","n":"Cutter Knife","v":"Shopee"}],"Transport":[{"a":46.37,"d":"2026-02-10","n":"kona","v":"Getgo"},{"a":40.05,"d":"2026-02-24","n":"Dongfeng","v":"Getgo"},{"a":39.15,"d":"2026-02-11","n":"shuttle","v":"Getgo"},{"a":37.14,"d":"2026-02-23","n":"Tivoli","v":"Getgo"},{"a":35.58,"d":"2026-02-19","n":"Shuttle","v":"Getgo"},{"a":27.96,"d":"2026-02-12","n":"shuttle","v":"Getgo"}]},"total":5235.96,"opex":2463.96,"capex":2772.0,"deposits":0.0,"deprec":46.2},"2026-03":{"byCat":{"Ads":1242.49,"Boxes & Consumables":408.94,"Capital & Deposits":4151.91,"Equipment":84.77,"Professional Fees":1035.0,"Rent & Utilities":1340.11,"Transport":226.89},"items":{"Ads":[{"a":1242.49,"d":"2026-03-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":294.8,"d":"2026-03-10","n":"Storage box (80L)","v":"Lazada"},{"a":97.14,"d":"2026-03-02","n":"Cutter blade","v":"Lazada"},{"a":17.0,"d":"2026-03-02","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":4151.91,"d":"2026-03-26","n":"Dell laptop","v":"Dell"}],"Equipment":[{"a":84.77,"d":"2026-03-17","n":"Weighing machine","v":"Shopee"}],"Professional Fees":[{"a":1035.0,"d":"2026-03-18","n":"ACRA and Company Secretary","v":"Sleek"}],"Rent & Utilities":[{"a":1318.85,"d":"2026-03-10","n":"Rental space start 12 mar","v":"Extra space"},{"a":21.26,"d":"2026-03-13","n":"Padlock","v":"Extra space"}],"Transport":[{"a":93.62,"d":"2026-03-17","n":"Tivoli","v":"Getgo"},{"a":68.58,"d":"2026-03-10","n":"Tivoli","v":"Getgo"},{"a":38.12,"d":"2026-03-24","n":"Homda shuttle","v":"Getgo"},{"a":26.57,"d":"2026-03-31","n":"Kona","v":"Getgo"}]},"total":8490.11,"opex":4338.2,"capex":4151.91,"deposits":0.0,"deprec":161.53},"2026-04":{"byCat":{"Ads":258.22,"Boxes & Consumables":143.19,"Capital & Deposits":10589.35,"Professional Fees":1351.0,"Transport":79.74},"items":{"Ads":[{"a":258.22,"d":"2026-04-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":143.19,"d":"2026-04-01","n":"blasius box (80L)","v":"jiji.sg"}],"Capital & Deposits":[{"a":10589.35,"d":"2026-04-02","n":"Deposit - EBA 6340 industrial shredder","v":"Optimum Copier Trading"}],"Professional Fees":[{"a":1026.0,"d":"2026-04-10","n":"90k SGD accounting plan","v":"Sleek"},{"a":325.0,"d":"2026-04-28","n":"Business card","v":"The Gentlemen’s Press "}],"Transport":[{"a":48.76,"d":"2026-04-06","n":"Tivoli","v":"Getgo"},{"a":30.98,"d":"2026-04-09","n":"Shuttle","v":"Getgo"}]},"total":12421.5,"opex":1832.15,"capex":10589.35,"deposits":0.0,"deprec":161.53},"2026-05":{"byCat":{"Ads":1656.28,"Boxes & Consumables":405.13,"Capital & Deposits":9275.0,"Professional Fees":264.0,"Transport":326.27},"items":{"Ads":[{"a":1656.28,"d":"2026-05-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":134.7,"d":"2026-05-25","n":"Storage box ?","v":"Toyogo"},{"a":77.5,"d":"2026-05-04","n":"Storage box 74L","v":"Toyogo"},{"a":77.5,"d":"2026-05-06","n":"Storage box 74L","v":"Toyogo"},{"a":60.43,"d":"2026-05-04","n":"blasius box (80L)","v":"Shopee"},{"a":55.0,"d":"2026-05-28","n":"Storage box 60L","v":"Shopee"}],"Capital & Deposits":[{"a":6625.0,"d":"2026-05-29","n":"Balance of rental deposit - Sindo (refundable)","v":"Sindo"},{"a":2650.0,"d":"2026-05-22","n":"1 month deposit sindo rental unit","v":"Sindo"}],"Professional Fees":[{"a":264.0,"d":"2026-05-29","n":"IRAS stamping fees (tenancy)","v":"Sindo"}],"Transport":[{"a":206.0,"d":"2026-05-28","n":"Lalamove","v":"Lalamove"},{"a":49.53,"d":"2026-05-28","n":"Kona","v":"Getgo"},{"a":39.36,"d":"2026-05-05","n":"Shuttle","v":"Getgo"},{"a":31.38,"d":"2026-05-06","n":"Kona","v":"Getgo"}]},"total":11926.68,"opex":2651.68,"capex":0.0,"deposits":9275.0,"deprec":161.53},"2026-06":{"byCat":{"Ads":413.75,"Boxes & Consumables":312.82,"Equipment":642.26,"Labour & Works":146.67,"Rent & Utilities":2676.02,"Transport":430.12},"items":{"Ads":[{"a":413.75,"d":"2026-06-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-06-08","n":"Storage box","v":"Toyogo"},{"a":109.2,"d":"2026-06-30","n":"Storage box 67 litres","v":"Toyogo"},{"a":63.9,"d":"2026-06-03","n":"4x 75l box","v":"Toyogo"},{"a":30.52,"d":"2026-06-09","n":"plastic bag for shredder","v":"OPTIMUM COPIER TRADING"}],"Equipment":[{"a":240.0,"d":"2026-06-05","n":"Vacuum","v":"Shopee"},{"a":189.0,"d":"2026-06-22","n":"Switchbot","v":"Shopee"},{"a":139.0,"d":"2026-06-05","n":"Trolley","v":"Shopee"},{"a":74.26,"d":"2026-06-09","n":"Trolley heavy duty","v":"Shopee"}],"Labour & Works":[{"a":96.67,"d":"2026-06-23","n":"Part-time work","v":"Rayhan"},{"a":50.0,"d":"2026-06-17","n":"Part-time work","v":"Rayhan"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-05-29","n":"June 2026 rent - Sindo","v":"Sindo"},{"a":26.02,"d":"2026-06-30","n":"Electricity - Sindo (2-15 Jun)","v":"Sindo"}],"Transport":[{"a":66.77,"d":"2026-06-17","n":"Samyeong","v":"Getgo"},{"a":62.74,"d":"2026-06-24","n":"Shuttle","v":"Getgo"},{"a":54.42,"d":"2026-06-03","n":"Shuttle","v":"Getgo"},{"a":54.24,"d":"2026-06-11","n":"Kona","v":"Getgo"},{"a":44.94,"d":"2026-06-16","n":"Shuttle","v":"Getgo"},{"a":44.1,"d":"2026-06-10","n":"Shuttle","v":"Getgo"},{"a":43.35,"d":"2026-06-09","n":"Kona","v":"Getgo"},{"a":34.36,"d":"2026-06-23","n":"Shuttle","v":"Getgo"},{"a":25.2,"d":"2026-06-08","n":"Moving of shredder from home","v":"Lalamove"}]},"total":4621.64,"opex":4621.64,"capex":0.0,"deposits":0.0,"deprec":161.53},"2026-07":{"byCat":{"Ads":765.41,"Boxes & Consumables":273.0,"Capital & Deposits":5294.67,"Equipment":104.11,"Labour & Works":460.0,"Rent & Utilities":2689.35,"Transport":85.42},"items":{"Ads":[{"a":765.41,"d":"2026-07-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-07-10","n":"Storage box 67 litres","v":"Toyogo"},{"a":109.2,"d":"2026-07-21","n":"Storage box 67 litres","v":"Toyogo"},{"a":54.6,"d":"2026-07-28","n":"Storage box 67 litres","v":"Toyogo"}],"Capital & Deposits":[{"a":5294.67,"d":"2026-08-03","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Equipment":[{"a":104.11,"d":"2026-07-10","n":"Weighing scale","v":"Shopee"}],"Labour & Works":[{"a":460.0,"d":"2026-07-11","n":"Electrical works","v":"Ramesh"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-06-30","n":"Rental Jul 2026","v":"Sindo"},{"a":39.35,"d":"2026-07-30","n":"Electricity - Sindo (16 Jun - 15 Jul)","v":"Sindo"}],"Transport":[{"a":57.32,"d":"2026-07-27","n":"Shuttle","v":"Getgo"},{"a":28.1,"d":"2026-07-22","n":"Shuttle","v":"Getgo"}]},"total":9671.96,"opex":4377.29,"capex":5294.67,"deposits":0.0,"deprec":161.53},"2026-08":{"byCat":{"Ads":749.96,"Boxes & Consumables":335.72,"Capital & Deposits":5294.68,"Rent & Utilities":2689.7},"items":{"Ads":[{"a":749.96,"d":"2026-08-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":305.2,"d":"2026-08-28","n":"Plastic bags for shredder + oil lubricant","v":"Optimum Copier Trading"},{"a":30.52,"d":"2026-08-04","n":"Plastic bags for shredder (100x120cm, 50pcs)","v":"Optimum Copier Trading"}],"Capital & Deposits":[{"a":5294.68,"d":"2026-08-31","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-07-30","n":"Rental Aug 2026","v":"Sindo"},{"a":39.7,"d":"2026-08-30","n":"Electricity - Sindo (16 Jul - 15 Aug)","v":"Sindo"}]},"total":9070.06,"opex":3775.38,"capex":5294.68,"deposits":0.0,"deprec":338.02},"2026-09":{"byCat":{"Ads":272.66,"Rent & Utilities":2650.0},"items":{"Ads":[{"a":272.66,"d":"2026-09-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-08-30","n":"Rental Sep 2026","v":"Sindo"}]},"total":2922.66,"opex":2922.66,"capex":0.0,"deposits":0.0,"deprec":338.02}};
+const SPEND_SNAPSHOT = {"2026-01":{"byCat":{"Boxes & Consumables":93.19,"Equipment":124.14},"items":{"Boxes & Consumables":[{"a":86.1,"d":"2026-01-30","n":"Storage Box (70L)","v":"Shopee"},{"a":7.09,"d":"2026-01-30","n":"3M grip gloves","v":"Shopee"}],"Equipment":[{"a":86.45,"d":"2026-01-30","n":"Prestar 150kg trolley","v":"Shopee"},{"a":37.69,"d":"2026-01-30","n":"Electronic postal scale","v":"Shopee"}]},"total":217.33,"opex":217.33,"capex":0.0,"deposits":0.0,"deprec":0.0},"2026-02":{"byCat":{"Ads":831.26,"Boxes & Consumables":176.59,"Capital & Deposits":2772.0,"Equipment":1229.86,"Transport":226.25},"items":{"Ads":[{"a":831.26,"d":"2026-02-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":72.22,"d":"2026-02-19","n":"Storage box","v":"Shopee"},{"a":65.75,"d":"2026-02-12","n":"Storage box (80L)","v":"Shopee"},{"a":21.62,"d":"2026-02-07","n":"Tussah foldable storage box (60L)","v":"Shopee"},{"a":17.0,"d":"2026-02-14","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":2772.0,"d":"2026-02-26","n":"Shredder xp520+","v":"GBC"}],"Equipment":[{"a":848.94,"d":"2026-02-06","n":"GBC Shredmaster 300M","v":"Shopee"},{"a":372.24,"d":"2026-02-11","n":"Heavy duty paper cutter","v":"5B"},{"a":8.68,"d":"2026-02-06","n":"Cutter Knife","v":"Shopee"}],"Transport":[{"a":46.37,"d":"2026-02-10","n":"kona","v":"Getgo"},{"a":40.05,"d":"2026-02-24","n":"Dongfeng","v":"Getgo"},{"a":39.15,"d":"2026-02-11","n":"shuttle","v":"Getgo"},{"a":37.14,"d":"2026-02-23","n":"Tivoli","v":"Getgo"},{"a":35.58,"d":"2026-02-19","n":"Shuttle","v":"Getgo"},{"a":27.96,"d":"2026-02-12","n":"shuttle","v":"Getgo"}]},"total":5235.96,"opex":2463.96,"capex":2772.0,"deposits":0.0,"deprec":46.2},"2026-03":{"byCat":{"Ads":1242.49,"Boxes & Consumables":408.94,"Capital & Deposits":2151.91,"Equipment":84.77,"Professional Fees":1035.0,"Rent & Utilities":1340.11,"Transport":226.89},"items":{"Ads":[{"a":1242.49,"d":"2026-03-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":294.8,"d":"2026-03-10","n":"Storage box (80L)","v":"Lazada"},{"a":97.14,"d":"2026-03-02","n":"Cutter blade","v":"Lazada"},{"a":17.0,"d":"2026-03-02","n":"Trashbag","v":"5B"}],"Capital & Deposits":[{"a":2151.91,"d":"2026-03-26","n":"Dell laptop","v":"Dell"}],"Equipment":[{"a":84.77,"d":"2026-03-17","n":"Weighing machine","v":"Shopee"}],"Professional Fees":[{"a":1035.0,"d":"2026-03-18","n":"ACRA and Company Secretary","v":"Sleek"}],"Rent & Utilities":[{"a":1318.85,"d":"2026-03-10","n":"Rental space start 12 mar","v":"Extra space"},{"a":21.26,"d":"2026-03-13","n":"Padlock","v":"Extra space"}],"Transport":[{"a":93.62,"d":"2026-03-17","n":"Tivoli","v":"Getgo"},{"a":68.58,"d":"2026-03-10","n":"Tivoli","v":"Getgo"},{"a":38.12,"d":"2026-03-24","n":"Homda shuttle","v":"Getgo"},{"a":26.57,"d":"2026-03-31","n":"Kona","v":"Getgo"}]},"total":6490.11,"opex":4338.2,"capex":2151.91,"deposits":0.0,"deprec":105.98},"2026-04":{"byCat":{"Ads":258.22,"Boxes & Consumables":143.19,"Capital & Deposits":10589.35,"Professional Fees":1351.0,"Transport":79.74},"items":{"Ads":[{"a":258.22,"d":"2026-04-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":143.19,"d":"2026-04-01","n":"blasius box (80L)","v":"jiji.sg"}],"Capital & Deposits":[{"a":10589.35,"d":"2026-04-02","n":"Deposit - EBA 6340 industrial shredder","v":"Optimum Copier Trading"}],"Professional Fees":[{"a":1026.0,"d":"2026-04-10","n":"90k SGD accounting plan","v":"Sleek"},{"a":325.0,"d":"2026-04-28","n":"Business card","v":"The Gentlemen’s Press "}],"Transport":[{"a":48.76,"d":"2026-04-06","n":"Tivoli","v":"Getgo"},{"a":30.98,"d":"2026-04-09","n":"Shuttle","v":"Getgo"}]},"total":12421.5,"opex":1832.15,"capex":10589.35,"deposits":0.0,"deprec":105.98},"2026-05":{"byCat":{"Ads":1656.28,"Boxes & Consumables":405.13,"Capital & Deposits":9275.0,"Professional Fees":264.0,"Transport":326.27},"items":{"Ads":[{"a":1656.28,"d":"2026-05-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":134.7,"d":"2026-05-25","n":"Storage box ?","v":"Toyogo"},{"a":77.5,"d":"2026-05-04","n":"Storage box 74L","v":"Toyogo"},{"a":77.5,"d":"2026-05-06","n":"Storage box 74L","v":"Toyogo"},{"a":60.43,"d":"2026-05-04","n":"blasius box (80L)","v":"Shopee"},{"a":55.0,"d":"2026-05-28","n":"Storage box 60L","v":"Shopee"}],"Capital & Deposits":[{"a":6625.0,"d":"2026-05-29","n":"Balance of rental deposit - Sindo (refundable)","v":"Sindo"},{"a":2650.0,"d":"2026-05-22","n":"1 month deposit sindo rental unit","v":"Sindo"}],"Professional Fees":[{"a":264.0,"d":"2026-05-29","n":"IRAS stamping fees (tenancy)","v":"Sindo"}],"Transport":[{"a":206.0,"d":"2026-05-28","n":"Lalamove","v":"Lalamove"},{"a":49.53,"d":"2026-05-28","n":"Kona","v":"Getgo"},{"a":39.36,"d":"2026-05-05","n":"Shuttle","v":"Getgo"},{"a":31.38,"d":"2026-05-06","n":"Kona","v":"Getgo"}]},"total":11926.68,"opex":2651.68,"capex":0.0,"deposits":9275.0,"deprec":105.98},"2026-06":{"byCat":{"Ads":413.75,"Boxes & Consumables":312.82,"Equipment":642.26,"Labour & Works":146.67,"Rent & Utilities":2676.02,"Transport":430.12},"items":{"Ads":[{"a":413.75,"d":"2026-06-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-06-08","n":"Storage box","v":"Toyogo"},{"a":109.2,"d":"2026-06-30","n":"Storage box 67 litres","v":"Toyogo"},{"a":63.9,"d":"2026-06-03","n":"4x 75l box","v":"Toyogo"},{"a":30.52,"d":"2026-06-09","n":"plastic bag for shredder","v":"OPTIMUM COPIER TRADING"}],"Equipment":[{"a":240.0,"d":"2026-06-05","n":"Vacuum","v":"Shopee"},{"a":189.0,"d":"2026-06-22","n":"Switchbot","v":"Shopee"},{"a":139.0,"d":"2026-06-05","n":"Trolley","v":"Shopee"},{"a":74.26,"d":"2026-06-09","n":"Trolley heavy duty","v":"Shopee"}],"Labour & Works":[{"a":96.67,"d":"2026-06-23","n":"Part-time work","v":"Rayhan"},{"a":50.0,"d":"2026-06-17","n":"Part-time work","v":"Rayhan"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-05-29","n":"June 2026 rent - Sindo","v":"Sindo"},{"a":26.02,"d":"2026-06-30","n":"Electricity - Sindo (2-15 Jun)","v":"Sindo"}],"Transport":[{"a":66.77,"d":"2026-06-17","n":"Samyeong","v":"Getgo"},{"a":62.74,"d":"2026-06-24","n":"Shuttle","v":"Getgo"},{"a":54.42,"d":"2026-06-03","n":"Shuttle","v":"Getgo"},{"a":54.24,"d":"2026-06-11","n":"Kona","v":"Getgo"},{"a":44.94,"d":"2026-06-16","n":"Shuttle","v":"Getgo"},{"a":44.1,"d":"2026-06-10","n":"Shuttle","v":"Getgo"},{"a":43.35,"d":"2026-06-09","n":"Kona","v":"Getgo"},{"a":34.36,"d":"2026-06-23","n":"Shuttle","v":"Getgo"},{"a":25.2,"d":"2026-06-08","n":"Moving of shredder from home","v":"Lalamove"}]},"total":4621.64,"opex":4621.64,"capex":0.0,"deposits":0.0,"deprec":105.98},"2026-07":{"byCat":{"Ads":765.41,"Boxes & Consumables":273.0,"Capital & Deposits":5294.67,"Equipment":104.11,"Labour & Works":460.0,"Rent & Utilities":2689.35,"Transport":85.42},"items":{"Ads":[{"a":765.41,"d":"2026-07-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":109.2,"d":"2026-07-10","n":"Storage box 67 litres","v":"Toyogo"},{"a":109.2,"d":"2026-07-21","n":"Storage box 67 litres","v":"Toyogo"},{"a":54.6,"d":"2026-07-28","n":"Storage box 67 litres","v":"Toyogo"}],"Capital & Deposits":[{"a":5294.67,"d":"2026-08-03","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Equipment":[{"a":104.11,"d":"2026-07-10","n":"Weighing scale","v":"Shopee"}],"Labour & Works":[{"a":460.0,"d":"2026-07-11","n":"Electrical works","v":"Ramesh"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-06-30","n":"Rental Jul 2026","v":"Sindo"},{"a":39.35,"d":"2026-07-30","n":"Electricity - Sindo (16 Jun - 15 Jul)","v":"Sindo"}],"Transport":[{"a":57.32,"d":"2026-07-27","n":"Shuttle","v":"Getgo"},{"a":28.1,"d":"2026-07-22","n":"Shuttle","v":"Getgo"}]},"total":9671.96,"opex":4377.29,"capex":5294.67,"deposits":0.0,"deprec":105.98},"2026-08":{"byCat":{"Ads":749.96,"Boxes & Consumables":335.72,"Capital & Deposits":5294.68,"Rent & Utilities":2689.7},"items":{"Ads":[{"a":749.96,"d":"2026-08-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Boxes & Consumables":[{"a":305.2,"d":"2026-08-28","n":"Plastic bags for shredder + oil lubricant","v":"Optimum Copier Trading"},{"a":30.52,"d":"2026-08-04","n":"Plastic bags for shredder (100x120cm, 50pcs)","v":"Optimum Copier Trading"}],"Capital & Deposits":[{"a":5294.68,"d":"2026-08-31","n":"EBA 6340 industrial shredder - balance payment","v":"Optimum Copier Trading"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-07-30","n":"Rental Aug 2026","v":"Sindo"},{"a":39.7,"d":"2026-08-30","n":"Electricity - Sindo (16 Jul - 15 Aug)","v":"Sindo"}]},"total":9070.06,"opex":3775.38,"capex":5294.68,"deposits":0.0,"deprec":282.46},"2026-09":{"byCat":{"Ads":272.66,"Rent & Utilities":2650.0},"items":{"Ads":[{"a":272.66,"d":"2026-09-01","n":"Facebook/Meta ads - ShredRite disposal","v":"Meta"}],"Rent & Utilities":[{"a":2650.0,"d":"2026-08-30","n":"Rental Sep 2026","v":"Sindo"}]},"total":2922.66,"opex":2922.66,"capex":0.0,"deposits":0.0,"deprec":282.46}};
 const SNAPSHOT_ASSETS = [
   { n: 'EBA 6340C industrial shredder', cost: 21178.70, start: '2026-08', life: 10, per: 176.49 },
-  { n: 'Dell laptop',                   cost: 4151.91,  start: '2026-03', life: 3,  per: 115.33 },
+  { n: 'Dell laptop',                   cost: 2151.91,  start: '2026-03', life: 3,  per: 59.78 },
   { n: 'Shredder xp520+ (GBC)',         cost: 2772.00,  start: '2026-02', life: 5,  per: 46.20 }
 ];
 const SPEND_SNAPSHOT_DATE = '16 Sep 2026';
@@ -4122,6 +4139,38 @@ const CATEGORY_BLURB = {
 let revSpendIsLive = false;
 let revProfit = null;
 let revBookings = null;   // the completed bookings behind the current report
+
+// Tapping a material tile narrows the whole report to jobs containing that
+// material, so "how is the frames side doing" is one tap rather than a re-run.
+let materialFilter = 'all';
+const MATERIAL_FILTERS = {
+  all:   { label: 'all collections', test: () => true },
+  paper: { label: 'collections with books/paper', test: b => (b.paperKg || 0) > 0.001 },
+  frame: { label: 'collections with frames',      test: b => (b.frameKg || 0) > 0.001 },
+  tips:  { label: 'collections that were tipped', test: b => (b.tips || 0) > 0 }
+};
+function setMaterialFilter(k) {
+  materialFilter = (materialFilter === k || k === 'all') ? 'all' : k;
+  const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Generate Report');
+  if (btn) btn.click();
+}
+function paintMaterialTiles() {
+  Object.keys(MATERIAL_FILTERS).forEach(k => {
+    const el = document.getElementById('tile-' + k);
+    if (!el) return;
+    const on = k === materialFilter && k !== 'all';
+    el.style.borderColor = on ? 'var(--navy)' : 'var(--grey-100)';
+    el.style.background = on ? '#EEF2F7' : 'var(--white)';
+  });
+  const banner = document.getElementById('rev-filter-banner');
+  if (banner) {
+    banner.innerHTML = materialFilter === 'all' ? '' :
+      `<div style="background:var(--navy);color:#fff;font-size:11px;padding:7px 10px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;gap:8px;align-items:center;">
+         <span>Showing <strong>${MATERIAL_FILTERS[materialFilter].label}</strong> only</span>
+         <button onclick="setMaterialFilter('all')" style="background:var(--gold);color:var(--navy);border:none;border-radius:99px;font-size:10px;font-weight:700;padding:3px 10px;cursor:pointer;">Show all</button>
+       </div>`;
+  }
+}
 let revSpendAssets = null; // asset register rows from the backend, for the depreciation drill-down
 
 async function fetchMonthlySpend() {
@@ -4175,17 +4224,27 @@ async function renderProfitChart(monthly) {
     // deposits are not a cost at all. Older snapshots carry no class split, so
     // fall back to treating the whole Capital & Deposits category as non-opex.
     const capital = (sp.byCat && sp.byCat[CAPITAL_CATEGORY]) || 0;
+    // Rows the sheet marks "Excluded" were never a business cost. A backend
+    // that predates that rule reports them as ordinary opex, so strip them
+    // here too and the report stays right either way.
+    const excluded = (sp.byCat && sp.byCat[EXCLUDED_CATEGORY]) || 0;
+    const byCat = Object.assign({}, sp.byCat || {});
+    delete byCat[EXCLUDED_CATEGORY];
+    const items = Object.assign({}, sp.items || {});
+    delete items[EXCLUDED_CATEGORY];
+
     const capex = sp.capex != null ? sp.capex : capital;
     const deposits = sp.deposits != null ? sp.deposits : 0;
-    const opex = sp.opex != null ? sp.opex : Math.max(0, (sp.total || 0) - capital);
+    const rawOpex = sp.opex != null ? sp.opex : Math.max(0, (sp.total || 0) - capital);
+    const opex = Math.max(0, rawOpex - excluded);
     const deprec = sp.deprec || 0;
 
     const costs = opex + deprec + (m.giveBack || 0) + frames;
     revProfit[k] = {
-      revenue: m.revenue, expenses: sp.total || 0, byCat: sp.byCat || {},
+      revenue: m.revenue, expenses: Math.max(0, (sp.total || 0) - excluded), byCat: byCat,
       capital: capital, capex: capex, deposits: deposits, opex: opex, deprec: deprec,
-      cashOut: sp.total || 0,
-      items: sp.items || {},
+      cashOut: Math.max(0, (sp.total || 0) - excluded),
+      items: items,
       giveBack: m.giveBack || 0, framesKg: billableKg, recordedFramesKg: recordedKg,
       framesAdjusted: FRAMES_KG_OVERRIDE[k] != null && Math.abs(billableKg - recordedKg) > 0.05,
       framesDonation: frames, costs: costs, profit: m.revenue - costs, count: m.count,
@@ -4239,8 +4298,10 @@ function unitRow(k) {
   };
 }
 
-function renderUnitEconomics(keys) {
+function renderUnitEconomics(allKeys) {
   const sec = document.getElementById('rev-unit-section');
+  // Months with no collections have no per-kg story, only a misleading zero
+  const keys = allKeys.filter(k => revProfit[k] && revProfit[k].count > 0);
   const rows = keys.map(unitRow);
   if (!rows.some(r => r.kg > 0)) { sec.classList.add('hidden'); return; }
 
@@ -4281,26 +4342,63 @@ function renderUnitEconomics(keys) {
   const beJobs = cpj > 0 ? (tot.fixed / months) / cpj : null;
   const actualJobs = tot.jobs / months;
 
+  // The headline: one average job, split into the three things the money does.
+  const revPerJob = tot.jobs ? tot.rev / tot.jobs : 0;
+  const varPerJob = tot.jobs ? tot.variable / tot.jobs : 0;
+  const fixPerJob = tot.jobs ? tot.fixed / tot.jobs : 0;
+  const profitPerJob = revPerJob - varPerJob - fixPerJob;
+  const pct = v => revPerJob ? Math.max(0, 100 * v / revPerJob) : 0;
+  const seg = (v, col, lab) => pct(v) < 4 ? '' :
+    `<div style="width:${pct(v)}%;background:${col};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">${pct(v) > 13 ? '$' + Math.round(v) : ''}</div>`;
+
+  const bar = `
+    <div style="font-size:11px;color:var(--grey-400);margin-bottom:3px;">An average job brings in <strong style="color:var(--navy);font-size:14px;">$${revPerJob.toFixed(2)}</strong>. Here is where it goes:</div>
+    <div style="display:flex;height:34px;border-radius:6px;overflow:hidden;margin-bottom:6px;">
+      ${seg(varPerJob, '#C62828')}${seg(fixPerJob, '#8FA9C4')}${seg(Math.max(0, profitPerJob), '#1B5E3A')}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:10px;color:var(--grey-500);margin-bottom:12px;">
+      <span><span style="color:#C62828;font-weight:700;">&#9632;</span> Doing the job $${varPerJob.toFixed(2)}</span>
+      <span><span style="color:#8FA9C4;font-weight:700;">&#9632;</span> Rent, ads, machines $${fixPerJob.toFixed(2)}</span>
+      <span><span style="color:#1B5E3A;font-weight:700;">&#9632;</span> Profit $${profitPerJob.toFixed(2)}</span>
+    </div>`;
+
   const priceHealthy = marginPct >= 60;
   const verdict = priceHealthy
-    ? `Pricing is <strong>not</strong> your problem. Every kg earns $${rpk.toFixed(2)} and costs $${vpk.toFixed(2)} to serve, leaving <strong>${marginPct.toFixed(0)}%</strong> to cover rent, ads and the machines. Cutting price would be giving away margin you do not need to give away; raising it risks the volume that actually drives this business. The lever is <strong>job count and fixed cost</strong>, not price.`
-    : `Margin is thin at <strong>${marginPct.toFixed(0)}%</strong>. Each kg earns $${rpk.toFixed(2)} against $${vpk.toFixed(2)} of cost to serve it. Here price or the cost of serving really is the problem, not volume.`;
+    ? `<strong>Your prices are fine. Do not touch them.</strong><br><br>
+       Out of the $${revPerJob.toFixed(2)} an average job brings in, only <strong>$${varPerJob.toFixed(2)}</strong> is spent
+       actually doing the job. The other <strong>$${(revPerJob - varPerJob).toFixed(2)}</strong> is yours to keep before
+       rent. That leftover is called <strong>contribution</strong>, and it is the most useful number you have.
+       <br><br><strong>Why contribution matters:</strong> rent and ads cost the same whether you do 20 jobs or 60.
+       So every extra job past the ones that cover your rent adds about <strong>$${(revPerJob - varPerJob).toFixed(2)}</strong>
+       straight to profit. One more job a week is roughly
+       <strong>$${Math.round((revPerJob - varPerJob) * 4.3).toLocaleString()} a month</strong> of profit, with no price change at all.
+       <br><br>Cutting your price would throw that away. Raising it risks losing the jobs that create it.
+       <strong>Your problem is never price. It is getting more jobs and keeping rent under control.</strong>`
+    : `<strong>Margin is thin.</strong> Of the $${revPerJob.toFixed(2)} an average job brings in,
+       <strong>$${varPerJob.toFixed(2)}</strong> goes on doing the job itself, leaving only
+       <strong>$${(revPerJob - varPerJob).toFixed(2)}</strong> towards rent. Here price, or the cost of serving,
+       really is the thing to fix. More jobs alone will not save it.`;
 
-  document.getElementById('rev-unit-chart').innerHTML =
-    `<div style="overflow-x:auto;">${svg}${cols}</div>
+  document.getElementById('rev-unit-chart').innerHTML = bar +
+    `<div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:2px;">Month by month</div>
+     <div style="font-size:10px;color:var(--grey-400);margin-bottom:6px;">
+       Bars: what one kg earns you (total revenue &divide; total kg).
+       Line: what one kg costs you to handle (van, bags, helpers, give-back &divide; total kg).
+       The wider the gap, the healthier you are.</div>
+     <div style="overflow-x:auto;">${svg}${cols}</div>
      <div style="font-size:10px;color:var(--grey-400);margin-top:6px;">
-       <span style="color:#8FA9C4;font-weight:700;">&#9632;</span> Revenue per kg
-       &nbsp; <span style="color:#C62828;font-weight:700;">&#9679;&#8212;</span> Cost to serve per kg
+       <span style="color:#8FA9C4;font-weight:700;">&#9632;</span> Earned per kg
+       &nbsp; <span style="color:#C62828;font-weight:700;">&#9679;&#8212;</span> Cost per kg
      </div>`;
 
   document.getElementById('rev-unit-verdict').innerHTML = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-      ${statChip('Contribution / job', '$' + cpj.toFixed(2))}
-      ${statChip('Contribution margin', marginPct.toFixed(0) + '%')}
-      ${beJobs != null ? statChip('Break-even jobs / mth', Math.ceil(beJobs)) : ''}
-      ${beJobs != null ? statChip('Actual jobs / mth', actualJobs.toFixed(0), actualJobs >= beJobs) : ''}
+      ${statChip('Left over per job', '$' + cpj.toFixed(2))}
+      ${statChip('Kept per $1 taken', (marginPct / 100).toFixed(2))}
+      ${beJobs != null ? statChip('Jobs needed / mth', Math.ceil(beJobs)) : ''}
+      ${beJobs != null ? statChip('Jobs done / mth', actualJobs.toFixed(0), actualJobs >= beJobs) : ''}
     </div>
-    <div style="font-size:11px;line-height:1.55;color:var(--grey-500);">${verdict}</div>`;
+    <div style="font-size:11px;line-height:1.6;color:var(--grey-500);">${verdict}</div>`;
   sec.classList.remove('hidden');
 }
 
@@ -4438,8 +4536,8 @@ function renderCashFlow(keys) {
 
   let bodyHtml;
   if (cashView === 'list') {
-    const rows = data.map(d => `<tr style="border-bottom:1px solid var(--grey-100);">
-      <td style="padding:6px 0;font-weight:600;font-size:11px;">${monLabel(d.k)}</td>
+    const rows = data.map(d => `<tr onclick="showCashDetail('${d.k}')" style="border-bottom:1px solid var(--grey-100);cursor:pointer;">
+      <td style="padding:6px 0;font-weight:600;font-size:11px;color:var(--navy);">${monLabel(d.k)}</td>
       <td style="text-align:right;font-size:11px;">${d.inn ? '$' + Math.round(d.inn).toLocaleString() : '-'}</td>
       <td style="text-align:right;font-size:11px;color:${d.out ? '#C62828' : 'var(--grey-400)'};">${d.out ? '$' + Math.round(d.out).toLocaleString() : '-'}</td>
       <td style="text-align:right;font-size:11px;font-weight:700;color:${d.net >= 0 ? '#1B5E3A' : '#C62828'};">${d.net >= 0 ? '' : '-'}$${Math.abs(Math.round(d.net)).toLocaleString()}</td>
@@ -4474,8 +4572,8 @@ function renderCashFlow(keys) {
     </svg>`;
 
     const cols = `<div style="display:flex;min-width:${W}px;">` + data.map(d => `
-      <div style="width:${COLW}px;flex:0 0 ${COLW}px;text-align:center;">
-        <div style="font-size:10px;font-weight:600;color:var(--grey-500);padding-top:3px;">${monLabel(d.k)}</div>
+      <div onclick="showCashDetail('${d.k}')" style="width:${COLW}px;flex:0 0 ${COLW}px;text-align:center;cursor:pointer;">
+        <div style="font-size:10px;font-weight:600;color:var(--navy);padding-top:3px;">${monLabel(d.k)}</div>
         <div style="font-size:10px;font-weight:700;color:${d.run >= 0 ? '#1B5E3A' : '#C62828'};">${d.run >= 0 ? '' : '-'}$${Math.abs(Math.round(d.run / 100) / 10)}k</div>
       </div>`).join('') + '</div>';
 
@@ -4508,6 +4606,59 @@ function renderCashFlow(keys) {
   document.getElementById('rev-cash-body').innerHTML =
     bodyHtml + `<div style="font-size:11px;line-height:1.55;color:var(--grey-500);margin-top:10px;">${note}</div>`;
   sec.classList.remove('hidden');
+}
+
+// Cash view of one month: what came in, what went out, item by item.
+function showCashDetail(key) {
+  const p = revProfit && revProfit[key];
+  if (!p) return;
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const name = MONTHS[parseInt(key.slice(5), 10) - 1] + ' ' + key.slice(0, 4);
+  const line = (l, v, o) => { o = o || {};
+    return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;${o.indent ? 'padding-left:12px;color:var(--grey-400);' : 'color:var(--grey-500);'}${o.bold ? 'color:var(--navy);font-weight:700;' : ''}">${l}</td>`
+      + `<td style="padding:5px 0;text-align:right;font-weight:${o.bold ? '700' : '600'};${o.color ? 'color:' + o.color + ';' : ''}">${v}</td></tr>`; };
+
+  let html = `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name} - money in and out</div>`
+    + '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
+    + line('Collected from customers', '$' + p.revenue.toFixed(2), { bold: true, color: 'var(--green)' });
+
+  // Every spending line for the month, grouped and tappable
+  const cats = Object.keys(p.byCat).sort((a, b) => p.byCat[b] - p.byCat[a]);
+  if (cats.length) {
+    html += line('Paid out', '$' + p.cashOut.toFixed(2), { bold: true });
+    cats.forEach(c => {
+      const items = (p.items && p.items[c]) || [];
+      const id = 'cash_' + key.replace('-', '') + '_' + c.replace(/[^A-Za-z]/g, '');
+      const caret = items.length ? '<span style="color:var(--grey-300);">&#9662;</span> ' : '';
+      html += `<tr style="border-bottom:1px solid var(--grey-100);${items.length ? 'cursor:pointer;' : ''}"`
+        + (items.length ? ` onclick="toggleSpendCat('${id}')"` : '') + '>'
+        + `<td style="padding:5px 0 5px 12px;color:var(--grey-400);">${caret}${esc(c)}</td>`
+        + `<td style="padding:5px 0;text-align:right;font-weight:600;">$${p.byCat[c].toFixed(2)}</td></tr>`;
+      if (items.length) {
+        html += `<tr id="${id}" class="hidden"><td colspan="2" style="padding:0 0 6px 26px;">`
+          + items.map(it => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
+              + `<span>${esc(it.n)}${it.v ? ` <span style="color:var(--grey-300);">- ${esc(it.v)}</span>` : ''}</span>`
+              + `<span style="white-space:nowrap;font-weight:600;">$${Number(it.a).toFixed(2)}</span></div>`).join('')
+          + '</td></tr>';
+      }
+    });
+  } else {
+    html += line('Paid out', 'nothing recorded');
+  }
+
+  const net = p.revenue - p.cashOut;
+  html += line('Left in the bank this month', (net < 0 ? '-$' : '$') + Math.abs(net).toFixed(2),
+               { bold: true, color: net >= 0 ? 'var(--green)' : 'var(--red)' });
+  html += '</table>';
+  if (p.capex > 0 || p.deposits > 0) {
+    html += `<p style="font-size:10px;color:var(--grey-400);margin-top:6px;">`
+      + (p.capex > 0 ? `$${p.capex.toFixed(2)} of that was a machine. Big one-off buy, but it keeps earning for years. ` : '')
+      + (p.deposits > 0 ? `$${p.deposits.toFixed(2)} was a deposit you get back. ` : '')
+      + `That is why a bad cash month is not the same as a bad month.</p>`;
+  }
+  const el = document.getElementById('rev-cash-detail');
+  el.innerHTML = html;
+  el.classList.remove('hidden');
 }
 
 function renderAssessment(keys, monthly) {
@@ -4568,33 +4719,33 @@ function renderAssessment(keys, monthly) {
        $${Math.round(deprec).toLocaleString()} of wear on the machines, but not their purchase price, because they earn for
        years rather than one month.`) +
 
-    card('Break-even 1: does a normal month pay for itself?',
+    card('Break-even point &mdash; does a normal month pay for itself?',
       beJobs != null && rJobs >= beJobs ? 'Yes, comfortably' : 'Not yet', beJobs != null && rJobs >= beJobs,
-      `Fixed costs run about <strong>$${Math.round(rFixed).toLocaleString()} a month</strong> and each job contributes
-       <strong>$${contribPerJob.toFixed(2)}</strong>. So you need
+      `This is the proper name for it: your <strong>break-even point</strong>. It asks how many jobs one month needs
+       before that month stops losing money.<br><br>
+       Bills that come every month whether you work or not: <strong>$${Math.round(rFixed).toLocaleString()}</strong>.
+       Money left over from one job after doing it: <strong>$${contribPerJob.toFixed(2)}</strong>.<br>
        <strong>$${Math.round(rFixed).toLocaleString()} &divide; $${contribPerJob.toFixed(2)} =
-       ${beJobs != null ? Math.ceil(beJobs) : '-'} jobs a month</strong>.
-       You are running at <strong>${Math.round(rJobs)}</strong>, about
-       <strong>${beJobs ? (rJobs / beJobs).toFixed(1) : '-'}x</strong> what you need.`) +
+       ${beJobs != null ? Math.ceil(beJobs) : '-'} jobs a month.</strong><br><br>
+       You are doing <strong>${Math.round(rJobs)}</strong>, which is about
+       <strong>${beJobs ? (rJobs / beJobs).toFixed(1) : '-'} times</strong> what you need. Every job past number
+       ${beJobs != null ? Math.ceil(beJobs) : '-'} is nearly all profit.`) +
 
-    card('Break-even 2: has the business paid back what went into it?',
+    card('Payback &mdash; has the business paid you back everything you put in?',
       cash >= 0 ? 'Yes' : 'No, not yet', cash >= 0,
       cash >= 0
-        ? `Cumulative cash is positive, so trading has returned every dollar put in.`
-        : `This is the one that matters and the honest answer is no. Cumulative cash is
-           <strong>-$${Math.abs(Math.round(cash)).toLocaleString()}</strong>, because
-           $${Math.round(capex).toLocaleString()} of machines and $${Math.round(deposits).toLocaleString()} of deposit went out
-           faster than trading brought money in.
-           ${monthsToPayback != null ? `At the recent rate of about <strong>$${Math.round(recentCash).toLocaleString()} a month</strong>
-           of operating cash, full payback lands around <strong>${addMonths(monthsToPayback)}</strong>, assuming no new machines.` : ''}
-           ${monthsExDeposit != null ? `<br><br>Strip out the refundable deposit, which you get back anyway, and the real hole is
-           <strong>$${Math.abs(Math.round(cashExDeposit)).toLocaleString()}</strong>, cleared around
+        ? `The money the business has made now covers everything ever put into it.`
+        : `The proper name for this is your <strong>payback period</strong>, and this is the one you meant.
+           It counts <em>everything</em> that went in, machines included.<br><br>
+           So far the business has taken in <strong>$${Math.abs(Math.round(cash)).toLocaleString()} less</strong>
+           than it has spent, because
+           $${Math.round(capex).toLocaleString()} went on machines and $${Math.round(deposits).toLocaleString()} on a deposit.
+           ${monthsToPayback != null ? `<br><br>The business now keeps about <strong>$${Math.round(recentCash).toLocaleString()} a month</strong>
+           after running costs. At that rate you get it all back around <strong>${addMonths(monthsToPayback)}</strong>,
+           as long as you do not buy another machine.` : ''}
+           ${monthsExDeposit != null ? `<br><br>The deposit comes back to you anyway when you leave the unit. Ignoring it, the real
+           hole is <strong>$${Math.abs(Math.round(cashExDeposit)).toLocaleString()}</strong>, filled around
            <strong>${addMonths(monthsExDeposit)}</strong>.` : ''}`) +
-
-    card('Break-even 3: is cumulative profit positive?', beMonth ? 'Yes, since ' + monLabel(beMonth) : 'Not yet', !!beMonth,
-      `Add up every month's profit and the total went positive in <strong>${beMonth ? monLabel(beMonth) : '-'}</strong>.
-       <strong style="color:#F0C674;">Treat this one with caution.</strong> It ignores the machines you bought outright,
-       so it turns positive very early and flatters the picture. Break-even 2 is the real test.`) +
 
     card('What is the cash position?', (cash >= 0 ? '+' : '-') + '$' + Math.abs(Math.round(cash)).toLocaleString(), cash >= 0,
       `Revenue in, minus everything out, including $${Math.round(capex).toLocaleString()} of machines and
@@ -4686,21 +4837,30 @@ function showProfitDetail(key) {
     }
   }
 
-  // Mosque give-back, expandable per booking
-  const gbJobs = (revBookings || []).filter(b => (b.date || '').slice(0, 7) === key
-      && MOSQUE_CODES.includes((b.referral || '').trim().toUpperCase()) && (b.paperKg || 0) > 0.001)
-    .sort((a, b) => (b.paperKg || 0) - (a.paperKg || 0));
+  // Mosque give-back, summarised by mosque rather than listing every customer
+  const gbByCode = {};
+  (revBookings || []).forEach(b => {
+    if ((b.date || '').slice(0, 7) !== key) return;
+    const c = (b.referral || '').trim().toUpperCase();
+    if (!MOSQUE_CODES.includes(c) || (b.paperKg || 0) <= 0.001) return;
+    if (!gbByCode[c]) gbByCode[c] = { jobs: 0, kg: 0, amt: 0 };
+    gbByCode[c].jobs++; gbByCode[c].kg += b.paperKg || 0; gbByCode[c].amt += 10 + (b.paperKg || 0);
+  });
+  const gbCodes = Object.keys(gbByCode).sort((a, b) => gbByCode[b].amt - gbByCode[a].amt);
   const gId = 'gb_' + key.replace('-', '');
-  html += `<tr style="border-bottom:1px solid var(--grey-100);${gbJobs.length ? 'cursor:pointer;' : ''}"`
-    + (gbJobs.length ? ` onclick="toggleSpendCat('${gId}')"` : '') + '>'
-    + `<td style="padding:5px 0;color:var(--grey-500);">${gbJobs.length ? '<span style="color:var(--grey-300);">&#9662;</span> ' : ''}Mosque give-back`
-    + `<div style="font-size:10px;color:var(--grey-300);padding-left:14px;">$10 per booking + $1 per kg of kitab, mosque codes only</div></td>`
+  html += `<tr style="border-bottom:1px solid var(--grey-100);${gbCodes.length ? 'cursor:pointer;' : ''}"`
+    + (gbCodes.length ? ` onclick="toggleSpendCat('${gId}')"` : '') + '>'
+    + `<td style="padding:5px 0;color:var(--grey-500);">${gbCodes.length ? '<span style="color:var(--grey-300);">&#9662;</span> ' : ''}Mosque give-back`
+    + `<div style="font-size:10px;color:var(--grey-300);padding-left:14px;">$10 per booking + $1 per kg of books</div></td>`
     + `<td style="padding:5px 0;text-align:right;font-weight:600;vertical-align:top;">$${p.giveBack.toFixed(2)}</td></tr>`;
-  if (gbJobs.length) {
+  if (gbCodes.length) {
     html += `<tr id="${gId}" class="hidden"><td colspan="2" style="padding:0 0 6px 26px;">`
-      + gbJobs.map(b => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
-          + `<span>${esc(b.name || '')} <span style="color:var(--grey-300);">- ${esc((b.referral || '').toUpperCase())}, ${(b.paperKg || 0).toFixed(1)} kg</span></span>`
-          + `<span style="white-space:nowrap;font-weight:600;">$${(10 + (b.paperKg || 0)).toFixed(2)}</span></div>`).join('')
+      + gbCodes.map(c => {
+          const g = gbByCode[c];
+          return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
+            + `<span><strong>${esc(MOSQUE_NAMES[c] || c)}</strong> <span style="color:var(--grey-300);">- ${g.jobs} job${g.jobs === 1 ? '' : 's'}, ${g.kg.toFixed(1)} kg of books</span></span>`
+            + `<span style="white-space:nowrap;font-weight:600;">$${g.amt.toFixed(2)}</span></div>`;
+        }).join('')
       + '</td></tr>';
   }
 
@@ -4853,36 +5013,38 @@ function renderTrendInsight(keys, monthly, vals, metric) {
 
   let body;
   if (revTrendMetric === 'jobs') {
-    body = `Jobs swing between <strong>${f(lo)}</strong> (${loM}) and <strong>${f(hi)}</strong> (${hiM}),
-      a <strong>${spread.toFixed(1)}x</strong> range. Compare that with how flat the average job value is:
-      switch to <em>Avg job value</em> and you will see it barely moves.
-      <br><br><strong>So revenue is driven by how many jobs you win, not how big they are.</strong>
-      Across this period, ${Math.abs(jobEffect) > Math.abs(priceEffect)
-        ? `changes in job count moved revenue by about <strong>$${Math.abs(Math.round(jobEffect)).toLocaleString()}</strong>, against
-           only <strong>$${Math.abs(Math.round(priceEffect)).toLocaleString()}</strong> from changes in job size.`
-        : `job size actually mattered more than job count, which is unusual here and worth a look.`}
-      A weak month is a demand problem, so look at ad spend and lead flow first, never at your prices.`;
+    body = `Your busiest month had <strong>${f(hi)}</strong> jobs (${hiM}). Your quietest had
+      <strong>${f(lo)}</strong> (${loM}). That is <strong>${spread.toFixed(1)} times</strong> more work in a good month.
+      Now switch to <em>Avg job value</em>: it barely moves.
+      <br><br><strong>So a good month is simply a month with more jobs, not bigger ones.</strong>
+      ${Math.abs(jobEffect) > Math.abs(priceEffect)
+        ? `Job numbers moved your takings by about <strong>$${Math.abs(Math.round(jobEffect)).toLocaleString()}</strong>.
+           Job size moved it by only <strong>$${Math.abs(Math.round(priceEffect)).toLocaleString()}</strong>.`
+        : `Unusually, job size mattered more than job count here. Worth a look.`}
+      ${keys.includes('2026-04') ? `<br><br><strong>April was reservist</strong>, so the drop that month is you being away, not demand disappearing. Read the trend without it.` : ''}
+      <br><br>When a month is quiet, the answer is more enquiries. Check your ads. Never drop your prices.`;
   } else if (revTrendMetric === 'avg') {
-    body = `Average job value sits in a tight band, <strong>${f(lo)}</strong> to <strong>${f(hi)}</strong>.
-      That stability is a good sign: your pricing and the typical household load are consistent and predictable.
-      <br><br>It also means <strong>you cannot grow much by upselling</strong>. A household has one cupboard of kitab
-      and it is a similar size in every flat. Growth has to come from more households, or from B2B loads that are
-      an order of magnitude bigger than a home collection.`;
+    body = `Every month lands between <strong>${f(lo)}</strong> and <strong>${f(hi)}</strong>. That is a very
+      steady number, which is good: your pricing works and a typical home always has about the same amount to clear.
+      <br><br>But it also means <strong>you cannot grow by getting more out of each customer</strong>. One family has
+      one cupboard of kitab, and it is a similar size in every flat. Growth has to come from
+      <strong>more homes</strong>, or from mosques, schools and offices where one job is many times bigger.`;
   } else if (revTrendMetric === 'kgjob') {
-    body = `Each collection averages between <strong>${f(lo)}</strong> and <strong>${f(hi)}</strong>.
-      This is the physical size of a typical job, and it drives your van time and handling cost far more than revenue does.
-      <br><br>Watch it against jobs: if kg per job falls while jobs rise, you are winning <strong>more but smaller</strong>
-      collections, which costs the same in travel for less money. That is the early warning sign that a route is
-      becoming uneconomic even while the job count looks healthy.`;
+    body = `A typical collection weighs between <strong>${f(lo)}</strong> and <strong>${f(hi)}</strong>.
+      This is how heavy the work is, and it decides your van time far more than your takings do.
+      <br><br>Watch this against the jobs line. If jobs go <strong>up</strong> but weight per job goes
+      <strong>down</strong>, you are driving just as far for smaller loads and less money. That is the early warning
+      that a round is becoming not worth doing, even while the job count still looks healthy.`;
   } else {
-    body = `Revenue per kg has moved from <strong>${f(first)}</strong> to <strong>${f(last)}</strong>
-      (average <strong>${f(avg)}</strong>). This is your true realised rate, after the $10 masjid discount and after the
-      fixed booking fee is spread across a bigger or smaller load.
+    body = `<span style="color:var(--grey-400);">total money collected &divide; total kg collected</span><br><br>
+      This has moved from <strong>${f(first)}</strong> to <strong>${f(last)}</strong>
+      (average <strong>${f(avg)}</strong>). It is what you <em>really</em> get per kg once the masjid $10 discount is
+      given and the flat booking fee is shared across a big or small load. It is not your price list.
       <br><br>${last < first
-        ? `It is <strong>drifting down</strong>. That is usually loads getting larger, which dilutes the flat booking fee,
-           plus more masjid-code discounts. Not alarming on its own, but if it keeps sliding while costs hold steady,
-           your margin per job is quietly eroding.`
-        : `It is holding or improving, which means discounting is not running away from you.`}`;
+        ? `It is <strong>slowly falling</strong>. Usually that means bigger loads, so the one booking fee is spread
+           thinner, plus more masjid discounts. Not a worry by itself. But if it keeps sliding while your costs stay
+           the same, you are quietly earning less on every job.`
+        : `It is holding steady or improving, so discounts are not getting out of hand.`}`;
   }
 
   box.innerHTML = `<div style="font-size:11px;line-height:1.55;color:var(--grey-500);background:#F7F8FA;border-left:3px solid #1B5E3A;padding:8px 10px;border-radius:0 6px 6px 0;">
