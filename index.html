@@ -1711,8 +1711,19 @@ textarea.form-input {
 
       <div id="rev-results" class="hidden">
         <div id="rev-filter-banner"></div>
-        <div id="rev-capture">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div id="rev-capture" style="display:flex;flex-direction:column;">
+        <div id="rev-headline" style="order:10;"></div>
+        <div id="rev-assets-section" class="hidden" style="order:50;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">What the Business Owns</div>
+          <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px;">
+            <strong style="color:var(--navy);">Purpose of this section</strong><br>
+            The money that left the bank did not disappear. Most of it became machines the business still owns and still uses. This is what it bought.
+          </div>
+          <div id="rev-assets-body"></div>
+        </div>
+        <div id="rev-basis" style="order:200;"></div>
+
+        <div style="order:11;display:none;">
           <div style="background:var(--navy);color:var(--white);padding:16px;border-radius:var(--radius-md);text-align:center;">
             <div style="font-size:12px;opacity:0.7;margin-bottom:4px;">Total Revenue</div>
             <div style="font-size:22px;font-weight:700;color:var(--gold);" id="rev-total">$0.00</div>
@@ -1723,7 +1734,7 @@ textarea.form-input {
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="order:12;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
           <div style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;cursor:pointer;" onclick="setMaterialFilter('all')" id="tile-all">
             <div style="font-size:11px;color:var(--grey-400);margin-bottom:4px;">Total Weight</div>
             <div style="font-size:18px;font-weight:600;" id="rev-weight">0 kg</div>
@@ -1734,7 +1745,7 @@ textarea.form-input {
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="order:13;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
           <div style="background:var(--white);padding:12px;border-radius:var(--radius-md);border:1px solid var(--grey-100);text-align:center;cursor:pointer;" onclick="setMaterialFilter('paper')" id="tile-paper">
             <div style="font-size:10px;color:var(--grey-400);margin-bottom:2px;">Paper</div>
             <div style="font-size:14px;font-weight:600;" id="rev-paper">0 kg</div>
@@ -1749,7 +1760,7 @@ textarea.form-input {
           </div>
         </div>
 
-        <div id="rev-chart-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-chart-section" class="hidden" style="order:60;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:2px;font-size:14px;">Revenue by Month</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this chart</strong><br>
@@ -1760,7 +1771,7 @@ textarea.form-input {
           <div id="rev-month-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
         </div>
 
-        <div id="rev-cash-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-cash-section" class="hidden" style="order:40;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Cash Flow</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px;">
             <strong style="color:var(--navy);">Purpose of this chart</strong><br>
@@ -1772,7 +1783,7 @@ textarea.form-input {
           <div id="rev-cash-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
         </div>
 
-        <div id="rev-profit-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-profit-section" class="hidden" style="order:30;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:2px;font-size:14px;">Profit by Month</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this chart</strong><br>
@@ -1784,7 +1795,7 @@ textarea.form-input {
           <div id="rev-profit-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
         </div>
 
-        <div id="rev-unit-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-unit-section" class="hidden" style="order:70;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Where the Money Goes on One Job</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this chart</strong><br>
@@ -1795,7 +1806,7 @@ textarea.form-input {
           <div id="rev-unit-verdict" style="margin-top:10px;"></div>
         </div>
 
-        <div id="rev-customer-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-customer-section" class="hidden" style="order:80;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Customer Economics</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.5;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px;">
             <strong style="color:var(--navy);">Purpose of this chart</strong><br>
@@ -1811,14 +1822,14 @@ textarea.form-input {
           <div id="rev-customer-body"></div>
         </div>
 
-        <div id="rev-partmonth-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-partmonth-section" class="hidden" style="order:110;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:2px;font-size:14px;">Bookings by Part of Month</div>
           <p style="font-size:11px;color:var(--grey-400);margin-bottom:12px;">All months in the range combined, by day of month. Tap a bar for details.</p>
           <div id="rev-partmonth-chart"></div>
           <div id="rev-partmonth-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
         </div>
 
-        <div style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div style="order:120;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:8px;font-size:14px;">Breakdown</div>
           <table style="width:100%;font-size:13px;border-collapse:collapse;">
             <tr style="border-bottom:1px solid var(--grey-100);">
@@ -1840,13 +1851,13 @@ textarea.form-input {
           </table>
         </div>
 
-        <div id="rev-referral-section" class="hidden" style="background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-referral-section" class="hidden" style="order:90;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-weight:600;margin-bottom:8px;font-size:14px;">Referral Give-Back</div>
           <p style="font-size:11px;color:var(--grey-400);margin-bottom:8px;">Give-back = $10 per booking + $1 per kg of kitab/books (frames and others excluded). Mosque partnership codes only.</p>
           <table style="width:100%;font-size:12px;border-collapse:collapse;" id="rev-referral-table"></table>
         </div>
 
-        <div id="rev-assess-section" class="hidden" style="background:var(--navy);padding:16px;border-radius:var(--radius-md);margin-bottom:16px;">
+        <div id="rev-assess-section" class="hidden" style="order:100;background:var(--navy);padding:16px;border-radius:var(--radius-md);margin-bottom:16px;">
           <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:2px;">Business Assessment</div>
           <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">Everything above, read back in plain words. Updates every time you generate a report.</div>
           <div id="rev-assess-body"></div>
@@ -2099,7 +2110,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-16.5';
+const APP_VERSION = '2026-09-16.6';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4273,10 +4284,13 @@ async function renderProfitChart(monthly) {
   section.classList.remove('hidden');
   if (keys.length === 1) showProfitDetail(keys[0]);
 
+  renderHeadline(keys, monthly);
   renderUnitEconomics(keys);
   renderCustomerEconomics(monthly);
   renderCashFlow(keys);
+  renderAssets(keys);
   renderAssessment(keys, monthly);
+  renderBasis(keys);
 }
 
 // Costs that rise and fall with the work itself. Everything else is a fixed
@@ -4625,6 +4639,159 @@ function renderCashFlow(keys) {
   document.getElementById('rev-cash-body').innerHTML =
     bodyHtml + `<div style="font-size:11px;line-height:1.55;color:var(--grey-500);margin-top:10px;">${note}</div>`;
   sec.classList.remove('hidden');
+}
+
+// ---------------------------------------------------------------------------
+// Management report blocks. Audience is family stakeholders, not accountants:
+// they want the story, in order, with nothing hidden and nothing assumed.
+// ---------------------------------------------------------------------------
+
+// A month is partial when the report stops before the month actually ends.
+// Showing 16 days of September next to eight full months reads as a collapse,
+// so every figure drawn from it has to say so.
+function partialMonths(keys) {
+  const to = document.getElementById('rev-to').value || '';
+  const from = document.getElementById('rev-from').value || '';
+  const today = new Date().toISOString().slice(0, 10);
+  const out = {};
+  keys.forEach(k => {
+    const lastDay = new Date(parseInt(k.slice(0, 4), 10), parseInt(k.slice(5), 10), 0).getDate();
+    const end = k + '-' + String(lastDay).padStart(2, '0');
+    const cut = to < today ? to : today;      // future dates cannot be "covered"
+    if (from > k + '-01' || cut < end) out[k] = true;
+  });
+  return out;
+}
+
+function renderHeadline(keys, monthly) {
+  const el = document.getElementById('rev-headline');
+  if (!keys.length) { el.innerHTML = ''; return; }
+  let rev = 0, jobs = 0, opex = 0, deprec = 0, gb = 0, fr = 0, capex = 0, dep = 0;
+  keys.forEach(k => { const p = revProfit[k];
+    rev += p.revenue; jobs += p.count; opex += p.opex; deprec += p.deprec;
+    gb += p.giveBack; fr += p.framesDonation; capex += p.capex; dep += p.deposits; });
+  const profit = rev - opex - deprec - gb - fr;
+  const cash = rev - opex - capex - dep;
+  const margin = rev ? 100 * profit / rev : 0;
+  const part = partialMonths(keys);
+  const partList = keys.filter(k => part[k]).map(monLabel);
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const span = keys.length === 1 ? monLabel(keys[0])
+    : MONTHS[parseInt(keys[0].slice(5), 10) - 1] + ' to ' + MONTHS[parseInt(keys[keys.length - 1].slice(5), 10) - 1] + ' ' + keys[keys.length - 1].slice(0, 4);
+
+  const big = (label, value, sub, colour) => `
+    <div style="flex:1;min-width:132px;background:rgba(255,255,255,.07);border-radius:8px;padding:10px 12px;">
+      <div style="font-size:10px;color:#9FB0C4;text-transform:uppercase;letter-spacing:.4px;">${label}</div>
+      <div style="font-size:20px;font-weight:700;color:${colour};line-height:1.25;">${value}</div>
+      <div style="font-size:10px;color:#9FB0C4;">${sub}</div>
+    </div>`;
+
+  el.innerHTML = `
+    <div style="background:var(--navy);border-radius:var(--radius-md);padding:16px;margin-bottom:16px;">
+      <div style="font-size:16px;font-weight:700;color:var(--gold);">ShredRite Pte Ltd</div>
+      <div style="font-size:12px;color:#D6DEE7;margin-bottom:2px;">How the business is doing &mdash; ${span}</div>
+      <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">Prepared by Hambali Jaafar, Director &middot; ${new Date().toLocaleDateString('en-SG', { day: 'numeric', month: 'long', year: 'numeric' })} &middot; Management figures, not audited</div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        ${big('Money collected', '$' + Math.round(rev).toLocaleString(), jobs + ' collections', '#fff')}
+        ${big('Profit', (profit < 0 ? '-$' : '$') + Math.abs(Math.round(profit)).toLocaleString(), margin.toFixed(0) + ' cents kept per dollar', profit >= 0 ? '#4CAF7D' : '#EF7B7B')}
+        ${big('Cash position', (cash < 0 ? '-$' : '$') + Math.abs(Math.round(cash)).toLocaleString(), cash < 0 ? 'funded by Hambali so far' : 'self-funding', cash >= 0 ? '#4CAF7D' : '#EF7B7B')}
+        ${big('Owns', '$' + Math.round(capex).toLocaleString(), 'of machines, plus $' + Math.round(dep).toLocaleString() + ' deposit back', '#fff')}
+      </div>
+
+      <div style="font-size:12px;line-height:1.6;color:#fff;background:rgba(255,255,255,.07);border-left:3px solid var(--gold);padding:10px 12px;border-radius:0 6px 6px 0;">
+        <strong>The short version.</strong>
+        ${profit >= 0
+          ? `The business makes money on the work it does. Every dollar collected leaves about
+             <strong>${margin.toFixed(0)} cents</strong> of profit after all running costs.`
+          : `The business is not yet covering its costs on the work it does.`}
+        ${cash < 0
+          ? ` The bank balance is still behind because <strong>$${Math.round(capex).toLocaleString()}</strong> went on
+             machines and <strong>$${Math.round(dep).toLocaleString()}</strong> on a rental deposit that comes back.
+             That money was not lost, it was spent on things the business still owns.`
+          : ''}
+      </div>
+      ${partList.length ? `<div style="font-size:10px;color:#F0C674;margin-top:8px;">Note: ${partList.join(', ')} ${partList.length === 1 ? 'is' : 'are'} not a full month yet, so ${partList.length === 1 ? 'its' : 'their'} figures are lower than a complete month.</div>` : ''}
+    </div>`;
+}
+
+function renderAssets(keys) {
+  const sec = document.getElementById('rev-assets-section');
+  const assets = revSpendAssets || [];
+  let dep = 0;
+  keys.forEach(k => { dep += revProfit[k].deposits; });
+  if (!assets.length && !dep) { sec.classList.add('hidden'); return; }
+
+  const last = keys[keys.length - 1];
+  const monthsSince = (a) => {
+    const t1 = parseInt(last.slice(0, 4), 10) * 12 + parseInt(last.slice(5), 10);
+    const t0 = parseInt(a.start.slice(0, 4), 10) * 12 + parseInt(a.start.slice(5), 10);
+    return Math.max(0, Math.min(a.life * 12, t1 - t0 + 1));
+  };
+  let cost = 0, used = 0;
+  const rows = assets.map(a => {
+    const u = a.per * monthsSince(a), left = a.cost - u;
+    cost += a.cost; used += u;
+    return `<tr style="border-bottom:1px solid var(--grey-100);">
+      <td style="padding:6px 0;font-size:11px;font-weight:600;">${esc(a.n)}
+        <div style="font-size:10px;color:var(--grey-400);font-weight:400;">Expected to last ${a.life} years</div></td>
+      <td style="text-align:right;font-size:11px;">$${Math.round(a.cost).toLocaleString()}</td>
+      <td style="text-align:right;font-size:11px;color:var(--grey-400);">$${Math.round(u).toLocaleString()}</td>
+      <td style="text-align:right;font-size:11px;font-weight:700;">$${Math.round(left).toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('rev-assets-body').innerHTML = `
+    <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:300px;">
+      <tr style="color:var(--grey-400);font-size:10px;text-transform:uppercase;letter-spacing:.3px;">
+        <td style="padding:3px 0;">Item</td><td style="text-align:right;">Paid</td>
+        <td style="text-align:right;">Used up</td><td style="text-align:right;">Still worth</td>
+      </tr>${rows}
+      <tr><td style="padding:6px 0;font-size:11px;font-weight:700;color:var(--navy);">Machines</td>
+        <td style="text-align:right;font-size:11px;font-weight:700;">$${Math.round(cost).toLocaleString()}</td>
+        <td style="text-align:right;font-size:11px;font-weight:700;color:var(--grey-400);">$${Math.round(used).toLocaleString()}</td>
+        <td style="text-align:right;font-size:11px;font-weight:700;color:var(--navy);">$${Math.round(cost - used).toLocaleString()}</td></tr>
+      ${dep ? `<tr style="border-top:1px solid var(--grey-100);"><td style="padding:6px 0;font-size:11px;font-weight:600;">Rental deposit, Sindo unit
+        <div style="font-size:10px;color:var(--grey-400);font-weight:400;">Refundable when the unit is given up</div></td>
+        <td style="text-align:right;font-size:11px;">$${Math.round(dep).toLocaleString()}</td>
+        <td style="text-align:right;font-size:11px;color:var(--grey-400);">-</td>
+        <td style="text-align:right;font-size:11px;font-weight:700;">$${Math.round(dep).toLocaleString()}</td></tr>` : ''}
+    </table></div>
+    <div style="font-size:11px;line-height:1.6;color:var(--grey-500);margin-top:10px;">
+      <strong>"Used up"</strong> is the share of a machine's life already worked through. A shredder bought for
+      $${assets.length ? Math.round(assets[0].cost).toLocaleString() : '0'} and expected to last
+      ${assets.length ? assets[0].life : 0} years is not a cost of one month, it is a cost spread across every month it runs.
+      <br><br>Altogether the business still holds <strong>$${Math.round(cost - used + dep).toLocaleString()}</strong> of value
+      it can use or get back.
+    </div>`;
+  sec.classList.remove('hidden');
+}
+
+function renderBasis(keys) {
+  const el = document.getElementById('rev-basis');
+  if (!keys.length) { el.innerHTML = ''; return; }
+  const part = keys.filter(k => partialMonths(keys)[k]).map(monLabel);
+  const item = t => `<li style="margin-bottom:5px;">${t}</li>`;
+  el.innerHTML = `
+    <div style="background:#F7F8FA;border:1px solid var(--grey-100);border-radius:var(--radius-md);padding:14px;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px;">How these numbers were put together</div>
+      <div style="font-size:11px;line-height:1.6;color:var(--grey-500);">
+        Figures come straight from the collection records and the expense sheet. They are
+        <strong>management figures, not audited accounts</strong>. Where an exact amount was not available,
+        an estimate has been used, and every one of them is listed here so nothing is hidden:
+        <ul style="margin:8px 0 8px 16px;padding:0;">
+          ${item('<strong>Own car running costs, $200 a month.</strong> A set figure for charging and cashcard on days Hambali drives his own car. Not receipted. To be replaced with actual amounts.')}
+          ${item('<strong>August frames, 100 kg.</strong> The figure used for the frames give-back. The collection records for that month total 149.5 kg.')}
+          ${item('<strong>Laptop, $2,000 reduction.</strong> The laptop cost $4,151.91 and is carried at $2,151.91. The $2,000 is treated as not belonging to the business.')}
+          ${item('<strong>How long machines last.</strong> Shredder 10 years, laptop 3 years, older shredder 5 years. These are estimates and have not been approved by anyone.')}
+          ${part.length ? item('<strong>' + part.join(', ') + '</strong> ' + (part.length === 1 ? 'is' : 'are') + ' not a complete month, so ' + (part.length === 1 ? 'that column is' : 'those columns are') + ' lower than a full month.') : ''}
+        </ul>
+        One more thing worth stating plainly: <strong>company money and Hambali's own money currently sit in the same
+        bank account.</strong> The business figures here have been separated out by hand from the records. Moving customer
+        payments into the company account is the fix, and it has not been done yet.
+      </div>
+    </div>`;
 }
 
 // Cash view of one month: what came in, what went out, item by item.
