@@ -1722,7 +1722,6 @@ textarea.form-input {
           </div>
           <div id="rev-assets-body"></div>
         </div>
-        <div id="rev-basis" style="order:200;"></div>
 
         <div style="order:11;display:none;">
           <div style="background:var(--navy);color:var(--white);padding:16px;border-radius:var(--radius-md);text-align:center;">
@@ -2111,7 +2110,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-16.7';
+const APP_VERSION = '2026-09-16.8';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4293,7 +4292,6 @@ async function renderProfitChart(monthly) {
   renderCashFlow(keys);
   renderAssets(keys);
   renderAssessment(keys, monthly);
-  renderBasis(keys);
 }
 
 // Costs that rise and fall with the work itself. Everything else is a fixed
@@ -4755,33 +4753,40 @@ function renderBridge(keys) {
 
       <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
         ${line('Money collected from customers', rev, keys.length + ' months of collections')}
-        ${line('Running the business', -opex, 'Rent, ads, van hire, boxes, helpers', { indent: true })}
+        ${line('Running the business', -opex, 'Rent, ads, van hire, boxes', { indent: true })}
         ${line('Given back to the masjids', -gb, '$10 a booking plus $1 a kg of books', { indent: true })}
         ${fr ? line('Frames give-back', -fr, '$3 a kg of frames, from August', { indent: true }) : ''}
-        ${line('Wear on the machines', -deprec, 'A slice of each machine cost for the months it has run', { indent: true })}
+        ${line('Machine cost for these months', -deprec, 'Machines are paid for once but last years, so each month carries a share of the price', { indent: true })}
         ${line('PROFIT', profit, '', { total: true })}
       </table>
 
-      <div style="font-size:11px;color:var(--grey-500);margin-bottom:6px;">That is profit. Cash is a different question, because some of these never left the bank and some big payments are not costs at all.</div>
+      <div style="font-size:11px;color:var(--grey-500);margin-bottom:6px;"><strong style="color:var(--navy);">Now the bank account.</strong> Profit and cash are not the same thing. This is simply money in, money out.</div>
 
       <table style="width:100%;border-collapse:collapse;">
-        ${line('Profit', profit, '', { total: true })}
-        ${line('Add back wear on machines', deprec, 'A cost on paper. No money actually left the bank.', { indent: true })}
-        ${(gb + fr) ? line('Add back give-back not yet paid out', gb + fr, 'Counted as a cost, but not yet paid from the business account', { indent: true }) : ''}
-        ${capex ? line('Machines bought outright', -capex, 'Paid in full on the day. Still owned, still working.', { indent: true }) : ''}
-        ${dep ? line('Rental deposit paid', -dep, 'Not a cost at all. Comes back when the unit is given up.', { indent: true }) : ''}
-        ${line('CASH POSITION', cash, '', { total: true })}
+        ${line('Money collected from customers', rev, '')}
+        ${line('Paid for running the business', -opex, '', { indent: true })}
+        ${capex ? line('Paid for the machines', -capex, 'Paid in full on the day of purchase', { indent: true }) : ''}
+        ${dep ? line('Paid the rental deposit', -dep, 'Comes back when the unit is given up', { indent: true }) : ''}
+        ${line('LEFT IN THE BANK', cash, '', { total: true })}
       </table>
 
       <div style="font-size:11px;line-height:1.6;color:var(--grey-500);margin-top:12px;">
+        <strong style="color:var(--navy);">Why the two numbers differ.</strong> Three reasons, and none of them is a loss:
+        <br><br>
+        <strong>1. The machines.</strong> Profit counts them slowly, a little each month for as long as they last.
+        The bank paid the whole $${Math.round(capex).toLocaleString()} on the day.
+        <br><br>
+        <strong>2. The deposit.</strong> $${Math.round(dep).toLocaleString()} left the bank, but it is not a cost.
+        It is being held and comes back when the unit is given up.
+        <br><br>
+        <strong>3. The give-back.</strong> $${Math.round(gb + fr).toLocaleString()} is counted as a cost, because it is owed.
+        It has not been paid out of the business account yet, so the bank has not felt it.
+        <br><br>
         ${cash < 0
           ? `So the business <strong>earned $${Math.round(profit).toLocaleString()}</strong> and is still
-             <strong>$${Math.abs(Math.round(cash)).toLocaleString()} short in the bank</strong>. Both are true at once.
-             The difference is almost entirely the
-             <strong>$${Math.round(capex + dep).toLocaleString()}</strong> spent on machines and the deposit, paid all at
-             once but useful for years. That money became things, not losses.`
+             <strong>$${Math.abs(Math.round(cash)).toLocaleString()} short in the bank</strong>. Both are true.
+             The money went into things the business owns and uses, not into losses.`
           : `The business is both profitable and cash positive.`}
-      </div>
     </div>`;
 }
 
@@ -4811,6 +4816,14 @@ function renderAssets(keys) {
           <div style="font-size:10px;color:var(--grey-400);font-weight:400;padding-left:14px;">${assets.length} item${assets.length === 1 ? '' : 's'}, tap to see them</div></td>
         <td style="text-align:right;font-size:13px;font-weight:700;color:var(--navy);white-space:nowrap;">$${Math.round(cost).toLocaleString()}</td>
       </tr>
+      <tr id="assets-list" class="hidden"><td colspan="2" style="padding:0 0 8px 14px;">
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:280px;">
+          <tr style="color:var(--grey-400);font-size:10px;text-transform:uppercase;letter-spacing:.3px;">
+            <td style="padding:3px 0;">Machine</td><td style="text-align:right;">Paid</td>
+            <td style="text-align:right;">Lasts</td><td style="text-align:right;">Cost / month</td>
+          </tr>${rows}
+        </table></div>
+      </td></tr>
       ${dep ? `<tr style="border-bottom:1px solid var(--grey-100);">
         <td style="padding:8px 0;font-size:12px;font-weight:700;color:var(--navy);">Rental deposit
           <div style="font-size:10px;color:var(--grey-400);font-weight:400;">Comes back when the unit is given up</div></td>
@@ -4818,19 +4831,6 @@ function renderAssets(keys) {
       <tr><td style="padding:8px 0;font-size:12px;font-weight:700;color:var(--navy);">Total the business holds</td>
         <td style="text-align:right;font-size:14px;font-weight:700;color:var(--gold);white-space:nowrap;">$${Math.round(cost + dep).toLocaleString()}</td></tr>
     </table>
-
-    <div id="assets-list" class="hidden" style="margin-top:6px;">
-      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;min-width:290px;">
-        <tr style="color:var(--grey-400);font-size:10px;text-transform:uppercase;letter-spacing:.3px;">
-          <td style="padding:3px 0;">Machine</td><td style="text-align:right;">Paid</td>
-          <td style="text-align:right;">Lasts</td><td style="text-align:right;">Cost / month</td>
-        </tr>${rows}
-        <tr><td style="padding:6px 0;font-size:11px;font-weight:700;color:var(--navy);">Total</td>
-          <td style="text-align:right;font-size:11px;font-weight:700;">$${Math.round(cost).toLocaleString()}</td>
-          <td style="text-align:right;font-size:11px;">&nbsp;</td>
-          <td style="text-align:right;font-size:11px;font-weight:700;">$${perMonth.toFixed(2)}</td></tr>
-      </table></div>
-    </div>
 
     <div style="font-size:11px;line-height:1.6;color:var(--grey-500);margin-top:10px;">
       <strong>Cost per month</strong> is what each machine works out to once its price is spread over the years it is
@@ -4961,7 +4961,7 @@ function renderAssessment(keys, monthly) {
   const monthsExDeposit = (cashExDeposit < 0 && recentCash > 0) ? Math.abs(cashExDeposit) / recentCash : null;
   const addMonths = (n) => {
     const d = new Date(); d.setMonth(d.getMonth() + Math.ceil(n));
-    return MON_SHORT[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2);
+    return MON_SHORT[d.getMonth()] + ' ' + d.getFullYear();   // "May 2027", never "May 27"
   };
 
   const card = (title, verdict, good, body) => `
@@ -4972,51 +4972,34 @@ function renderAssessment(keys, monthly) {
     </div>`;
 
   document.getElementById('rev-assess-body').innerHTML =
-    card('Are we making money?', profit >= 0 ? 'Yes' : 'Not yet', profit >= 0,
-      `Profit is <strong>$${Math.round(profit).toLocaleString()}</strong> on $${Math.round(rev).toLocaleString()} of revenue,
-       a <strong>${rev ? (100 * profit / rev).toFixed(0) : 0}% net margin</strong>. That counts running costs and
-       $${Math.round(deprec).toLocaleString()} of wear on the machines, but not their purchase price, because they earn for
-       years rather than one month.`) +
+    card('Is the business working?', profit >= 0 ? 'Yes' : 'Not yet', profit >= 0,
+      profit >= 0
+        ? `It makes money on the work it does. After everything it costs to run, about
+           <strong>${rev ? (100 * profit / rev).toFixed(0) : 0} cents of every dollar</strong> collected is profit.
+           That has been true in almost every month, not just good ones.`
+        : `The work is not yet covering what it costs to run. That has to change before anything else matters.`) +
 
-    card('Break-even point &mdash; does a normal month pay for itself?',
-      beJobs != null && rJobs >= beJobs ? 'Yes, comfortably' : 'Not yet', beJobs != null && rJobs >= beJobs,
-      `This is the proper name for it: your <strong>break-even point</strong>. It asks how many jobs one month needs
-       before that month stops losing money.<br><br>
-       Bills that come every month whether you work or not: <strong>$${Math.round(rFixed).toLocaleString()}</strong>.
-       Money left over from one job after doing it: <strong>$${contribPerJob.toFixed(2)}</strong>.<br>
-       <strong>$${Math.round(rFixed).toLocaleString()} &divide; $${contribPerJob.toFixed(2)} =
-       ${beJobs != null ? Math.ceil(beJobs) : '-'} jobs a month.</strong><br><br>
-       You are doing <strong>${Math.round(rJobs)}</strong>, which is about
-       <strong>${beJobs ? (rJobs / beJobs).toFixed(1) : '-'} times</strong> what you need. Every job past number
-       ${beJobs != null ? Math.ceil(beJobs) : '-'} is nearly all profit.`) +
+    card('Then why is the bank account low?', 'Machines, not losses', true,
+      `Nearly every dollar that is missing went on the shredders and the rental deposit. Those were bought once
+       and are still owned and still working. The business has not lost this money, it has spent it on what it
+       needed to operate.`) +
 
-    card('Payback &mdash; has the business paid you back everything you put in?',
-      cash >= 0 ? 'Yes' : 'No, not yet', cash >= 0,
-      cash >= 0
-        ? `The money the business has made now covers everything ever put into it.`
-        : `The proper name for this is your <strong>payback period</strong>, and this is the one you meant.
-           It counts <em>everything</em> that went in, machines included.<br><br>
-           So far the business has taken in <strong>$${Math.abs(Math.round(cash)).toLocaleString()} less</strong>
-           than it has spent, because
-           $${Math.round(capex).toLocaleString()} went on machines and $${Math.round(deposits).toLocaleString()} on a deposit.
-           ${monthsToPayback != null ? `<br><br>The business now keeps about <strong>$${Math.round(recentCash).toLocaleString()} a month</strong>
-           after running costs. At that rate you get it all back around <strong>${addMonths(monthsToPayback)}</strong>,
-           as long as you do not buy another machine.` : ''}
-           ${monthsExDeposit != null ? `<br><br>The deposit comes back to you anyway when you leave the unit. Ignoring it, the real
-           hole is <strong>$${Math.abs(Math.round(cashExDeposit)).toLocaleString()}</strong>, filled around
-           <strong>${addMonths(monthsExDeposit)}</strong>.` : ''}`) +
+    card('When does that money come back?', monthsToPayback != null ? 'Around ' + addMonths(monthsToPayback) : 'On track', true,
+      monthsToPayback != null
+        ? `At the rate the business is currently keeping money, it should have paid back everything put into it by
+           around <strong>${addMonths(monthsToPayback)}</strong>. That assumes no more machines are bought.
+           The rental deposit comes back on top of that, whenever the unit is given up.`
+        : `The business is now keeping more than it spends each month.`) +
 
-    card('What is the cash position?', (cash >= 0 ? '+' : '-') + '$' + Math.abs(Math.round(cash)).toLocaleString(), cash >= 0,
-      `Revenue in, minus everything out, including $${Math.round(capex).toLocaleString()} of machines and
-       $${Math.round(deposits).toLocaleString()} of refundable deposit.
-       ${cash < 0 ? `This is what you have funded personally, and it is the best estimate of your
-       <strong>director's loan</strong>: money the company owes you, not equity you have lost.` : 'The business is self-funding.'}`) +
+    card('What is the real risk?', 'Every month starts from nothing', false,
+      `Almost no customer comes back. Each month the work has to be found again, mostly through advertising.
+       And one person does the collecting, the shredding and the admin. If Hambali cannot work, the income stops
+       that week. That is the honest weak point, and it is not a money problem, it is a structure problem.`) +
 
-    card('The one thing to fix', contribPerJob > 0 && (100 * (rev - variable) / rev) >= 60 ? 'Volume and repeat business, not price' : 'Margin per job', true,
-      `Each job contributes <strong>$${contribPerJob.toFixed(2)}</strong> after the cost of serving it, so extra jobs drop
-       almost straight to profit. Rent alone is about <strong>${contribPerJob > 0 ? Math.ceil(2650 / contribPerJob) : '-'} jobs a month</strong>.
-       With demand this volatile and almost no repeat business, the highest-value move is contracted volume
-       (mosques, schools, corporate) that does not have to be re-bought with ads every month.`);
+    card('What would change it?', 'Regular work, not one-off jobs', true,
+      `Standing arrangements with masjids, schools and offices. Work that arrives on a schedule instead of being
+       bought fresh with ads every month, and that is big enough to be worth a trip. That is the difference between
+       a job that pays well and a business that keeps going without him.`);
 
   sec.classList.remove('hidden');
 }
