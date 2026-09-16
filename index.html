@@ -2099,7 +2099,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-16.4';
+const APP_VERSION = '2026-09-16.5';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4655,7 +4655,7 @@ function showCashDetail(key) {
         + `<td style="padding:5px 0;text-align:right;font-weight:600;">$${p.byCat[c].toFixed(2)}</td></tr>`;
       if (items.length) {
         html += `<tr id="${id}" class="hidden"><td colspan="2" style="padding:0 0 6px 26px;">`
-          + items.map(it => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
+          + drillItems(c, items).map(it => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
               + `<span>${esc(it.n)}${it.v ? ` <span style="color:var(--grey-300);">- ${esc(it.v)}</span>` : ''}</span>`
               + `<span style="white-space:nowrap;font-weight:600;">$${Number(it.a).toFixed(2)}</span></div>`).join('')
           + '</td></tr>';
@@ -4789,6 +4789,25 @@ function statChip(label, value, good) {
   </div>`;
 }
 
+// Categories where the individual line items are noise. Every GetGo hire is a
+// different car model, so listing "Shuttle / Kona / Tivoli" tells him nothing;
+// what he wants to see is "GetGo, 23 hires, $1,247".
+const GROUP_BY_VENDOR = ['Transport'];
+function drillItems(cat, items) {
+  if (!GROUP_BY_VENDOR.includes(cat) || items.length < 3) return items;
+  const byVendor = {};
+  items.forEach(it => {
+    const v = (it.v || 'Other').trim() || 'Other';
+    const k = /getgo/i.test(v) ? 'GetGo' : /lalamove/i.test(v) ? 'Lalamove' : v;
+    if (!byVendor[k]) byVendor[k] = { n: k, v: '', a: 0, c: 0 };
+    byVendor[k].a += Number(it.a) || 0;
+    byVendor[k].c++;
+  });
+  return Object.values(byVendor)
+    .map(g => ({ n: g.n, v: g.c + '×', a: g.a }))
+    .sort((a, b) => b.a - a.a);
+}
+
 function toggleSpendCat(id) {
   const el = document.getElementById(id);
   if (el) el.classList.toggle('hidden');
@@ -4824,7 +4843,7 @@ function showProfitDetail(key) {
         + `</td><td style="padding:5px 0;text-align:right;font-weight:600;vertical-align:top;">$${p.byCat[c].toFixed(2)}</td></tr>`;
       if (items.length) {
         html += `<tr id="${id}" class="hidden"><td colspan="2" style="padding:0 0 6px 26px;">`
-          + items.map(it => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
+          + drillItems(c, items).map(it => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
               + `<span>${esc(it.n)}${it.v ? ` <span style="color:var(--grey-300);">- ${esc(it.v)}</span>` : ''}</span>`
               + `<span style="white-space:nowrap;font-weight:600;">$${Number(it.a).toFixed(2)}</span></div>`).join('')
           + '</td></tr>';
