@@ -1724,7 +1724,7 @@ textarea.form-input {
           <div id="rev-assets-body"></div>
         </div>
 
-        <div id="rev-breakeven-section" class="hidden" style="order:65;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-breakeven-section" class="hidden" style="order:32;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Breakeven</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this section</strong><br>
@@ -1812,7 +1812,7 @@ textarea.form-input {
           <div id="rev-profit-foot"></div>
         </div>
 
-        <div id="rev-unit-section" class="hidden" style="order:70;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-unit-section" class="hidden" style="order:34;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Where the Money Goes on One Collection</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this section</strong><br>
@@ -1880,9 +1880,9 @@ textarea.form-input {
           <div id="rev-referral-insight"></div>
         </div>
 
-        <div id="rev-assess-section" class="hidden" style="order:100;background:var(--navy);padding:16px;border-radius:var(--radius-md);margin-bottom:16px;">
+        <div id="rev-assess-section" class="hidden" style="order:36;background:var(--navy);padding:16px;border-radius:var(--radius-md);margin-bottom:16px;">
           <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:2px;">Business Assessment</div>
-          <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">The report above, summarised in plain words.</div>
+          <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">The report, summarised in plain words.</div>
           <div id="rev-assess-body"></div>
         </div>
         </div><!-- end rev-capture -->
@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.9';
+const APP_VERSION = '2026-09-17.10';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4385,7 +4385,7 @@ async function renderProfitChart(monthly) {
 
 // Short reasons shown beside unusual months, in Hambali's words.
 const MONTH_NOTES = {
-  '2026-03': 'Hari Raya period',
+  '2026-03': 'Puasa/Hari Raya period',
   '2026-04': 'reservist',
   '2026-07': 'ads off from 30 June to 8 July'
 };
@@ -4398,7 +4398,7 @@ const AD_NOTES = {
 };
 // Reasons shown under Revenue by Month, in Hambali's words
 const REVENUE_NOTES = {
-  '2026-03': 'Hari Raya period.',
+  '2026-03': 'Puasa/Hari Raya period.',
   '2026-04': 'low revenue due to reservist.',
   '2026-06': 'best month, during the June school holidays.',
   '2026-07': 'lower revenue from fewer collections. Ads were off from 30 June and only started running again on 9 July: 10 collections in the first half of July, 35 in the second half. Likely reason: the June ads were aimed at the June school holiday clear-out, and there was no time to prepare ads for July.'
@@ -4624,8 +4624,7 @@ function renderBreakeven(keys) {
 
   const diff = Math.round(be.recentJobs) - (be.beJobs || 0);
   part1 += insightList('What this tells us', [
-    be.beJobs ? `The last three full months averaged <strong>${Math.round(be.recentJobs)} collections</strong>, ${Math.abs(diff)} ${diff >= 0 ? 'above' : 'below'} breakeven.` : '',
-    be.beJobs ? `Each collection above ${be.beJobs} adds about <strong>$${Math.round(be.leftJob)}</strong> of profit. Each collection short of it loses about the same.` : ''
+    be.beJobs ? `The last three full months averaged <strong>${Math.round(be.recentJobs)} collections</strong>, ${Math.abs(diff)} ${diff >= 0 ? 'above' : 'below'} breakeven.` : ''
   ]);
 
   // ---- 2. Earning back the capital
@@ -4721,6 +4720,21 @@ function renderProfitInsight(keys) {
         }
       });
       pts.push(`Increase in spending (${dollars(dCost)} total increase)${main.length ? ': mainly from ' + main.join(' and ') : ''}${lower.length ? ', partly offset by lower ' + lower.join(' and ') + ' spending' : ''}.`);
+    }
+    // Enough collections for an average month is not enough for this one:
+    // work out this month's own breakeven and say what pushed it up
+    const fixedM = p.opex - variableOf(p) + p.deprec;
+    const perCol = p.revenue / p.count;
+    const costCol = (variableOf(p) + p.giveBack + p.framesDonation) / p.count;
+    const beM = perCol > costCol ? Math.ceil(fixedM / (perCol - costCol)) : null;
+    if (be && be.beJobs && beM && beM > be.beJobs && p.count >= be.beJobs) {
+      const works = opexItems(p, 'Labour & Works').filter(it => ONE_TIME_WORKS.test(String(it.n || '')))[0];
+      const why = [];
+      if (perCol < be.avgJob - 5) why.push(`each collection brought in less ($${Math.round(perCol)} against $${Math.round(be.avgJob)} on average)`);
+      if (costCol > be.costJob + 3) why.push(`cost more to do ($${Math.round(costCol)} against $${Math.round(be.costJob)}${p.giveBack > 0 && !(q.giveBack > 0) ? ', with the first masjid give-back' : ''})`);
+      if (fixedM > be.fixed + 150) why.push(`fixed costs were higher (${dollars(fixedM)} against ${dollars(be.fixed)}${works ? ', with the one-time ' + esc(String(works.n).toLowerCase()) : ''})`);
+      const list = why.length > 1 ? why.slice(0, -1).join(', ') + ', and ' + why[why.length - 1] : why.join('');
+      pts.push(`So ${monLabel(k)} needed about <strong>${beM} collections</strong> to break even, not the usual ${be.beJobs}${list ? ': ' + list : ''}. ${p.count} collections fell ${beM - p.count <= 3 ? 'just ' : ''}short.`);
     }
     return lead + subList(pts);
   };
@@ -4994,24 +5008,47 @@ function renderUnitEconomics(allKeys) {
        &nbsp; <span style="color:#C62828;font-weight:700;">&#9679;&#8212;</span> Cost per kg
      </div>` + kgNotes;
 
-  document.getElementById('rev-unit-verdict').innerHTML = `
-    <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px;">What the $${varPerJob.toFixed(2)} of "doing the collection" is made of</div>
-    <div style="font-size:10px;color:var(--grey-400);margin-bottom:6px;">Everything that only gets spent because a collection happened, divided by the ${tot.jobs} collections.</div>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+  // What sits inside the fixed share, so it is never a black box either
+  const fixedNames = {};
+  keys.forEach(k => Object.keys(revProfit[k].opexByCat || {}).forEach(c => {
+    if (!VARIABLE_CATS.includes(c)) fixedNames[c] = 1;
+  }));
+  const fixedParts = Object.keys(fixedNames)
+    .map(c => ({ n: c, v: keys.reduce((s, k) => s + (revProfit[k].opexByCat[c] || 0), 0) }))
+    .concat([
+      { n: 'One-time works', v: keys.reduce((s, k) => s + oneTimeWorks(revProfit[k]), 0) },
+      { n: 'Machine cost', v: keys.reduce((s, k) => s + revProfit[k].deprec, 0) }
+    ]).filter(x => x.v > 0.005).sort((a, b) => b.v - a.v);
+  const span = `${MON_SHORT[parseInt(keys[0].slice(5), 10) - 1]} to ${MON_SHORT[parseInt(keys[keys.length - 1].slice(5), 10) - 1]} ${keys[keys.length - 1].slice(0, 4)}`;
+
+  // A heading that opens its table when tapped
+  const costTable = (id, title, sub, parts, total, per, colour) => `
+    <div onclick="toggleSpendCat('${id}')" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--navy);margin:10px 0 2px;">
+      <span style="color:var(--grey-300);">&#9662;</span> ${title}</div>
+    <div style="font-size:10px;color:var(--grey-400);margin-bottom:4px;padding-left:14px;">${sub} Tap to see the breakdown.</div>
+    <table id="${id}" class="hidden" style="width:100%;border-collapse:collapse;margin-bottom:8px;">
       <tr style="color:var(--grey-400);font-size:10px;text-transform:uppercase;letter-spacing:.3px;">
         <td style="padding:3px 0;">Cost</td><td style="text-align:right;">Total</td><td style="text-align:right;">Per collection</td>
       </tr>
-      ${jobCostParts.map(x => `<tr style="border-bottom:1px solid var(--grey-100);">
+      ${parts.map(x => `<tr style="border-bottom:1px solid var(--grey-100);">
         <td style="padding:5px 0;font-size:11px;color:var(--grey-500);">${esc(COST_PLAIN[x.n] || x.n)}
-          ${CATEGORY_BLURB[x.n] ? `<div style="font-size:10px;color:var(--grey-300);">${esc(CATEGORY_BLURB[x.n])}</div>` : ''}</td>
-        <td style="text-align:right;font-size:11px;">$${Math.round(x.v).toLocaleString()}</td>
-        <td style="text-align:right;font-size:11px;font-weight:600;">$${(tot.jobs ? x.v / tot.jobs : 0).toFixed(2)}</td>
+          ${CATEGORY_BLURB[x.n] ? `<div style="font-size:10px;color:var(--grey-400);">${esc(CATEGORY_BLURB[x.n])}</div>` : ''}</td>
+        <td style="text-align:right;font-size:11px;vertical-align:top;padding-top:5px;">$${Math.round(x.v).toLocaleString()}</td>
+        <td style="text-align:right;font-size:11px;font-weight:600;vertical-align:top;padding-top:5px;">$${(tot.jobs ? x.v / tot.jobs : 0).toFixed(2)}</td>
       </tr>`).join('')}
       <tr><td style="padding:6px 0;font-size:11px;font-weight:700;color:var(--navy);">Total</td>
-        <td style="text-align:right;font-size:11px;font-weight:700;">$${Math.round(tot.variable).toLocaleString()}</td>
-        <td style="text-align:right;font-size:12px;font-weight:700;color:#C62828;">$${varPerJob.toFixed(2)}</td></tr>
-    </table>
-    ${verdict}`;
+        <td style="text-align:right;font-size:11px;font-weight:700;">$${Math.round(total).toLocaleString()}</td>
+        <td style="text-align:right;font-size:12px;font-weight:700;color:${colour};">$${per.toFixed(2)}</td></tr>
+    </table>`;
+
+  document.getElementById('rev-unit-verdict').innerHTML =
+    costTable('unit-var-table', `What the $${varPerJob.toFixed(2)} of "doing the collection" is made of`,
+      `Everything that only gets spent because a collection happened, ${span}, divided by the ${tot.jobs} collections.`,
+      jobCostParts, tot.variable, varPerJob, '#C62828')
+    + costTable('unit-fixed-table', `What the $${fixPerJob.toFixed(2)} of "rent, ads, tools, machines" is made of`,
+      `Costs that stay the same however many collections are done, ${span}, divided by the ${tot.jobs} collections. More collections make this share smaller.`,
+      fixedParts, tot.fixed, fixPerJob, '#5B7FA6')
+    + verdict;
   sec.classList.remove('hidden');
 }
 
@@ -5674,10 +5711,10 @@ function drillItems(cat, items) {
 // its heading and one figure, so the page is half as long without hiding
 // anything that carries the argument.
 // ---------------------------------------------------------------------------
-const FOLDABLE = ['rev-unit-section', 'rev-customer-section',
+const FOLDABLE = ['rev-customer-section',
                   'rev-referral-section', 'rev-partmonth-section', 'rev-breakdown-section'];
-const FOLD_OPEN = ['rev-chart-section', 'rev-profit-section', 'rev-cash-section', 'rev-assets-section',
-                   'rev-bridge-card', 'rev-breakeven-section', 'rev-assess-section'];
+const FOLD_OPEN = ['rev-chart-section', 'rev-profit-section', 'rev-breakeven-section', 'rev-unit-section',
+                   'rev-assess-section', 'rev-cash-section', 'rev-assets-section', 'rev-bridge-card'];
 const ALL_FOLDS = FOLD_OPEN.concat(FOLDABLE);
 
 function foldSection(id, open) {
