@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.8';
+const APP_VERSION = '2026-09-17.9';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4468,7 +4468,7 @@ function breakevenFigures(keys) {
   if (!revProfit || !keys.length) return null;
   const recent = recentFullMonths(keys);
   const n = recent.length || 1;
-  const varOf = p => VARIABLE_CATS.reduce((t, c) => t + (p.opexByCat[c] || 0), 0);
+  const varOf = variableOf;
 
   // Per job, across every month that had work
   let rev = 0, jobs = 0, variable = 0;
@@ -4540,15 +4540,17 @@ function renderBreakeven(keys) {
   const head = (t, d) => `<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px;">${t}</div>
     <div style="font-size:11px;color:var(--grey-500);line-height:1.55;margin-bottom:8px;">${d}</div>`;
   const P = k => revProfit[k];
-  const varOf = p => VARIABLE_CATS.reduce((t, c) => t + (p.opexByCat[c] || 0), 0);
+  const varOf = variableOf;
 
   // How the fixed cost is built: every non-job cost, month by month
   const fixedCats = {};
   be.recent.forEach(k => Object.keys(P(k).opexByCat).forEach(c => {
     if (!VARIABLE_CATS.includes(c) && P(k).opexByCat[c] > 0.005) fixedCats[c] = 1;
   }));
+  const works = be.recent.map(k => oneTimeWorks(P(k)));
   const fixedLines = Object.keys(fixedCats)
     .map(c => ({ n: c, v: be.recent.map(k => P(k).opexByCat[c] || 0) }))
+    .concat(works.some(v => v > 0.005) ? [{ n: 'One-time works', v: works }] : [])
     .concat([{ n: 'Machine cost', v: be.recent.map(k => P(k).deprec) }])
     .map(x => Object.assign(x, { avg: x.v.reduce((a, b) => a + b, 0) / x.v.length }))
     .sort((a, b) => b.avg - a.avg);
@@ -4560,7 +4562,7 @@ function renderBreakeven(keys) {
 
   // How the cost of one collection is built: costs that only happen because of a collection
   const worked = keys.filter(k => P(k).count > 0);
-  const varLines = VARIABLE_CATS.map(c => ({ n: c, v: worked.reduce((t, k) => t + (P(k).opexByCat[c] || 0), 0) }))
+  const varLines = VARIABLE_CATS.map(c => ({ n: c === 'Labour & Works' ? 'Part-time help' : c, v: worked.reduce((t, k) => t + variablePart(P(k), c), 0) }))
     .concat([
       { n: 'Masjid give-back', v: worked.reduce((t, k) => t + P(k).giveBack, 0) },
       { n: 'Frames give-back', v: worked.reduce((t, k) => t + P(k).framesDonation, 0) }
@@ -4582,10 +4584,10 @@ function renderBreakeven(keys) {
   let part1 = head('1. Monthly breakeven',
     'The number of collections a month needed for revenue to cover all the costs of that month. Below it, the month makes a loss. Above it, a profit.');
   part1 += `<table style="width:100%;border-collapse:collapse;">
-      ${row('Fixed costs a month', c0(be.fixed), (fixedCats['Professional Fees'] ? 'Rent, ads, fees and machines' : 'Rent, ads and machines') + '. Average of ' + over + '. These stay the same however many collections are done. Tap for the breakdown', { toggle: 'be-fixed' })}
+      ${row('Fixed costs a month', c0(be.fixed), 'Rent, ads, ' + (fixedCats['Professional Fees'] ? 'fees, ' : '') + 'tools, one-time works and machines. Average of ' + over + '. These stay the same however many collections are done. Tap for the breakdown', { toggle: 'be-fixed' })}
       ${fixedDetail}
       ${row('An average collection brings in', c2(be.avgJob), `${c0(be.avgJob * be.jobs)} revenue &divide; ${be.jobs} collections`)}
-      ${row('Cost of doing that collection', c2(-be.costJob), 'Transport, boxes and give-back. Tap for the breakdown', { indent: true, red: true, toggle: 'be-var' })}
+      ${row('Cost of doing that collection', c2(-be.costJob), 'Transport, boxes, part-time help and give-back. Tap for the breakdown', { indent: true, red: true, toggle: 'be-var' })}
       ${varDetail}
       ${row('Each collection leaves', c2(be.leftJob), 'This goes towards the fixed costs', { total: true })}
     </table>`;
@@ -4844,17 +4846,31 @@ function renderReferralInsight(keys) {
 }
 
 // Costs that rise and fall with the work itself. Everything else is a fixed
-// cost you carry whether or not the phone rings.
-const VARIABLE_CATS = ['Transport', 'Boxes & Consumables', 'Labour & Works', 'Equipment'];
+// cost you carry whether or not the phone rings. Equipment is fixed: tools are
+// bought now and then, not for each collection (Hambali, 17 Sep 2026).
+const VARIABLE_CATS = ['Transport', 'Boxes & Consumables', 'Labour & Works'];
+// One-off works filed under Labour & Works (the electrical works at the unit)
+// are not a cost of doing a collection either, so they count as fixed too.
+const ONE_TIME_WORKS = /electrical|renovat|install|repair|fit-?out|carpent|plumb|\bworks\b/i;
+function oneTimeWorks(p) {
+  return opexItems(p, 'Labour & Works')
+    .filter(it => ONE_TIME_WORKS.test(String(it.n || '')))
+    .reduce((t, it) => t + (Number(it.a) || 0), 0);
+}
+// The part of a category that is a cost of doing collections
+function variablePart(p, c) {
+  const v = (p.opexByCat && p.opexByCat[c]) || 0;
+  return c === 'Labour & Works' ? Math.max(0, v - oneTimeWorks(p)) : v;
+}
+function variableOf(p) { return VARIABLE_CATS.reduce((t, c) => t + variablePart(p, c), 0); }
 // Names match the Profit by Month breakdown exactly, so the same cost means the
 // same word wherever it appears in the report.
 const COST_PLAIN = {};
 
 function unitRow(k) {
   const p = revProfit[k];
-  const variable = VARIABLE_CATS.reduce((s, c) => s + (p.opexByCat[c] || 0), 0)
-                 + p.giveBack + p.framesDonation;
-  const fixed = Math.max(0, p.opex - VARIABLE_CATS.reduce((s, c) => s + (p.opexByCat[c] || 0), 0)) + p.deprec;
+  const variable = variableOf(p) + p.giveBack + p.framesDonation;
+  const fixed = Math.max(0, p.opex - variableOf(p)) + p.deprec;
   return {
     kg: p.kg, jobs: p.count, revenue: p.revenue,
     revPerKg: p.kg ? p.revenue / p.kg : 0,
@@ -4918,9 +4934,9 @@ function renderUnitEconomics(allKeys) {
 
   // What actually sits inside "doing the job", so it is never a black box
   const jobCostParts = VARIABLE_CATS.map(c => ({
-    n: c, v: keys.reduce((s, k) => s + (revProfit[k].opexByCat[c] || 0), 0)
+    n: c === 'Labour & Works' ? 'Part-time help' : c, v: keys.reduce((s, k) => s + variablePart(revProfit[k], c), 0)
   })).concat([
-    { n: 'Mosque give-back', v: keys.reduce((s, k) => s + revProfit[k].giveBack, 0) },
+    { n: 'Masjid give-back', v: keys.reduce((s, k) => s + revProfit[k].giveBack, 0) },
     { n: 'Frames give-back', v: keys.reduce((s, k) => s + revProfit[k].framesDonation, 0) }
   ]).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
   const jobCostRows = jobCostParts.map(x =>
@@ -4937,7 +4953,7 @@ function renderUnitEconomics(allKeys) {
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:10px;color:var(--grey-500);margin-bottom:4px;">
       <span><span style="color:#C62828;font-weight:700;">&#9632;</span> Doing the collection $${varPerJob.toFixed(2)}</span>
-      <span><span style="color:#8FA9C4;font-weight:700;">&#9632;</span> Rent, ads, machines $${fixPerJob.toFixed(2)}</span>
+      <span><span style="color:#8FA9C4;font-weight:700;">&#9632;</span> Rent, ads, tools, machines $${fixPerJob.toFixed(2)}</span>
       <span><span style="color:#1B5E3A;font-weight:700;">&#9632;</span> Profit $${profitPerJob.toFixed(2)}</span>
     </div>
     <div id="unit-jobcost" class="hidden" style="margin-bottom:10px;padding-left:12px;">
@@ -4949,7 +4965,7 @@ function renderUnitEconomics(allKeys) {
   const left = revPerJob - varPerJob;
   const verdict = insightList('What this tells us', priceHealthy ? [
     `An average collection brings in <strong>$${revPerJob.toFixed(2)}</strong>. Doing it costs <strong>$${varPerJob.toFixed(2)}</strong>, which leaves <strong>$${left.toFixed(2)}</strong>.`,
-    `Rent, ads and machines take $${fixPerJob.toFixed(2)} of each collection at the current number of collections. The remaining <strong>$${profitPerJob.toFixed(2)}</strong> is profit.`,
+    `Rent, ads, tools and machines take $${fixPerJob.toFixed(2)} of each collection at the current number of collections. The remaining <strong>$${profitPerJob.toFixed(2)}</strong> is profit.`,
     `Rent and ads stay the same however many collections are done. So each extra collection adds close to $${Math.round(left)} to profit, and one more collection a week is about <strong>$${Math.round(left * 4.3).toLocaleString()} a month</strong>.`,
     'Pricing is not the problem. Profit grows with the number of collections and by keeping fixed costs in check.'
   ] : [
