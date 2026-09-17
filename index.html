@@ -2132,7 +2132,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.2';
+const APP_VERSION = '2026-09-17.3';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4393,8 +4393,8 @@ const MONTH_NOTES = {
 // figures, pulled 17 Sep 2026.
 const AD_NOTES = {
   '2026-07': {
-    short: 'the ad pause from 4 to 24 June',
-    long: 'ads were almost off from 4 to 24 June ($156 in three weeks). About two weeks later, collections fell to 3 to 7 a week, from 13 to 22 before, with only 10 in the first two weeks of July. They picked up to 15 to 19 a week once ads restarted on 9 July.'
+    short: 'ads were off for most of 30 May to 8 July',
+    long: 'ads were off for most of 30 May to 8 July. They ran on only 8 of those 40 days (17 to 20 June and 26 to 29 June). About two weeks later, collections fell to 3 to 7 a week, from 13 to 22 before, with only 10 in the first two weeks of July. They picked up to 15 to 19 a week once ads resumed on 9 July.'
   }
 };
 // Changes to the ads themselves, so a better or worse month is not credited to the wrong cause
@@ -4712,7 +4712,7 @@ function renderProfitInsight(keys) {
     const perJob = x => x.revenue / x.count, kgJob = x => x.kg / x.count, fee = x => x.feeCharged / x.count;
     const pts = [];
     if (p.count < q.count) {
-      pts.push(`Fewer jobs: ${p.count} against ${q.count}${AD_NOTES[k] ? ', after ' + AD_NOTES[k].short : ''}.`);
+      pts.push(`Fewer jobs: ${p.count} against ${q.count}${AD_NOTES[k] ? ', because ' + AD_NOTES[k].short : ''}.`);
     }
     if (perJob(p) < perJob(q) - 5) {
       const bits = [];
@@ -5600,8 +5600,8 @@ function renderAssessment(keys, monthly) {
 
     card('What would reduce that risk?', lagHolds ? 'Steady ads, without breaks' : 'Steady demand', true,
       lagHolds
-        ? `Jobs follow ads by about two weeks. The June ad pause left only 10 collections in the first two weeks of
-           July. Keeping ads running without breaks is the lever the data supports. Regular contract work would steady
+        ? `Jobs follow ads by about two weeks. Ads ran on only 8 days between 30 May and 8 July, and the first two
+           weeks of July had only 10 collections. Keeping ads running without breaks is the lever the data supports. Regular contract work would steady
            the business further, but none has been won yet.`
         : `Work that recurs without being bought again each month. Regular contract work would do this, but none has
            been won yet.`);
@@ -5957,7 +5957,7 @@ function renderTrendInsight(keys, monthly, vals, metric) {
   const focus = [
     `The average job is steady at about $${Math.round(avgJob)}, so the number to grow is <strong>jobs a month</strong>.`,
     lag && lag.holds
-      ? `Keep ads running without breaks. A pause shows up as fewer jobs about two weeks later${Object.keys(AD_NOTES).some(k => use.includes(k)) ? ', as the June pause did in early July' : ''}.`
+      ? `Keep ads running without breaks. A pause shows up as fewer jobs about two weeks later${Object.keys(AD_NOTES).some(k => use.includes(k)) ? ', as the June break did in early July' : ''}.`
       : '',
     lag && lag.holds
       ? `Start bigger ad pushes about two weeks before the months that should be busiest${busy ? ', such as the Hari Raya period' : ''}.`
