@@ -1776,7 +1776,7 @@ textarea.form-input {
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this chart</strong><br>
             To show what moves revenue from month to month. Turn on <strong>Ad spend</strong> to compare it with the
-            collections that followed. Tap a bar for that month's figures.
+            collections in the same month. Tap a bar for that month's figures.
           </div>
           <div id="rev-chart" style="overflow-x:auto;"></div>
           <div id="rev-trend-insight" style="margin-top:10px;"></div>
@@ -2132,7 +2132,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.4';
+const APP_VERSION = '2026-09-17.5';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4386,17 +4386,23 @@ async function renderProfitChart(monthly) {
 const MONTH_NOTES = {
   '2026-03': 'Hari Raya period',
   '2026-04': 'reservist',
-  '2026-07': 'June ad pause'
+  '2026-07': 'ads off from 30 June to 8 July'
 };
 // Month reasons that are about advertising. Months with any other reason
-// (holidays, time away) are left out of the ad analysis. From Meta's weekly
-// figures, pulled 17 Sep 2026.
+// (holidays, time away) are treated as unusual elsewhere in the report.
+// Customers usually book within the same week or the next, so ad spend
+// belongs with the collections of the same month.
 const AD_NOTES = {
-  '2026-07': {
-    short: 'ads were off for most of 30 May to 8 July',
-    long: 'ads were off for most of 30 May to 8 July. They ran on only 8 of those 40 days (17 to 20 June and 26 to 29 June). About two weeks later, collections fell to 3 to 7 a week, from 13 to 22 before, with only 10 in the first two weeks of July. They picked up to 15 to 19 a week once ads resumed on 9 July.'
-  }
+  '2026-07': { short: 'ads were off from 30 June to 8 July' }
 };
+// Reasons shown under Revenue by Month, in Hambali's words
+const REVENUE_NOTES = {
+  '2026-03': 'Hari Raya period.',
+  '2026-04': 'low revenue due to reservist.',
+  '2026-06': 'best month, during the June school holidays.',
+  '2026-07': 'lower revenue from fewer collections. Ads were off from 30 June and only started running again on 9 July: 10 collections in the first half of July, 35 in the second half. Likely reason: the June ads were aimed at the June school holiday clear-out, and there was no time to prepare ads for July.'
+};
+const SCHOOL_HOLIDAYS = { '2026-06': 'June school holidays' };
 // Changes to the ads themselves, so a better or worse month is not credited to the wrong cause
 const AD_CHANGES = { '2026-07': 'new ad campaigns started in July' };
 const STANDARD_FEE = 20;
@@ -4620,35 +4626,6 @@ function opexItems(p, c) {
   return list;
 }
 
-function pearson(xs, ys) {
-  const n = xs.length;
-  const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
-  let sxy = 0, sx = 0, sy = 0;
-  xs.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sx += (x - mx) ** 2; sy += (ys[i] - my) ** 2; });
-  return sx && sy ? sxy / Math.sqrt(sx * sy) : 0;
-}
-
-// Do jobs follow the previous month's ads? Months with a non-ad reason
-// (holidays, time away) are left out, since they say nothing about ads.
-function adLag(keys) {
-  if (!revProfit) return null;
-  const part = partialMonths(keys);
-  const ads = k => (revProfit[k] && revProfit[k].byCat['Ads']) || 0;
-  const odd = k => MONTH_NOTES[k] && !AD_NOTES[k];
-  const pairs = keys
-    .filter(k => !part[k] && revProfit[k] && revProfit[k].count > 0 && !odd(k))
-    .map(k => ({ k, p: prevMonthKey(k) }))
-    .filter(x => revProfit[x.p] && revProfit[x.p].count > 0)
-    .map(x => ({ k: x.k, p: x.p, prevAds: ads(x.p), ads: ads(x.k), jobs: revProfit[x.k].count }));
-  if (pairs.length < 3) return null;
-  const rLag = pearson(pairs.map(x => x.prevAds), pairs.map(x => x.jobs));
-  const rSame = pearson(pairs.map(x => x.ads), pairs.map(x => x.jobs));
-  const hi = pairs.reduce((a, x) => x.prevAds > a.prevAds ? x : a, pairs[0]);
-  const plain = pairs.filter(x => !odd(x.p));
-  const lo = plain.length ? plain.reduce((a, x) => x.prevAds < a.prevAds ? x : a, plain[0]) : null;
-  return { pairs, rLag, rSame, hi, lo, holds: rLag > 0.5 && rLag - rSame > 0.3 };
-}
-
 const subList = pts => `<ul style="margin:3px 0 2px 14px;padding:0;list-style:circle;">${pts.filter(Boolean).map(t => `<li style="margin-bottom:2px;">${t}</li>`).join('')}</ul>`;
 
 function renderProfitInsight(keys) {
@@ -4668,15 +4645,12 @@ function renderProfitInsight(keys) {
   const avg = (ks, f) => ks.reduce((t, k) => t + f(P(k)), 0) / (ks.length || 1);
   const before = full.filter(k => k < UNIT_FROM), after = full.filter(k => k >= UNIT_FROM);
   const be = breakevenFigures(keys);
-  const worked = keys.filter(k => P(k).count > 0);
   const firstGb = keys.find(k => P(k).giveBack > 0);
 
   // Why the best month was the best
-  const bp = prevMonthKey(best);
   const regular = full.filter(k => !odd(k));
   const bestPts = [
-    P(bp) && ads(bp) > 0 && worked.every(k => ads(k) <= ads(bp))
-      ? `Much of its work came from ads run in ${monLabel(bp)}, the biggest ad month (${dollars(ads(bp))}).` : '',
+    SCHOOL_HOLIDAYS[best] ? `It fell in the ${SCHOOL_HOLIDAYS[best]}.` : '',
     regular.length > 1 && regular.every(k => ads(k) >= ads(best))
       ? `Its own ad spend was the lowest of the regular months (${dollars(ads(best))}), which kept costs down.` : '',
     P(best).giveBack === 0 && firstGb && firstGb > best ? `No masjid give-back was due yet. It started in ${monLabel(firstGb)}.` : ''
@@ -5536,8 +5510,7 @@ function renderAssessment(keys, monthly) {
   const be = breakevenFigures(keys);
   const when = be && be.months != null ? monthsFromNow(be.months) : null;
   const earned = be && be.gap <= 0;
-  const lag = adLag(keys);
-  const lagHolds = !!(lag && lag.holds);
+  const adBreak = Object.keys(AD_NOTES).some(k => keys.includes(k));
 
   const card = (title, verdict, good, body) => `
     <div style="border-left:3px solid ${good ? '#4CAF7D' : '#EF7B7B'};padding:2px 0 2px 10px;margin-bottom:14px;">
@@ -5581,11 +5554,12 @@ function renderAssessment(keys, monthly) {
        committed work. The business also depends on one person for collection, shredding and administration, which
        caps how much work can be taken on and leaves no cover if he is unavailable.`) +
 
-    card('What would reduce that risk?', lagHolds ? 'Steady ads, without breaks' : 'Steady demand', true,
-      lagHolds
-        ? `Jobs follow ads by about two weeks. Ads ran on only 8 days between 30 May and 8 July, and the first two
-           weeks of July had only 10 collections. Keeping ads running without breaks is the lever the data supports. Regular contract work would steady
-           the business further, but none has been won yet.`
+    card('What would reduce that risk?', adBreak ? 'Steady ads, without breaks' : 'Steady demand', true,
+      adBreak
+        ? `Customers usually book within a week or two of seeing an ad, so collections drop soon after ads stop.
+           Ads were off from 30 June to 8 July, and the first half of July had only 10 collections. Keeping ads
+           running without breaks is the lever the data supports. Regular contract work would steady the business
+           further, but none has been won yet.`
         : `Work that recurs without being bought again each month. Regular contract work would do this, but none has
            been won yet.`);
 
@@ -5906,8 +5880,8 @@ function drawRevenueChart(allKeys, monthly, chartEl) {
   renderTrendInsight(keys, monthly, vals, metric);
 }
 
-// Notes under the revenue chart: the one point that matters, what drives it,
-// and which numbers to push.
+// Notes under the revenue chart: what it shows, what moved it, and the one
+// point that matters, last.
 function renderTrendInsight(keys, monthly, vals, metric) {
   const box = document.getElementById('rev-trend-insight');
   if (!box || keys.length < 2) { if (box) box.innerHTML = ''; return; }
@@ -5916,78 +5890,64 @@ function renderTrendInsight(keys, monthly, vals, metric) {
   const full = keys.filter(k => !part[k]);
   const use = full.length >= 2 ? full : keys;
   const R = k => monthly[k].revenue, C = k => monthly[k].count;
-  const A = k => monthly[k].count ? monthly[k].revenue / monthly[k].count : 0;
   const L = k => vals[keys.indexOf(k)];
   const pick = (f, hi) => use.reduce((a, k) => (hi ? f(k) > f(a) : f(k) < f(a)) ? k : a, use[0]);
   const lo = f => Math.min.apply(null, use.map(f));
   const hi = f => Math.max.apply(null, use.map(f));
   const best = pick(R, true), worst = pick(R, false);
-  let tRev = 0, tCol = 0;
-  keys.forEach(k => { tRev += R(k); tCol += C(k); });
-  const perCol = tCol ? tRev / tCol : 0;
+  let tRev = 0, tCol = 0, tKg = 0;
+  keys.forEach(k => { tRev += R(k); tCol += C(k); tKg += monthly[k].kg || 0; });
+  const perCol = tCol ? tRev / tCol : 0, kgCol = tCol ? tKg / tCol : 0;
   const f = metric.fmt;
-
-  // The one point: revenue follows the number of collections
-  const colSwing = lo(C) ? hi(C) / lo(C) : 0, sizeSwing = lo(A) ? hi(A) / lo(A) : 0;
-  const keyPoint = `<div style="background:var(--navy);color:#fff;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:12px;line-height:1.55;">
-      <div style="font-size:10px;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Key point</div>
-      <strong>Revenue rises and falls with the number of collections.</strong>
-      <div style="font-size:11px;color:#D6DEE7;margin-top:3px;">
-        Collections ranged from ${lo(C)} to ${hi(C)} a month (${colSwing.toFixed(1)} times). Revenue per collection only
-        moved between $${Math.round(lo(A))} and $${Math.round(hi(A))} (${sizeSwing.toFixed(1)} times).
-      </div>
-    </div>`;
+  const adsOn = !!revProfit;
+  const ads = k => (revProfit && revProfit[k] && revProfit[k].byCat['Ads']) || 0;
 
   const lineNote = {
     jobs:  'The green line is collections. It rises and falls with the revenue bars.',
-    avg:   `The green line is revenue per collection, between ${f(lo(L))} and ${f(hi(L))}. It moves far less than the number of collections.`,
-    kgjob: `The green line is kg per collection, between ${f(lo(L))} and ${f(hi(L))} kg. Pricing is per kg, so heavier collections earn more.`
+    avg:   `The green line is revenue per collection, between ${f(lo(L))} and ${f(hi(L))}. It stays roughly the same.`,
+    kgjob: `The green line is kg per collection, between ${f(lo(L))} and ${f(hi(L))} kg. It stays roughly the same.`
   }[revTrendMetric];
 
   const shows = [
     `Best month: <strong>${monLabel(best)}</strong>, ${dollars(R(best))} from ${C(best)} collections. Weakest: <strong>${monLabel(worst)}</strong>, ${dollars(R(worst))} from ${C(worst)} collections.`,
     lineNote,
-    revProfit && revShowAds ? 'The dashed blue line is ad spend in each month. Compare it with the collections one month to the right.' : ''
+    adsOn && revShowAds ? 'The dashed blue line is the ad spend in each month.' : ''
   ];
 
-  // What moves the number of collections
-  const lag = revProfit ? adLag(Object.keys(revProfit).sort()) : null;
-  let lagTable = '';
-  if (lag && lag.holds) {
-    const cell = 'padding:4px 6px;border-bottom:1px solid var(--grey-100);';
-    lagTable = `<table style="width:100%;border-collapse:collapse;margin:4px 0 2px;font-size:11px;">
-        <tr style="color:var(--grey-400);font-size:10px;text-transform:uppercase;letter-spacing:.3px;">
-          <td style="padding:2px 6px;">Ad spend</td><td></td><td style="padding:2px 6px;text-align:right;">Collections next month</td></tr>
-        ${lag.pairs.map(x => `<tr>
-          <td style="${cell}">${monLabel(x.p)} <strong style="color:${ADS_COLOUR};">${dollars(x.prevAds)}</strong></td>
-          <td style="${cell}color:var(--grey-300);text-align:center;">&rarr;</td>
-          <td style="${cell}text-align:right;">${monLabel(x.k)} <strong style="color:#1B5E3A;">${x.jobs}</strong></td></tr>`).join('')}
-      </table>`;
+  const moved = use.filter(k => REVENUE_NOTES[k]).map(k =>
+    `<strong>${monLabel(k)}:</strong> ${capFirst(REVENUE_NOTES[k])}`);
+
+  // The key point, last: grow collections, and ads are how
+  const avgCol = use.reduce((t, k) => t + C(k), 0) / use.length;
+  const adMonths = use.filter(k => ads(k) > 0);
+  const topAd = adMonths.length ? adMonths.reduce((a, k) => ads(k) > ads(a) ? k : a, adMonths[0]) : null;
+  const breakMonth = use.find(k => AD_NOTES[k]);
+  const adLines = [];
+  if (breakMonth) {
+    adLines.push(`Ads are the main way to get more. When ads stopped at the end of June, collections dropped in the
+      first half of July and picked up again once ads restarted. Keeping ads running without breaks matters most.`);
   }
-  const drivers = [
-    lag && lag.holds
-      ? `<strong>Ad spend in the month before.</strong> Bookings turn into collections about two weeks after the ad is seen, so more ad spend shows up in the following month.${lagTable}<span style="color:var(--grey-400);">${lag.pairs.length} months is a small sample, so read this as a pattern, not proof.</span>`
-      : '',
-    ...use.filter(k => AD_NOTES[k]).map(k =>
-      `<strong>Breaks in ads.</strong> ${monLabel(k)} had ${C(k)} collections: ${AD_NOTES[k].long.charAt(0).toLowerCase() + AD_NOTES[k].long.slice(1)}`),
-    ...use.filter(k => MONTH_NOTES[k] && !AD_NOTES[k]).map(k =>
-      `<strong>${/reservist/i.test(MONTH_NOTES[k]) ? 'Time away' : 'Season'}.</strong> ${monLabel(k)} had ${C(k)} collections (${MONTH_NOTES[k]}).`),
-    'Not recorded yet: how many enquiries come in each month, and how many of them book. That would show whether a weak month had fewer enquiries or fewer bookings.'
-  ];
+  if (topAd && C(topAd) < avgCol) {
+    adLines.push(`Whether a bigger ad budget brings more collections is not proven yet. ${monLabel(topAd)} had the
+      highest ad spend (${dollars(ads(topAd))}) but only ${C(topAd)} collections. Raising the budget for a month and
+      comparing would show it.`);
+  } else if (topAd) {
+    adLines.push(`${monLabel(topAd)} had the highest ad spend (${dollars(ads(topAd))}) and ${C(topAd)} collections,
+      so a bigger budget does appear to bring more work.`);
+  }
+  const keyPoint = `<div style="background:var(--navy);color:#fff;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:12px;line-height:1.55;">
+      <div style="font-size:10px;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Key point</div>
+      <strong>Revenue depends on the number of collections.</strong>
+      <div style="font-size:11px;color:#D6DEE7;margin-top:4px;">
+        Revenue per collection (about $${Math.round(perCol)}) and kg per collection (about ${Math.round(kgCol)} kg) stay
+        roughly the same every month. So the focus is on getting more collections.
+      </div>
+      ${adLines.map(t => `<div style="font-size:11px;color:#D6DEE7;margin-top:6px;">${t}</div>`).join('')}
+    </div>`;
 
-  const busy = use.find(k => /hari raya/i.test(MONTH_NOTES[k] || ''));
-  const focus = [
-    `Revenue per collection is steady at about $${Math.round(perCol)}, so the number to grow is <strong>collections a month</strong>.`,
-    lag && lag.holds ? 'Keep ads running without breaks. A break shows up as fewer collections about two weeks later.' : '',
-    lag && lag.holds
-      ? `Start bigger ad pushes about two weeks before the months that should be busiest${busy ? ', such as the Hari Raya period' : ''}.`
-      : ''
-  ];
-
-  box.innerHTML = keyPoint
-    + insightList('What the chart shows', shows)
-    + insightList('What drives the number of collections', drivers, '#C9A961')
-    + insightList('What to focus on to grow revenue', focus, '#12263F');
+  box.innerHTML = insightList('What the chart shows', shows)
+    + insightList('What moved revenue', moved, '#C9A961')
+    + keyPoint;
 }
 
 function showMonthDetail(key) {
