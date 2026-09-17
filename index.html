@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.7';
+const APP_VERSION = '2026-09-17.8';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4757,10 +4757,11 @@ function renderProfitInsight(keys) {
     const ordered = [head[0]].concat(subs, head.slice(1));
     const td = (v, i, o) => `<td style="padding:3px ${i ? '0 3px 6px' : '6px 3px ' + (o.indent ? '12px' : '0')};${i ? 'text-align:right;white-space:nowrap;' : ''}${o.bold ? 'font-weight:700;color:var(--navy);' : ''}">${v}</td>`;
     const tr = (cells, o) => `<tr style="border-top:1px ${o.total ? 'solid var(--grey-200)' : 'dotted var(--grey-100)'};">${cells.map((v, i) => td(v, i, o)).join('')}</tr>`;
+    // Folded by default; the button opens the table
     foot.innerHTML = `<div style="font-size:10px;line-height:1.55;color:var(--grey-400);border-top:1px solid var(--grey-100);margin-top:10px;padding-top:8px;">
-        <div>* Before the Sindo unit, ${short(before)} ${year(before)}. ** In the Sindo unit, ${short(after)} ${year(after)}.
-          Average cost a month:</div>
-        <table style="width:100%;border-collapse:collapse;margin-top:4px;font-size:10px;color:var(--grey-500);">
+        <div>* Before the Sindo unit, ${short(before)} ${year(before)}. ** In the Sindo unit, ${short(after)} ${year(after)}.</div>
+        <button onclick="toggleCostTable(this)" style="margin-top:6px;border:1px solid var(--navy);background:var(--white);color:var(--navy);font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;">&#9656; Show average cost a month</button>
+        <table id="profit-cost-table" class="hidden" style="width:100%;border-collapse:collapse;margin-top:6px;font-size:10px;color:var(--grey-500);">
           <tr style="color:var(--grey-400);text-transform:uppercase;letter-spacing:.3px;">
             ${td('Cost', 0, {})}${td(short(before) + ' *', 1, {})}${td(short(after) + ' **', 2, {})}</tr>
           ${ordered.map(r => tr([esc(r.n), dollars(r.a), dollars(r.b)], r)).join('')}
@@ -5611,12 +5612,13 @@ function renderAssessment(keys, monthly) {
        committed work. The business also depends on one person for collection, shredding and administration, which
        caps how much work can be taken on and leaves no cover if he is unavailable.`) +
 
-    card('What would reduce that risk?', adBreak ? 'Steady ads, without breaks' : 'Steady demand', true,
+    card('What would reduce that risk?', adBreak ? 'Steady, fresh ads' : 'Steady demand', true,
       adBreak
         ? `Customers usually book within a week or two of seeing an ad, so collections drop soon after ads stop.
-           Ads were off from 30 June to 8 July, and the first half of July had only 10 collections. Keeping ads
-           running without breaks is the lever the data supports. Regular contract work would steady the business
-           further, but none has been won yet.`
+           Ads were off from 30 June to 8 July, and the first half of July had only 10 collections. Two things keep
+           the work coming: ads running without breaks, and new stories and images added regularly so the same
+           people do not tire of the same ad (ad fatigue). Regular contract work would steady the business further,
+           but none has been won yet.`
         : `Work that recurs without being bought again each month. Regular contract work would do this, but none has
            been won yet.`);
 
@@ -5726,6 +5728,13 @@ function setupFolds(summaries) {
 function toggleSpendCat(id) {
   const el = document.getElementById(id);
   if (el) el.classList.toggle('hidden');
+}
+
+function toggleCostTable(btn) {
+  const t = document.getElementById('profit-cost-table');
+  if (!t) return;
+  const open = t.classList.toggle('hidden') === false;
+  btn.innerHTML = (open ? '&#9662; Hide' : '&#9656; Show') + ' average cost a month';
 }
 
 function showProfitDetail(key) {
@@ -5975,22 +5984,14 @@ function renderTrendInsight(keys, monthly, vals, metric) {
     `<strong>${monLabel(k)}:</strong> ${capFirst(REVENUE_NOTES[k])}`);
 
   // The key point, last: grow collections, and ads are how
-  const avgCol = use.reduce((t, k) => t + C(k), 0) / use.length;
-  const adMonths = use.filter(k => ads(k) > 0);
-  const topAd = adMonths.length ? adMonths.reduce((a, k) => ads(k) > ads(a) ? k : a, adMonths[0]) : null;
   const breakMonth = use.find(k => AD_NOTES[k]);
   const adLines = [];
   if (breakMonth) {
     adLines.push(`Ads are the main way to get more. When ads stopped at the end of June, collections dropped in the
-      first half of July and picked up again once ads restarted. Keeping ads running without breaks matters most.`);
-  }
-  if (topAd && C(topAd) < avgCol) {
-    adLines.push(`Whether a bigger ad budget brings more collections is not proven yet. ${monLabel(topAd)} had the
-      highest ad spend (${dollars(ads(topAd))}) but only ${C(topAd)} collections. Raising the budget for a month and
-      comparing would show it.`);
-  } else if (topAd) {
-    adLines.push(`${monLabel(topAd)} had the highest ad spend (${dollars(ads(topAd))}) and ${C(topAd)} collections,
-      so a bigger budget does appear to bring more work.`);
+      first half of July and picked up again once ads restarted.`);
+    adLines.push(`Two things matter most: keeping ads running without breaks, and keeping them fresh. When the same
+      people see the same ad too often, fewer of them respond (ad fatigue), so new stories and images are needed
+      regularly.`);
   }
   const keyPoint = `<div style="background:var(--navy);color:#fff;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:12px;line-height:1.55;">
       <div style="font-size:10px;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Key point</div>
