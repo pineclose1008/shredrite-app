@@ -1812,7 +1812,7 @@ textarea.form-input {
           <div id="rev-profit-foot"></div>
         </div>
 
-        <div id="rev-unit-section" class="hidden" style="order:34;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
+        <div id="rev-unit-section" class="hidden" style="order:38;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Where the Money Goes on One Collection</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this section</strong><br>
@@ -1881,7 +1881,7 @@ textarea.form-input {
         </div>
 
         <div id="rev-assess-section" class="hidden" style="order:36;background:var(--navy);padding:16px;border-radius:var(--radius-md);margin-bottom:16px;">
-          <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:2px;">Business Assessment</div>
+          <div style="font-size:15px;font-weight:700;color:var(--gold);margin-bottom:2px;">Business Recap</div>
           <div style="font-size:10px;color:#9FB0C4;margin-bottom:12px;">The report, summarised in plain words.</div>
           <div id="rev-assess-body"></div>
         </div>
@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.10';
+const APP_VERSION = '2026-09-17.11';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4529,7 +4529,10 @@ function renderBreakeven(keys) {
     return `<tr id="${id}" class="hidden"><td colspan="2" style="padding:0 8px 8px 22px;">
       <table style="width:100%;border-collapse:collapse;font-size:10px;color:var(--grey-500);">
         <tr style="color:var(--grey-400);text-transform:uppercase;letter-spacing:.3px;">${head.map((h, i) => cell(h, i)).join('')}</tr>
-        ${lines.map(l => `<tr style="border-top:1px dotted var(--grey-100);">${l.map((v, i) => cell(v, i)).join('')}</tr>`).join('')}
+        ${lines.map(l => {
+          const row = Array.isArray(l) ? { c: l } : l;
+          return `<tr style="border-top:1px ${row.rule ? 'solid var(--grey-200)' : 'dotted var(--grey-100)'};">${row.c.map((v, i) => cell(v, i, row.bold)).join('')}</tr>`;
+        }).join('')}
         ${foot ? `<tr style="border-top:1px solid var(--grey-200);">${foot.map((v, i) => cell(v, i, true)).join('')}</tr>` : ''}
       </table>
       ${note ? `<div style="font-size:10px;color:var(--grey-400);margin-top:4px;">${note}</div>` : ''}
@@ -4555,10 +4558,18 @@ function renderBreakeven(keys) {
     .map(x => Object.assign(x, { avg: x.v.reduce((a, b) => a + b, 0) / x.v.length }))
     .sort((a, b) => b.avg - a.avg);
   const fixedTotals = be.recent.map(k => P(k).opex - varOf(P(k)) + P(k).deprec);
+  // The collection costs and the month total, so this table ties back to the
+  // monthly cost figures under Profit by Month
+  const withCols = be.recent.map(k => varOf(P(k)) + P(k).giveBack + P(k).framesDonation);
+  const monthTotals = be.recent.map(k => P(k).costs);
+  const mean = a => a.reduce((t, v) => t + v, 0) / a.length;
   const fixedDetail = detail('be-fixed', ['Cost'].concat(names, ['Average']),
-    fixedLines.map(x => [esc(x.n)].concat(x.v.map(c0), [c0(x.avg)])),
-    ['Total'].concat(fixedTotals.map(c0), [c0(be.fixed)]),
-    'Machine cost is each machine&#39;s price spread over the years it lasts.');
+    fixedLines.map(x => [esc(x.n)].concat(x.v.map(c0), [c0(x.avg)])).concat([
+      { c: ['Fixed costs a month'].concat(fixedTotals.map(c0), [c0(be.fixed)]), bold: true, rule: true },
+      { c: ['Plus costs that come with the collections'].concat(withCols.map(c0), [c0(mean(withCols))]) }
+    ]),
+    ['Total costs a month'].concat(monthTotals.map(c0), [c0(mean(monthTotals))]),
+    'Machine cost is each machine&#39;s price spread over the years it lasts. The total matches the monthly costs under Profit by Month; breakeven uses the fixed part only, because the rest only happens when a collection happens.');
 
   // How the cost of one collection is built: costs that only happen because of a collection
   const worked = keys.filter(k => P(k).count > 0);
@@ -4781,8 +4792,11 @@ function renderProfitInsight(keys) {
           <tr style="color:var(--grey-400);text-transform:uppercase;letter-spacing:.3px;">
             ${td('Cost', 0, {})}${td(short(before) + ' *', 1, {})}${td(short(after) + ' **', 2, {})}</tr>
           ${ordered.map(r => tr([esc(r.n), dollars(r.a), dollars(r.b)], r)).join('')}
-          ${tr(['Total', dollars(avg(before, p => p.costs)), dollars(avg(after, p => p.costs))], { bold: true, total: true })}
+          ${tr(['Total costs a month', dollars(avg(before, p => p.costs)), dollars(avg(after, p => p.costs))], { bold: true, total: true })}
+          ${tr(['Of that, fixed costs', dollars(avg(before, p => p.opex - variableOf(p) + p.deprec)), dollars(avg(after, p => p.opex - variableOf(p) + p.deprec))], { bold: true, total: true })}
+          ${tr(['Costs that come with the collections', dollars(avg(before, p => variableOf(p) + p.giveBack + p.framesDonation)), dollars(avg(after, p => variableOf(p) + p.giveBack + p.framesDonation))], {})}
         </table>
+        <div style="margin-top:4px;">The fixed part is what the Breakeven section uses.</div>
       </div>`;
   }
 }
