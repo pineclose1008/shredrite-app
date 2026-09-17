@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.6';
+const APP_VERSION = '2026-09-17.7';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4734,20 +4734,39 @@ function renderProfitInsight(keys) {
     be && be.beJobs ? `A month needs about <strong>${be.beJobs} collections</strong> to break even. See the Breakeven section.` : ''
   ], '#C9A961');
 
-  // Footnotes for the two cost averages
+  // Footnote for the two cost averages: what an average month's costs are made of
   if (foot) {
-    const range = ks => `${MON_SHORT[parseInt(ks[0].slice(5), 10) - 1]} to ${MON_SHORT[parseInt(ks[ks.length - 1].slice(5), 10) - 1]} ${ks[ks.length - 1].slice(0, 4)}`;
-    const list = ks => ks.map(k => `${MON_SHORT[parseInt(k.slice(5), 10) - 1]} ${dollars(P(k).costs)}`).join(', ');
-    const rent = avg(after, p => p.opexByCat['Rent & Utilities'] || 0);
-    const gbFrom = after.find(k => P(k).giveBack > 0);
-    foot.innerHTML = before.length && after.length
-      ? `<div style="font-size:10px;line-height:1.55;color:var(--grey-400);border-top:1px solid var(--grey-100);margin-top:10px;padding-top:8px;">
-          <div>* Average monthly costs for ${range(before)}, before the Sindo unit: ${list(before)}.
-            Costs are day-to-day costs, machine cost and give-back.</div>
-          <div style="margin-top:4px;">** Average monthly costs for ${range(after)}, in the Sindo unit: ${list(after)}.
-            Includes rent and utilities of about ${dollars(rent)} a month${gbFrom ? `, and masjid give-back from ${MONTHS_LONG[parseInt(gbFrom.slice(5), 10) - 1]}` : ''}.</div>
-        </div>`
-      : '';
+    if (!before.length || !after.length) { foot.innerHTML = ''; return; }
+    const short = ks => `${MON_SHORT[parseInt(ks[0].slice(5), 10) - 1]} to ${MON_SHORT[parseInt(ks[ks.length - 1].slice(5), 10) - 1]}`;
+    const year = ks => ks[ks.length - 1].slice(0, 4);
+    const cats = {};
+    before.concat(after).forEach(k => Object.keys(P(k).opexByCat || {}).forEach(c => {
+      if (P(k).opexByCat[c] > 0.005) cats[c] = 1;
+    }));
+    const lines = [
+      { n: 'Day-to-day costs', f: p => p.opex, bold: true },
+      ...Object.keys(cats).map(c => ({ n: c, f: p => p.opexByCat[c] || 0, indent: true })),
+      { n: 'Machine cost', f: p => p.deprec, bold: true },
+      { n: 'Masjid give-back', f: p => p.giveBack, bold: true },
+      { n: 'Frames give-back', f: p => p.framesDonation, bold: true }
+    ].map(r => Object.assign(r, { a: avg(before, r.f), b: avg(after, r.f) }))
+     .filter(r => r.a > 0.5 || r.b > 0.5);
+    // Categories biggest first within the day-to-day group, by the later period
+    const head = lines.filter(r => !r.indent);
+    const subs = lines.filter(r => r.indent).sort((x, y) => y.b - x.b || y.a - x.a);
+    const ordered = [head[0]].concat(subs, head.slice(1));
+    const td = (v, i, o) => `<td style="padding:3px ${i ? '0 3px 6px' : '6px 3px ' + (o.indent ? '12px' : '0')};${i ? 'text-align:right;white-space:nowrap;' : ''}${o.bold ? 'font-weight:700;color:var(--navy);' : ''}">${v}</td>`;
+    const tr = (cells, o) => `<tr style="border-top:1px ${o.total ? 'solid var(--grey-200)' : 'dotted var(--grey-100)'};">${cells.map((v, i) => td(v, i, o)).join('')}</tr>`;
+    foot.innerHTML = `<div style="font-size:10px;line-height:1.55;color:var(--grey-400);border-top:1px solid var(--grey-100);margin-top:10px;padding-top:8px;">
+        <div>* Before the Sindo unit, ${short(before)} ${year(before)}. ** In the Sindo unit, ${short(after)} ${year(after)}.
+          Average cost a month:</div>
+        <table style="width:100%;border-collapse:collapse;margin-top:4px;font-size:10px;color:var(--grey-500);">
+          <tr style="color:var(--grey-400);text-transform:uppercase;letter-spacing:.3px;">
+            ${td('Cost', 0, {})}${td(short(before) + ' *', 1, {})}${td(short(after) + ' **', 2, {})}</tr>
+          ${ordered.map(r => tr([esc(r.n), dollars(r.a), dollars(r.b)], r)).join('')}
+          ${tr(['Total', dollars(avg(before, p => p.costs)), dollars(avg(after, p => p.costs))], { bold: true, total: true })}
+        </table>
+      </div>`;
   }
 }
 
