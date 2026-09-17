@@ -2132,7 +2132,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.1';
+const APP_VERSION = '2026-09-17.2';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4069,6 +4069,7 @@ async function loadRevenueSummary() {
       byCode[code].paperKg += b.paperKg || 0;
     });
     const codes = Object.keys(byCode).sort();
+    revByCode = byCode;
     const refSection = document.getElementById('rev-referral-section');
     if (codes.length) {
       document.getElementById('rev-referral-table').innerHTML =
@@ -4081,22 +4082,6 @@ async function loadRevenueSummary() {
           const giveBack = isMosque ? s.gb : null;
           return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;font-weight:600;">${esc(code)}</td><td style="text-align:right;">${s.count}</td><td style="text-align:right;">${s.paperKg.toFixed(1)}</td><td style="text-align:right;font-weight:700;color:var(--gold);">${giveBack === null ? '-' : '$' + giveBack.toFixed(2)}</td></tr>`;
         }).join('');
-      // Point-form notes: what each masjid brought and what it was given
-      const mJobs = bookings.filter(b => MOSQUE_CODES.includes((b.referral || '').trim().toUpperCase()));
-      const firstM = mJobs.map(b => b.date).sort()[0];
-      const since = firstM ? bookings.filter(b => b.date >= firstM).length : 0;
-      const mRev = mJobs.reduce((t, b) => t + (b.totalCollected || 0), 0);
-      const mGb = MOSQUE_CODES.reduce((t, c) => t + ((byCode[c] && byCode[c].gb) || 0), 0);
-      const mPend = MOSQUE_CODES.reduce((t, c) => t + ((byCode[c] && byCode[c].pending) || 0), 0);
-      const others = codes.filter(c => !MOSQUE_CODES.includes(c));
-      document.getElementById('rev-referral-insight').innerHTML = insightList('What this tells us', [
-        ...MOSQUE_CODES.filter(c => byCode[c]).map(c =>
-          `<strong>${esc(MOSQUE_NAMES[c] || c)}</strong>: ${byCode[c].count} jobs, $${byCode[c].gb.toFixed(2)} given back.`),
-        firstM ? `Masjid referrals brought <strong>${mJobs.length} of ${since} jobs</strong> (${Math.round(100 * mJobs.length / (since || 1))}%) since the first one on ${parseInt(firstM.slice(8), 10)} ${MON_SHORT[parseInt(firstM.slice(5, 7), 10) - 1]} ${firstM.slice(0, 4)}.` : '',
-        mRev ? `Those jobs brought in ${dollars(mRev)}. The give-back on them is ${Math.round(100 * (mGb + mPend) / mRev)}% of that.` : '',
-        mPend ? `A further $${mPend.toFixed(2)} is due for this month and is paid at month end.` : '',
-        others.length ? `Other codes (${others.map(esc).join(', ')}) are tracked but earn no give-back.` : ''
-      ]);
       refSection.classList.remove('hidden');
     } else {
       refSection.classList.add('hidden');
@@ -4108,7 +4093,7 @@ async function loadRevenueSummary() {
     bookings.forEach(b => {
       const key = (b.date || '').slice(0, 7); // YYYY-MM
       if (key.length !== 7) return;
-      if (!monthly[key]) monthly[key] = { revenue: 0, count: 0, kg: 0, paper: 0, frame: 0, service: 0, fees: 0, tipsExact: 0, tipsKnown: false, giveBack: 0 };
+      if (!monthly[key]) monthly[key] = { revenue: 0, count: 0, kg: 0, paper: 0, frame: 0, service: 0, fees: 0, tipsExact: 0, tipsKnown: false, giveBack: 0, feeCharged: 0 };
       const m = monthly[key];
       m.revenue += b.totalCollected || 0;
       m.count++;
@@ -4117,6 +4102,9 @@ async function loadRevenueSummary() {
       m.frame += b.frameKg || 0;
       m.service += b.serviceTotal || 0;
       m.fees += collectedFee(b);
+      // Booking fee charged, whoever collected it. The backend reports a blank
+      // cell as the standard fee; a discount code shows up as a lower number.
+      m.feeCharged += b.bookingFee == null ? STANDARD_FEE : (Number(b.bookingFee) || 0);
       // Exact tips arrive from the backend once it exports the Tips column;
       // until then the detail view falls back to an estimate
       if (b.tips != null) { m.tipsExact += b.tips; m.tipsKnown = true; }
@@ -4208,6 +4196,7 @@ const CATEGORY_BLURB = {
 let revSpendIsLive = false;
 let revProfit = null;
 let revBookings = null;   // the completed bookings behind the current report
+let revByCode = null;     // referral-code totals behind the current report
 
 // Tapping a material tile narrows the whole report to jobs containing that
 // material, so "how is the frames side doing" is one tap rather than a re-run.
@@ -4273,7 +4262,7 @@ async function renderProfitChart(monthly) {
     Object.keys(spend).filter(k => (!fromM || k >= fromM) && (!toM || k <= toM))))].sort();
   keys.forEach(k => {
     if (!monthly[k]) monthly[k] = { revenue: 0, count: 0, kg: 0, paper: 0, frame: 0,
-                                    service: 0, fees: 0, tipsExact: 0, tipsKnown: false, giveBack: 0 };
+                                    service: 0, fees: 0, tipsExact: 0, tipsKnown: false, giveBack: 0, feeCharged: 0 };
   });
   const section = document.getElementById('rev-profit-section');
   const chartEl = document.getElementById('rev-profit-chart');
@@ -4321,7 +4310,7 @@ async function renderProfitChart(monthly) {
       giveBackPending: monthClosed ? 0 : (m.giveBack || 0) + frames,
       framesAdjusted: FRAMES_KG_OVERRIDE[k] != null && Math.abs(billableKg - recordedKg) > 0.05,
       framesDonation: frCount, costs: costs, profit: m.revenue - costs, count: m.count,
-      kg: m.kg || 0, paper: m.paper || 0, frame: m.frame || 0
+      kg: m.kg || 0, paper: m.paper || 0, frame: m.frame || 0, feeCharged: m.feeCharged || 0
     };
   });
 
@@ -4357,6 +4346,7 @@ async function renderProfitChart(monthly) {
   renderAssets(keys);
   const beFig = renderBreakeven(keys);
   renderAssessment(keys, monthly);
+  renderReferralInsight(keys);
   // The revenue chart was drawn before the spending arrived; redo its notes
   // now that ad spend and breakeven are known.
   if (revMonthly) drawRevenueChart(Object.keys(revMonthly).sort(), revMonthly, document.getElementById('rev-chart'));
@@ -4392,14 +4382,30 @@ async function renderProfitChart(monthly) {
   });
 }
 
-// Known reasons behind unusual months. April and July are confirmed by
-// Hambali; March is the usual clear-out before Hari Raya. Shown beside the
-// figures so a dip or a spike is never left for the room to guess at.
+// Short reasons shown beside unusual months, in Hambali's words.
 const MONTH_NOTES = {
-  '2026-03': 'the run-up to Hari Raya, when many households clear out',
-  '2026-04': 'Hambali was on reservist duty',
-  '2026-07': 'several bookings moved into August'
+  '2026-03': 'Hari Raya period',
+  '2026-04': 'reservist',
+  '2026-07': 'June ad pause'
 };
+// Month reasons that are about advertising. Months with any other reason
+// (holidays, time away) are left out of the ad analysis. From Meta's weekly
+// figures, pulled 17 Sep 2026.
+const AD_NOTES = {
+  '2026-07': {
+    short: 'the ad pause from 4 to 24 June',
+    long: 'ads were almost off from 4 to 24 June ($156 in three weeks). About two weeks later, collections fell to 3 to 7 a week, from 13 to 22 before, with only 10 in the first two weeks of July. They picked up to 15 to 19 a week once ads restarted on 9 July.'
+  }
+};
+// Changes to the ads themselves, so a better or worse month is not credited to the wrong cause
+const AD_CHANGES = { '2026-07': 'new ad campaigns started in July' };
+const STANDARD_FEE = 20;
+const DEFAULT_CODE = 'UMMAH10';   // the booking page pre-selects this code
+const capFirst = t => t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+function prevMonthKey(k) {
+  const d = new Date(+k.slice(0, 4), +k.slice(5, 7) - 2, 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
 // First month in the Sindo unit, when rent became a fixed monthly cost
 const UNIT_FROM = '2026-06';
 const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -4435,6 +4441,7 @@ function opexCats(p) {
       .some(it => Math.abs(Number(it.a) - stray) < 0.01));
     const c = hit || (out['Equipment'] != null ? 'Equipment' : Object.keys(out)[0]);
     if (c) out[c] = Math.max(0, out[c] - stray);
+    p.strayItem = hit ? { c: hit, a: stray } : null;
   }
   return out;
 }
@@ -4550,7 +4557,7 @@ function renderBreakeven(keys) {
     const avg = p.revenue / p.count;
     const perJob = (VARIABLE_CATS.reduce((t, c) => t + (p.opexByCat[c] || 0), 0) + p.giveBack + p.framesDonation) / p.count;
     if (p.count < (be.beJobs || 0)) {
-      return `<strong>${monLabel(k)}</strong> lost ${dollars(-p.profit)} with ${p.count} jobs, below breakeven${MONTH_NOTES[k] ? ': ' + MONTH_NOTES[k] : ''}.`;
+      return `<strong>${monLabel(k)}</strong> lost ${dollars(-p.profit)} with ${p.count} jobs, below breakeven${MONTH_NOTES[k] ? ' (' + MONTH_NOTES[k] + ')' : ''}.`;
     }
     const why = [];
     if (avg < be.avgJob - 5) why.push(`jobs were smaller than usual ($${Math.round(avg)} each)`);
@@ -4603,6 +4610,64 @@ function renderBreakeven(keys) {
   return be;
 }
 
+// Items of a category that were day-to-day costs, leaving out a machine filed there
+function opexItems(p, c) {
+  const list = ((p.items && p.items[c]) || []).slice();
+  if (p.strayItem && p.strayItem.c === c) {
+    const i = list.findIndex(it => Math.abs(Number(it.a) - p.strayItem.a) < 0.01);
+    if (i >= 0) list.splice(i, 1);
+  }
+  return list;
+}
+
+function pearson(xs, ys) {
+  const n = xs.length;
+  const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+  let sxy = 0, sx = 0, sy = 0;
+  xs.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sx += (x - mx) ** 2; sy += (ys[i] - my) ** 2; });
+  return sx && sy ? sxy / Math.sqrt(sx * sy) : 0;
+}
+
+// Do jobs follow the previous month's ads? Months with a non-ad reason
+// (holidays, time away) are left out, since they say nothing about ads.
+function adLag(keys) {
+  if (!revProfit) return null;
+  const part = partialMonths(keys);
+  const ads = k => (revProfit[k] && revProfit[k].byCat['Ads']) || 0;
+  const odd = k => MONTH_NOTES[k] && !AD_NOTES[k];
+  const pairs = keys
+    .filter(k => !part[k] && revProfit[k] && revProfit[k].count > 0 && !odd(k))
+    .map(k => ({ k, p: prevMonthKey(k) }))
+    .filter(x => revProfit[x.p] && revProfit[x.p].count > 0)
+    .map(x => ({ k: x.k, p: x.p, prevAds: ads(x.p), ads: ads(x.k), jobs: revProfit[x.k].count }));
+  if (pairs.length < 3) return null;
+  const rLag = pearson(pairs.map(x => x.prevAds), pairs.map(x => x.jobs));
+  const rSame = pearson(pairs.map(x => x.ads), pairs.map(x => x.jobs));
+  const hi = pairs.reduce((a, x) => x.prevAds > a.prevAds ? x : a, pairs[0]);
+  const plain = pairs.filter(x => !odd(x.p));
+  const lo = plain.length ? plain.reduce((a, x) => x.prevAds < a.prevAds ? x : a, plain[0]) : null;
+  return { pairs, rLag, rSame, hi, lo, holds: rLag > 0.5 && rLag - rSame > 0.3 };
+}
+
+// The first month the average booking fee fell well below the standard fee
+function feeCut(keys) {
+  const P = k => revProfit[k];
+  const avg = k => P(k).count ? P(k).feeCharged / P(k).count : 0;
+  const ks = keys.filter(k => P(k) && P(k).count > 0);
+  for (let i = 1; i < ks.length; i++) {
+    if (avg(ks[i - 1]) - avg(ks[i]) >= 5) {
+      const since = ks.slice(i);
+      return {
+        k: ks[i], before: avg(ks[i - 1]), after: avg(ks[i]),
+        lost: since.reduce((t, k) => t + STANDARD_FEE * P(k).count - P(k).feeCharged, 0)
+      };
+    }
+  }
+  return null;
+}
+
+const subList = pts => `<ul style="margin:3px 0 2px 14px;padding:0;list-style:circle;">${pts.filter(Boolean).map(t => `<li style="margin-bottom:2px;">${t}</li>`).join('')}</ul>`;
+
 function renderProfitInsight(keys) {
   const el = document.getElementById('rev-profit-insight');
   if (!el) return;
@@ -4610,6 +4675,8 @@ function renderProfitInsight(keys) {
   const P = k => revProfit[k];
   const full = keys.filter(k => !part[k] && P(k).count > 0);
   if (!full.length) { el.innerHTML = ''; return; }
+  const ads = k => (P(k) && P(k).byCat['Ads']) || 0;
+  const odd = k => MONTH_NOTES[k] && !AD_NOTES[k];
   const total = keys.reduce((t, k) => t + P(k).profit, 0);
   const wins = full.filter(k => P(k).profit >= 0).length;
   const best = full.reduce((a, k) => P(k).profit > P(a).profit ? k : a, full[0]);
@@ -4618,11 +4685,66 @@ function renderProfitInsight(keys) {
   const avg = (ks, f) => ks.reduce((t, k) => t + f(P(k)), 0) / (ks.length || 1);
   const before = full.filter(k => k < UNIT_FROM), after = full.filter(k => k >= UNIT_FROM);
   const be = breakevenFigures(keys);
+  const worked = keys.filter(k => P(k).count > 0);
+  const firstGb = keys.find(k => P(k).giveBack > 0);
+
+  // Why the best month was the best
+  const bp = prevMonthKey(best);
+  const regular = full.filter(k => !odd(k));
+  const bestPts = [
+    P(bp) && ads(bp) > 0 && worked.every(k => ads(k) <= ads(bp))
+      ? `Much of its work came from ads run in ${monLabel(bp)}, the biggest ad month (${dollars(ads(bp))}).` : '',
+    regular.length > 1 && regular.every(k => ads(k) >= ads(best))
+      ? `Its own ad spend was the lowest of the regular months (${dollars(ads(best))}), which kept costs down.` : '',
+    P(best).giveBack === 0 && firstGb && firstGb > best ? `No masjid give-back was due yet. It started in ${monLabel(firstGb)}.` : ''
+  ];
+  const mostJobs = full.every(k => P(k).count <= P(best).count);
+  const bestLine = `<strong>Best month: ${monLabel(best)}</strong>, ${dollars(P(best).profit)} from ${P(best).count} jobs${mostJobs ? ', the most of any month' : ''}.`
+    + (bestPts.some(Boolean) ? subList(bestPts) : '');
+
+  // Why each loss month lost money, against the month before it
+  const lossLine = k => {
+    const p = P(k), pk = prevMonthKey(k), q = P(pk);
+    if (odd(k)) return `<strong>${monLabel(k)}</strong> lost ${dollars(-p.profit)}: only ${p.count} jobs (${MONTH_NOTES[k]}).`;
+    if (!q || !q.count) return `<strong>${monLabel(k)}</strong> lost ${dollars(-p.profit)} from ${p.count} jobs.`;
+    const dRev = p.revenue - q.revenue, dCost = p.costs - q.costs;
+    const revSide = Math.abs(dRev) >= Math.abs(dCost);
+    const perJob = x => x.revenue / x.count, kgJob = x => x.kg / x.count, fee = x => x.feeCharged / x.count;
+    const pts = [];
+    if (p.count < q.count) {
+      pts.push(`Fewer jobs: ${p.count} against ${q.count}${AD_NOTES[k] ? ', after ' + AD_NOTES[k].short : ''}.`);
+    }
+    if (perJob(p) < perJob(q) - 5) {
+      const bits = [];
+      if (fee(p) < fee(q) - 3) bits.push(`the booking fee fell from $${Math.round(fee(q))} to $${Math.round(fee(p))} on average with discount codes`);
+      if (kgJob(p) < kgJob(q) - 1) bits.push(`loads were lighter (${Math.round(kgJob(p))} kg against ${Math.round(kgJob(q))} kg)`);
+      pts.push(`Smaller jobs: $${Math.round(perJob(p))} against $${Math.round(perJob(q))}${bits.length ? '. ' + capFirst(bits.join(', and ')) : ''}.`);
+    }
+    // Cost lines that rose the most
+    const rose = [];
+    const add = (label, now, then, item) => { if (now - then >= 150) rose.push({ label, d: now - then, first: then <= 0, item }); };
+    add('masjid give-back', p.giveBack + p.framesDonation, q.giveBack + q.framesDonation);
+    Object.keys(Object.assign({}, p.opexByCat, q.opexByCat)).forEach(c => {
+      const now = p.opexByCat[c] || 0, then = q.opexByCat[c] || 0;
+      const top = opexItems(p, c).sort((x, y) => y.a - x.a)[0];
+      const named = top && !['Ads', 'Rent & Utilities'].includes(c) && top.a >= 0.8 * (now - then);
+      add(c.toLowerCase(), now, then, named ? String(top.n).toLowerCase() : '');
+    });
+    add('machine cost', p.deprec, q.deprec);
+    rose.sort((x, y) => y.d - x.d);
+    if (rose.length) {
+      pts.push('Costs that rose: ' + rose.slice(0, 3).map(r =>
+        `${r.label} +${dollars(r.d)}${r.first ? ' (first month)' : ''}${r.item ? ' (' + esc(r.item) + ')' : ''}`).join(', ') + '.');
+    }
+    return `<strong>${monLabel(k)}</strong> lost ${dollars(-p.profit)}. Compared with ${monLabel(pk)}, revenue ${dRev < 0 ? 'fell' : 'rose'}
+      ${dollars(Math.abs(dRev))} and costs ${dCost < 0 ? 'fell' : 'rose'}${revSide && Math.abs(dCost) < Math.abs(dRev) / 3 ? ' only' : ''}
+      ${dollars(Math.abs(dCost))}. So it was mainly a <strong>${revSide ? 'revenue' : 'cost'}</strong> problem.` + subList(pts);
+  };
 
   el.innerHTML = insightList('What the chart shows', [
     `Total profit <strong>${dollars(total)}</strong>. <strong>${wins} of ${full.length}</strong> full months made money.`,
-    `Best month: <strong>${monLabel(best)}</strong>, ${dollars(P(best).profit)} from ${P(best).count} jobs.`,
-    losses.length ? `Loss ${losses.length === 1 ? 'month' : 'months'}: ${losses.map(k => `<strong>${monLabel(k)}</strong> ${dollars(P(k).profit)}${MONTH_NOTES[k] ? ' (' + MONTH_NOTES[k] + ')' : ''}`).join('; ')}.` : '',
+    bestLine,
+    ...losses.map(lossLine),
     setup.length ? `${setup.map(monLabel).join(', ')}: set-up purchases before the first job.` : '',
     ...keys.filter(k => part[k]).map(k => `${monLabel(k)} is not a full month yet, so its bar will still change.`)
   ]) + insightList('What it means', [
@@ -4631,6 +4753,78 @@ function renderProfitInsight(keys) {
       : '',
     'Profit moves with the number of jobs, because the fixed costs stay the same every month.',
     be && be.beJobs ? `A month needs about <strong>${be.beJobs} jobs</strong> to break even. See the Breakeven section.` : ''
+  ], '#C9A961');
+}
+
+// Do the masjid partnerships bring customers, and could they replace some ads?
+function renderReferralInsight(keys) {
+  const el = document.getElementById('rev-referral-insight');
+  if (!el || !revProfit) return;
+  const byCode = revByCode || {};
+  const codes = Object.keys(byCode).sort();
+  const others = codes.filter(c => !MOSQUE_CODES.includes(c));
+  const bk = revBookings || [];
+  const isM = b => MOSQUE_CODES.includes((b.referral || '').trim().toUpperCase());
+  const mJobs = bk.filter(isM);
+  const otherLine = others.length ? `Other codes (${others.map(esc).join(', ')}) are tracked but earn no give-back.` : '';
+  if (!mJobs.length) { el.innerHTML = insightList('What this tells us', [otherLine]); return; }
+
+  const first = mJobs.map(b => b.date).sort()[0];
+  const startK = first.slice(0, 7);
+  const part = partialMonths(keys);
+  const share = {};
+  bk.forEach(b => {
+    const k = (b.date || '').slice(0, 7);
+    if (k < startK) return;
+    share[k] = share[k] || { all: 0, m: 0 };
+    share[k].all++;
+    if (isM(b)) share[k].m++;
+  });
+  const shareKeys = Object.keys(share).sort();
+  const pct = k => Math.round(100 * share[k].m / share[k].all);
+  const since = shareKeys.reduce((t, k) => t + share[k].all, 0);
+
+  // A pre-selected code on the booking page takes over from the masjid codes
+  const defK = bk.filter(b => (b.referral || '').trim().toUpperCase() === DEFAULT_CODE).map(b => b.date).sort()[0];
+  const defMonth = defK ? defK.slice(0, 7) : null;
+  const beforeDef = shareKeys.filter(k => defMonth && k < defMonth), afterDef = shareKeys.filter(k => defMonth && k >= defMonth);
+  const avgPct = ks => ks.reduce((t, k) => t + pct(k), 0) / (ks.length || 1);
+
+  // Jobs and ad cost per job, before and after the partnerships, regular full months only
+  const odd = k => MONTH_NOTES[k] && !AD_NOTES[k];
+  const regular = keys.filter(k => !part[k] && revProfit[k] && revProfit[k].count > 0 && !odd(k));
+  const before = regular.filter(k => k < startK), after = regular.filter(k => k >= startK);
+  const jobs = ks => ks.reduce((t, k) => t + revProfit[k].count, 0);
+  const adsOf = ks => ks.reduce((t, k) => t + (revProfit[k].byCat['Ads'] || 0), 0);
+  const jBefore = jobs(before) / (before.length || 1), jAfter = jobs(after) / (after.length || 1);
+  const aBefore = jobs(before) ? adsOf(before) / jobs(before) : 0, aAfter = jobs(after) ? adsOf(after) / jobs(after) : 0;
+  const move = jAfter > jBefore * 1.1 ? 'rose' : jAfter < jBefore * 0.9 ? 'fell' : 'barely changed';
+  const gbAll = MOSQUE_CODES.reduce((t, c) => t + ((byCode[c] && byCode[c].gb) || 0) + ((byCode[c] && byCode[c].pending) || 0), 0);
+  const pend = MOSQUE_CODES.reduce((t, c) => t + ((byCode[c] && byCode[c].pending) || 0), 0);
+  const d = first;
+  const firstDate = `${parseInt(d.slice(8), 10)} ${MON_SHORT[parseInt(d.slice(5, 7), 10) - 1]} ${d.slice(0, 4)}`;
+
+  el.innerHTML = insightList('What the data shows', [
+    ...MOSQUE_CODES.filter(c => byCode[c]).map(c =>
+      `<strong>${esc(MOSQUE_NAMES[c] || c)}</strong>: ${byCode[c].count} jobs, $${byCode[c].gb.toFixed(2)} given back.`),
+    `Masjid codes were used on <strong>${mJobs.length} of ${since} jobs</strong> since ${MONTHS_LONG[parseInt(startK.slice(5), 10) - 1]} ${startK.slice(0, 4)} (first one on ${firstDate}). By month: ${shareKeys.map(k => `${monLabel(k)} ${pct(k)}%${part[k] ? ' so far' : ''}`).join(', ')}.`,
+    beforeDef.length && afterDef.length && avgPct(afterDef) < avgPct(beforeDef)
+      ? `The share fell after the booking page started pre-selecting ${DEFAULT_CODE} in ${monLabel(defMonth)}. That suggests many masjid-code bookings were website visitors picking a code, not people sent by the masjid.`
+      : '',
+    before.length && after.length
+      ? `Jobs a month ${move} after the partnerships began: about ${Math.round(jBefore)} before and ${Math.round(jAfter)} after (regular full months).`
+      : '',
+    `Give-back works out at about <strong>$${Math.round(gbAll / mJobs.length)} a masjid job</strong>.`
+      + (before.length && after.length
+        ? ` Ads cost about $${Math.round(aBefore)} a job before the partnerships and $${Math.round(aAfter)} after.`
+          + (aAfter < aBefore && AD_CHANGES[startK] ? ` But ${AD_CHANGES[startK]}, so the drop cannot be credited to the masjids.` : '')
+        : ''),
+    pend ? `A further $${pend.toFixed(2)} is due for this month and is paid at month end.` : '',
+    otherLine
+  ]) + insightList('What it means', [
+    'Every visitor to the booking page can pick a masjid code, so a code does not show where the customer came from.',
+    '<strong>The data cannot yet show how many customers the masjids bring, so there is no case yet for cutting ad spend.</strong>',
+    'Recording how each customer found ShredRite (for example, through the masjid QR link) would answer this within a month or two.'
   ], '#C9A961');
 }
 
@@ -4852,6 +5046,9 @@ function renderCustomerEconomics(monthly) {
   }).join('');
 
   const repeatPct = uniq ? 100 * repeaters / uniq : 0;
+  // Business or institutional customers, judged by name
+  const BIZ = /\b(pte|ltd|llp|school|sekolah|madrasah|masjid|mosque|company|corp|office|centre|center|clinic|society|academy|enterprise|trading)\b/i;
+  const bizCount = new Set(sorted.filter(b => BIZ.test(String(b.name || ''))).map(custKey)).size;
   const ratio = cac > 0 ? ltv / cac : 0;
 
   document.getElementById('rev-customer-body').innerHTML = `
@@ -4874,9 +5071,9 @@ function renderCustomerEconomics(monthly) {
       repeatPct < 15
         ? 'Most customers are one-time, because a home is cleared once. So every month the work has to be won again.'
         : 'Customers are coming back, which makes each month more predictable.',
-      repeatPct < 15
-        ? 'Two ways to change that: remind past customers each year or before Ramadan, and win regular work from offices, schools and companies.'
-        : '',
+      bizCount === 0
+        ? 'None of the customers so far is a business or institution, so there is no regular contract work yet.'
+        : `${bizCount} customer${bizCount === 1 ? ' is a business or institution' : 's are businesses or institutions'}.`,
       followUps
         ? `<span style="color:var(--grey-400);">${followUps} zero-weight return trip${followUps === 1 ? '' : 's'} within three weeks of the original job ${followUps === 1 ? 'was' : 'were'} counted as part of that job, not as a repeat customer.</span>`
         : ''
@@ -5356,6 +5553,8 @@ function renderAssessment(keys, monthly) {
   const be = breakevenFigures(keys);
   const when = be && be.months != null ? monthsFromNow(be.months) : null;
   const earned = be && be.gap <= 0;
+  const lag = adLag(keys);
+  const lagHolds = !!(lag && lag.holds);
 
   const card = (title, verdict, good, body) => `
     <div style="border-left:3px solid ${good ? '#4CAF7D' : '#EF7B7B'};padding:2px 0 2px 10px;margin-bottom:14px;">
@@ -5399,10 +5598,13 @@ function renderAssessment(keys, monthly) {
        committed work. The business also depends on one person for collection, shredding and administration, which
        caps how much work can be taken on and leaves no cover if he is unavailable.`) +
 
-    card('What would reduce that risk?', 'Regular, contracted work', true,
-      `Standing arrangements with offices, schools and companies that need document shredding on a schedule. Work that
-       recurs without being bought again through advertising, and large enough to be worth the trip, is what would turn
-       this from something dependent on constant effort into something that runs steadily.`);
+    card('What would reduce that risk?', lagHolds ? 'Steady ads, without breaks' : 'Steady demand', true,
+      lagHolds
+        ? `Jobs follow ads by about two weeks. The June ad pause left only 10 collections in the first two weeks of
+           July. Keeping ads running without breaks is the lever the data supports. Regular contract work would steady
+           the business further, but none has been won yet.`
+        : `Work that recurs without being bought again each month. Regular contract work would do this, but none has
+           been won yet.`);
 
   sec.classList.remove('hidden');
 }
@@ -5515,114 +5717,89 @@ function toggleSpendCat(id) {
 function showProfitDetail(key) {
   const p = revProfit && revProfit[key];
   if (!p) return;
-  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const name = MONTHS[parseInt(key.slice(5), 10) - 1] + ' ' + key.slice(0, 4);
-  const row = (l, v, opt) => {
-    const o = opt || {};
-    return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;${o.indent ? 'padding-left:12px;color:var(--grey-400);' : 'color:var(--grey-500);'}${o.bold ? 'color:var(--navy);font-weight:700;' : ''}">${l}</td>`
-      + `<td style="padding:5px 0;text-align:right;font-weight:${o.bold ? '700' : '600'};${o.color ? 'color:' + o.color + ';' : ''}">${v}</td></tr>`;
+  const name = MONTHS_LONG[parseInt(key.slice(5), 10) - 1] + ' ' + key.slice(0, 4);
+  const m2 = v => (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const itemBox = (id, list) => `<tr id="${id}" class="hidden"><td colspan="2" style="padding:0 0 6px 26px;">`
+    + list.map(it => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
+        + `<span>${esc(it.n)}${it.v ? ` <span style="color:var(--grey-400);">- ${esc(it.v)}</span>` : ''}</span>`
+        + `<span style="white-space:nowrap;font-weight:600;">$${Number(it.a).toFixed(2)}</span></div>`).join('')
+    + '</td></tr>';
+  // One cost line, tap-open when it has items behind it
+  const costLine = (id, label, note, amount, list) => {
+    const open = list && list.length;
+    return `<tr style="border-bottom:1px solid var(--grey-100);${open ? 'cursor:pointer;' : ''}"${open ? ` onclick="toggleSpendCat('${id}')"` : ''}>`
+      + `<td style="padding:5px 0 5px 12px;color:var(--grey-500);">${open ? '<span style="color:var(--grey-300);">&#9662;</span> ' : ''}${label}`
+      + (note ? `<div style="font-size:10px;color:var(--grey-400);padding-left:${open ? 14 : 0}px;">${note}</div>` : '')
+      + `</td><td style="padding:5px 0;text-align:right;font-weight:600;vertical-align:top;">${m2(amount)}</td></tr>`
+      + (open ? itemBox(id, list) : '');
   };
-  const cats = Object.keys(p.byCat).sort((a, b) => p.byCat[b] - p.byCat[a]);
+  const total = (label, value, colour) => `<tr style="border-top:2px solid var(--grey-100);">`
+    + `<td style="padding:7px 0;font-weight:700;color:var(--navy);">${label}</td>`
+    + `<td style="padding:7px 0;text-align:right;font-weight:700;color:${colour || 'var(--navy)'};">${value}</td></tr>`;
+  const id = t => t + '_' + key.replace('-', '');
 
-  let html = `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name} - where the money went</div>`
+  let html = `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name}: profit</div>`
     + '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
-    + row('Revenue collected', '$' + p.revenue.toFixed(2), { bold: true, color: 'var(--gold)' });
+    + total('Revenue collected', m2(p.revenue), 'var(--gold)')
+    + '<tr><td colspan="2" style="padding:8px 0 2px;font-size:10px;color:var(--grey-400);text-transform:uppercase;letter-spacing:.3px;">Costs</td></tr>';
 
-  if (cats.length) {
-    html += row('Recorded spending', '$' + p.expenses.toFixed(2));
-    cats.forEach(c => {
-      const items = (p.items && p.items[c]) || [];
-      const id = 'cat_' + key.replace('-', '') + '_' + c.replace(/[^A-Za-z]/g, '');
-      const blurb = CATEGORY_BLURB[c] || '';
-      const caret = items.length ? '<span style="color:var(--grey-300);">&#9662;</span> ' : '';
-      html += `<tr style="border-bottom:1px solid var(--grey-100);${items.length ? 'cursor:pointer;' : ''}"`
-        + (items.length ? ` onclick="toggleSpendCat('${id}')"` : '') + '>'
-        + `<td style="padding:5px 0 5px 12px;color:var(--grey-400);">${caret}${esc(c)}`
-        + (blurb ? `<div style="font-size:10px;color:var(--grey-300);padding-left:14px;">${esc(blurb)}</div>` : '')
-        + `</td><td style="padding:5px 0;text-align:right;font-weight:600;vertical-align:top;">$${p.byCat[c].toFixed(2)}</td></tr>`;
-      if (items.length) {
-        html += `<tr id="${id}" class="hidden"><td colspan="2" style="padding:0 0 6px 26px;">`
-          + drillItems(c, items).map(it => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
-              + `<span>${esc(it.n)}${it.v ? ` <span style="color:var(--grey-300);">- ${esc(it.v)}</span>` : ''}</span>`
-              + `<span style="white-space:nowrap;font-weight:600;">$${Number(it.a).toFixed(2)}</span></div>`).join('')
-          + '</td></tr>';
-      }
-    });
-  } else {
-    html += row('Recorded spending', 'none entered');
-  }
+  const cats = Object.keys(p.opexByCat || {}).filter(c => p.opexByCat[c] > 0.005)
+    .sort((a, b) => p.opexByCat[b] - p.opexByCat[a]);
+  cats.forEach(c => {
+    html += costLine(id('cat_' + c.replace(/[^A-Za-z]/g, '')), esc(c), esc(CATEGORY_BLURB[c] || ''),
+                     p.opexByCat[c], drillItems(c, opexItems(p, c)));
+  });
 
-  if (p.capex > 0 || p.deposits > 0) {
-    html += row('Less: machines and deposit', '-$' + (p.capex + p.deposits).toFixed(2), { indent: true });
-    html += row('Day-to-day costs', '$' + p.opex.toFixed(2), { bold: true });
-  }
-  // Depreciation, expandable per asset
   if (p.deprec > 0) {
-    const dId = 'dep_' + key.replace('-', '');
-    const live = (revSpendAssets || []).filter(a => key >= a.start);
-    html += `<tr style="border-bottom:1px solid var(--grey-100);${live.length ? 'cursor:pointer;' : ''}"`
-      + (live.length ? ` onclick="toggleSpendCat('${dId}')"` : '') + '>'
-      + `<td style="padding:5px 0;color:var(--grey-500);">${live.length ? '<span style="color:var(--grey-300);">&#9662;</span> ' : ''}Machine cost`
-      + `<div style="font-size:10px;color:var(--grey-300);padding-left:14px;">Each machine's cost spread evenly across its working life</div></td>`
-      + `<td style="padding:5px 0;text-align:right;font-weight:600;vertical-align:top;">$${p.deprec.toFixed(2)}</td></tr>`;
-    if (live.length) {
-      html += `<tr id="${dId}" class="hidden"><td colspan="2" style="padding:0 0 6px 26px;">`
-        + live.map(a => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
-            + `<span>${esc(a.n)} <span style="color:var(--grey-300);">- $${Number(a.cost).toLocaleString()} over ${a.life} yrs</span></span>`
-            + `<span style="white-space:nowrap;font-weight:600;">$${Number(a.per).toFixed(2)}</span></div>`).join('')
-        + '</td></tr>';
-    }
+    const live = (revSpendAssets || []).filter(a => key >= a.start).map(a =>
+      ({ n: a.n, v: '$' + Number(a.cost).toLocaleString() + ' over ' + a.life + ' yrs', a: a.per }));
+    html += costLine(id('dep'), 'Machine cost', 'Each machine&#39;s price spread over the years it lasts', p.deprec, live);
   }
 
-  // Mosque give-back, summarised by mosque rather than listing every customer
-  const gbByCode = {};
+  // Masjid give-back, summarised by masjid rather than listing every customer
+  const gb = {};
   (revBookings || []).forEach(b => {
     if ((b.date || '').slice(0, 7) !== key) return;
     const c = (b.referral || '').trim().toUpperCase();
     if (!MOSQUE_CODES.includes(c) || (b.paperKg || 0) <= 0.001) return;
-    if (!gbByCode[c]) gbByCode[c] = { jobs: 0, kg: 0, amt: 0 };
-    gbByCode[c].jobs++; gbByCode[c].kg += b.paperKg || 0; gbByCode[c].amt += 10 + (b.paperKg || 0);
+    if (!gb[c]) gb[c] = { jobs: 0, kg: 0, a: 0 };
+    gb[c].jobs++; gb[c].kg += b.paperKg || 0; gb[c].a += 10 + (b.paperKg || 0);
   });
-  const gbCodes = p.giveBackPending ? [] : Object.keys(gbByCode).sort((a, b) => gbByCode[b].amt - gbByCode[a].amt);
-  const gId = 'gb_' + key.replace('-', '');
-  html += `<tr style="border-bottom:1px solid var(--grey-100);${gbCodes.length ? 'cursor:pointer;' : ''}"`
-    + (gbCodes.length ? ` onclick="toggleSpendCat('${gId}')"` : '') + '>'
-    + `<td style="padding:5px 0;color:var(--grey-500);">${gbCodes.length ? '<span style="color:var(--grey-300);">&#9662;</span> ' : ''}Mosque give-back`
-    + `<div style="font-size:10px;color:var(--grey-300);padding-left:14px;">${p.giveBackPending
-        ? 'Give-back for this month, $' + p.giveBackPending.toFixed(2) + ' including frames, is paid at month end and not counted until then'
-        : '$10 per booking + $1 per kg of books'}</div></td>`
-    + `<td style="padding:5px 0;text-align:right;font-weight:600;vertical-align:top;">$${p.giveBack.toFixed(2)}</td></tr>`;
-  if (gbCodes.length) {
-    html += `<tr id="${gId}" class="hidden"><td colspan="2" style="padding:0 0 6px 26px;">`
-      + gbCodes.map(c => {
-          const g = gbByCode[c];
-          return `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
-            + `<span><strong>${esc(MOSQUE_NAMES[c] || c)}</strong> <span style="color:var(--grey-300);">- ${g.jobs} job${g.jobs === 1 ? '' : 's'}, ${g.kg.toFixed(1)} kg of books</span></span>`
-            + `<span style="white-space:nowrap;font-weight:600;">$${g.amt.toFixed(2)}</span></div>`;
-        }).join('')
-      + '</td></tr>';
+  const gbList = p.giveBackPending ? [] : Object.keys(gb).sort((a, b) => gb[b].a - gb[a].a).map(c =>
+    ({ n: MOSQUE_NAMES[c] || c, v: gb[c].jobs + ' job' + (gb[c].jobs === 1 ? '' : 's') + ', ' + gb[c].kg.toFixed(1) + ' kg of books', a: gb[c].a }));
+  if (p.giveBack > 0 || p.giveBackPending > 0 || gbList.length) {
+    html += costLine(id('gb'), 'Masjid give-back',
+      p.giveBackPending ? `$${p.giveBackPending.toFixed(2)}, including frames, is paid at month end and counted then` : '$10 a booking plus $1 a kg of books',
+      p.giveBack, gbList);
+  }
+  if (p.framesDonation > 0) {
+    html += costLine(id('fr'), 'Frames give-back', `${p.framesKg.toFixed(1)} kg at $${FRAMES_RATE.toFixed(2)} a kg`, p.framesDonation, []);
   }
 
-  if (p.framesDonation > 0) {
-    html += row(`Frames give-back (${p.framesKg.toFixed(1)} kg x $${FRAMES_RATE.toFixed(2)})`, '$' + p.framesDonation.toFixed(2));
-  }
-  html += row('Total costs for the month', '$' + p.costs.toFixed(2));
-  html += row('Profit', (p.profit < 0 ? '-$' : '$') + Math.abs(p.profit).toFixed(2),
-              { bold: true, color: p.profit >= 0 ? 'var(--green)' : 'var(--red)' });
-  if (p.capex > 0 || p.deposits > 0) {
-    const cash = p.revenue - p.opex - p.giveBack - p.framesDonation - p.capex - p.deposits;
-    html += row('Cash movement this month', (cash < 0 ? '-$' : '$') + Math.abs(cash).toFixed(2),
-                { bold: true, color: cash >= 0 ? 'var(--green)' : 'var(--red)' });
-  }
+  html += total('Total costs', m2(p.costs));
+  html += total('Profit', m2(p.profit), p.profit >= 0 ? 'var(--green)' : 'var(--red)');
   html += '</table>';
   if (cats.length) {
-    html += '<p style="font-size:10px;color:var(--grey-400);margin-top:6px;">Tap any spending line to see the individual items.</p>';
+    html += '<p style="font-size:10px;color:var(--grey-400);margin-top:6px;">Tap a cost line to see the individual items.</p>';
   }
+
+  // Money that left the bank this month but is not a cost of the month
   if (p.capex > 0 || p.deposits > 0) {
-    html += `<p style="font-size:10px;color:var(--grey-400);margin-top:4px;">`
-      + (p.capex > 0 ? `$${p.capex.toFixed(2)} of machines was paid this month but is charged to profit a little at a time over the asset's life, not all at once. ` : '')
-      + (p.deposits > 0 ? `$${p.deposits.toFixed(2)} of deposit is refundable, so it never touches profit at all. ` : '')
-      + `Profit and cash differ for exactly that reason.</p>`;
+    const capItems = ((p.items && p.items[CAPITAL_CATEGORY]) || []).slice();
+    if (p.strayItem) {
+      const s = ((p.items && p.items[p.strayItem.c]) || []).find(it => Math.abs(Number(it.a) - p.strayItem.a) < 0.01);
+      if (s) capItems.push(s);
+    }
+    const isRental = it => /sindo|rental|refundable/i.test(String(it.n || ''));
+    const machines = capItems.filter(it => !isRental(it)).map(it => esc(it.n));
+    const bits = [];
+    if (p.capex > 0) bits.push(`<strong>${m2(p.capex)}</strong> for ${machines.length ? machines.join(', ') : 'machines'}`);
+    if (p.deposits > 0) bits.push(`<strong>${m2(p.deposits)}</strong> rental deposit, returned when the unit is returned`);
+    html += `<div style="font-size:11px;line-height:1.55;color:var(--grey-500);background:#F4F7FA;border-radius:6px;padding:8px 10px;margin-top:8px;">`
+      + `<strong style="color:var(--navy);">Also paid this month, but not a cost of the month:</strong> ${bits.join('; ')}. `
+      + (p.capex > 0 ? 'A machine is counted a little each month as Machine cost. ' : '')
+      + (p.deposits > 0 ? 'A deposit is not a cost, because it comes back. ' : '')
+      + `${p.capex > 0 && p.deposits > 0 ? 'Both show' : 'It shows'} in Cash Flow and What the Business Owns.</div>`;
   }
   if (!revSpendIsLive) {
     html += `<p style="font-size:10px;color:#B26A00;margin-top:4px;">Spending from the ${SPEND_SNAPSHOT_DATE} snapshot of the expenses sheet (live sync unavailable).</p>`;
@@ -5739,12 +5916,10 @@ function renderTrendInsight(keys, monthly, vals, metric) {
   const full = keys.filter(k => !part[k]);
   const use = full.length >= 2 ? full : keys;
   const R = k => monthly[k].revenue, J = k => monthly[k].count;
-  const A = k => monthly[k].count ? monthly[k].revenue / monthly[k].count : 0;
   const L = k => vals[keys.indexOf(k)];
   const pick = (f, hi) => use.reduce((a, k) => (hi ? f(k) > f(a) : f(k) < f(a)) ? k : a, use[0]);
   const lo = f => Math.min.apply(null, use.map(f));
   const hi = f => Math.max.apply(null, use.map(f));
-  const mean = f => use.reduce((t, k) => t + f(k), 0) / use.length;
   const best = pick(R, true), worst = pick(R, false);
   let tRev = 0, tJobs = 0;
   keys.forEach(k => { tRev += R(k); tJobs += J(k); });
@@ -5753,43 +5928,40 @@ function renderTrendInsight(keys, monthly, vals, metric) {
 
   const lineNote = {
     jobs:  'The green line is jobs. It rises and falls with the revenue bars, which shows jobs drive revenue.',
-    avg:   `The green line is the average job, between ${f(lo(L))} and ${f(hi(L))}. Prices and household loads are steady, so bigger jobs are not where growth will come from.`,
-    kgjob: `The green line is kg per job, between ${f(lo(L))} and ${f(hi(L))} kg. Pricing is per kg, so heavier jobs earn more. If jobs get lighter while the count holds, each trip earns less.`,
-    revkg: `The green line is revenue per kg (total revenue &divide; total kg), between ${f(lo(L))} and ${f(hi(L))}. It is the rate actually earned after masjid discounts, not the price list.`
+    avg:   `The green line is the average job, between ${f(lo(L))} and ${f(hi(L))}. It moves far less than the number of jobs.`,
+    kgjob: `The green line is kg per job, between ${f(lo(L))} and ${f(hi(L))} kg. Pricing is per kg, so heavier jobs earn more.`,
+    revkg: `The green line is revenue per kg (total revenue &divide; total kg), between ${f(lo(L))} and ${f(hi(L))}. It is the rate actually earned after discounts, not the price list.`
   }[revTrendMetric];
 
   const shows = [
     `Best month: <strong>${monLabel(best)}</strong>, ${dollars(R(best))} from ${J(best)} jobs. Weakest: <strong>${monLabel(worst)}</strong>, ${dollars(R(worst))} from ${J(worst)} jobs.`,
-    `A full month averages <strong>${dollars(mean(R))}</strong> from <strong>${Math.round(mean(J))} jobs</strong>.`,
-    `Jobs ranged from <strong>${lo(J)} to ${hi(J)}</strong> a month. The average job only moved between $${Math.round(lo(A))} and $${Math.round(hi(A))}.`,
-    ...keys.filter(k => part[k]).map(k => `${monLabel(k)} is not a full month yet: ${dollars(R(k))} from ${J(k)} jobs so far.`),
     lineNote
   ];
 
   const why = [
     'The average job hardly changes, so the ups and downs come from <strong>how many jobs</strong> there are, not how big they are.',
-    ...use.filter(k => MONTH_NOTES[k]).map(k => `<strong>${monLabel(k)}</strong> (${J(k)} jobs): ${MONTH_NOTES[k]}.`)
+    ...use.filter(k => MONTH_NOTES[k]).map(k =>
+      `<strong>${monLabel(k)}</strong> (${J(k)} jobs): ${AD_NOTES[k] ? capFirst(AD_NOTES[k].long) : capFirst(MONTH_NOTES[k]) + '.'}`)
   ];
-  if (revProfit) {
-    const ads = k => (revProfit[k] && revProfit[k].byCat['Ads']) || 0;
-    const adMonths = use.filter(k => ads(k) > 0);
-    if (adMonths.length >= 3) {
-      const topAd = adMonths.reduce((a, k) => ads(k) > ads(a) ? k : a, adMonths[0]);
-      const topJob = adMonths.reduce((a, k) => J(k) > J(a) ? k : a, adMonths[0]);
-      why.push(topAd === topJob
-        ? `The month with the most ad spend (${monLabel(topAd)}, ${dollars(ads(topAd))}) also had the most jobs, so ads do lift demand.`
-        : `Ad spend alone does not explain it. ${monLabel(topAd)} had the most ad spend (${dollars(ads(topAd))}) but ${J(topAd)} jobs. ${monLabel(topJob)} had ${dollars(ads(topJob))} and the most jobs (${J(topJob)}).`);
-    }
+  const lag = revProfit ? adLag(Object.keys(revProfit).sort()) : null;
+  if (lag && lag.holds) {
+    why.push(`Jobs follow the <strong>previous month's</strong> ads more than the same month's. ${monLabel(lag.hi.p)} had the most ad spend (${dollars(lag.hi.prevAds)}) and ${monLabel(lag.hi.k)} had ${lag.hi.jobs} jobs.`
+      + (lag.lo && lag.lo.k !== lag.hi.k ? ` ${monLabel(lag.lo.p)} had the least of the regular months (${dollars(lag.lo.prevAds)}) and ${monLabel(lag.lo.k)} had ${lag.lo.jobs}.` : ''));
+  }
+  const cut = revProfit ? feeCut(Object.keys(revProfit).sort()) : null;
+  if (cut) {
+    why.push(`From ${monLabel(cut.k)}, most bookings used a $10-off code, so the booking fee fell from about $${Math.round(cut.before)} to $${Math.round(cut.after)} a job. That is ${dollars(cut.lost)} less revenue so far, and it lowers the average job.`);
   }
 
-  const be = revProfit ? breakevenFigures(Object.keys(revProfit).sort()) : null;
+  const busy = use.find(k => /hari raya/i.test(MONTH_NOTES[k] || ''));
   const focus = [
-    `<strong>Revenue = jobs &times; average job.</strong> The average job is steady at about $${Math.round(avgJob)}, so the number to grow is <strong>jobs a month</strong>.`,
-    `Each extra job adds about $${Math.round(avgJob)} of revenue${be && be.leftJob > 0 ? ` and $${Math.round(be.leftJob)} of profit` : ''}.`,
-    'Keep ads running every month, and follow up every enquiry until it books.',
-    'Add more masjid referral partners. Each one sends work without extra ad spend.',
-    'Win regular work from offices, schools and companies, so some jobs repeat without being won again.',
-    'Arrange cover for days Hambali is away, so time off does not stop the work.'
+    `The average job is steady at about $${Math.round(avgJob)}, so the number to grow is <strong>jobs a month</strong>.`,
+    lag && lag.holds
+      ? `Keep ads running without breaks. A pause shows up as fewer jobs about two weeks later${Object.keys(AD_NOTES).some(k => use.includes(k)) ? ', as the June pause did in early July' : ''}.`
+      : '',
+    lag && lag.holds
+      ? `Start bigger ad pushes about two weeks before the months that should be busiest${busy ? ', such as the Hari Raya period' : ''}.`
+      : ''
   ];
 
   box.innerHTML = insightList('What the chart shows', shows)
