@@ -1809,14 +1809,15 @@ textarea.form-input {
           <div id="rev-profit-chart" style="overflow-x:auto;"></div>
           <div id="rev-profit-insight"></div>
           <div id="rev-profit-detail" class="hidden" style="margin-top:12px;border-top:1px solid var(--grey-100);padding-top:10px;"></div>
+          <div id="rev-profit-foot"></div>
         </div>
 
         <div id="rev-unit-section" class="hidden" style="order:70;background:var(--white);padding:14px;border-radius:var(--radius-md);border:1px solid var(--grey-100);margin-bottom:16px;">
-          <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Where the Money Goes on One Job</div>
+          <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;">Where the Money Goes on One Collection</div>
           <div style="font-size:11px;color:var(--grey-500);line-height:1.55;background:#F4F7FA;border-left:3px solid #8FA9C4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:12px;">
             <strong style="color:var(--navy);">Purpose of this section</strong><br>
             To separate the cost of carrying out a collection from fixed costs such as rent and advertising, and to show how much
-            of each job's revenue is left to cover rent, advertising and equipment. This is what determines whether
+            of each collection's revenue is left to cover rent, advertising and equipment. This is what determines whether
             profitability depends on pricing or on volume.
           </div>
           <div id="rev-unit-chart" style="overflow-x:auto;"></div>
@@ -2132,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.5';
+const APP_VERSION = '2026-09-17.6';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4049,7 +4050,7 @@ async function loadRevenueSummary() {
     document.getElementById('rev-breakdown-insight').innerHTML = insightList('What this tells us', [
       `Service charges, which are priced by weight, make up <strong>${share(totalService)}%</strong> of revenue.`,
       `Booking fees are ${share(totalFees)}% and tips ${share(totalTips)}%.`,
-      'So revenue depends almost entirely on how much is collected, and that comes down to the number of jobs.'
+      'So revenue depends almost entirely on how much is collected, and that comes down to the number of collections.'
     ]);
 
     // Referral give-back (Masjid partnerships): group tagged collections by code
@@ -4073,7 +4074,7 @@ async function loadRevenueSummary() {
     const refSection = document.getElementById('rev-referral-section');
     if (codes.length) {
       document.getElementById('rev-referral-table').innerHTML =
-        '<tr style="border-bottom:1px solid var(--grey-100);color:var(--grey-400);"><td style="padding:4px 0;">Code</td><td style="text-align:right;">Jobs</td><td style="text-align:right;">Kitab kg</td><td style="text-align:right;">Give-Back</td></tr>' +
+        '<tr style="border-bottom:1px solid var(--grey-100);color:var(--grey-400);"><td style="padding:4px 0;">Code</td><td style="text-align:right;">Collections</td><td style="text-align:right;">Kitab kg</td><td style="text-align:right;">Give-Back</td></tr>' +
         codes.map(code => {
           const s = byCode[code];
           // Only mosque partnership codes earn give-back; other codes are
@@ -4190,7 +4191,7 @@ const CATEGORY_BLURB = {
   'Boxes & Consumables': 'Storage boxes, bags, blades, gloves',
   'Equipment': 'Tools and smaller machines',
   'Professional Fees': 'Sleek, ACRA, stamping and filing',
-  'Labour & Works': 'Part-time helpers and contractor jobs',
+  'Labour & Works': 'Part-time helpers and contractor work',
   'Other': 'Uncategorised'
 };
 let revSpendIsLive = false;
@@ -4330,7 +4331,7 @@ async function renderProfitChart(monthly) {
       <div style="font-size:11px;font-weight:700;margin-bottom:3px;color:${up ? 'var(--navy)' : 'var(--red)'};">${money}</div>
       <div style="height:${h}px;background:${up ? 'linear-gradient(180deg, #2E7D52, #1B5E3A)' : 'linear-gradient(180deg, #E57373, #C62828)'};border-radius:6px 6px 0 0;"></div>
       <div style="font-size:10px;font-weight:600;color:var(--grey-500);border-top:2px solid var(--navy);padding-top:4px;">${label(k)}</div>
-      <div style="font-size:9px;color:var(--grey-400);">${p.count} job${p.count === 1 ? '' : 's'}</div>
+      <div style="font-size:9px;color:var(--grey-400);">${p.count} collection${p.count === 1 ? '' : 's'}</div>
     </div>`;
   }).join('') + '</div>';
 
@@ -4370,7 +4371,7 @@ async function renderProfitChart(monthly) {
     'rev-cash-section': money(sBank) + ' in the bank',
     'rev-assets-section': money(sCap + sDep) + ' held in machines and deposit',
     'rev-breakeven-section': beFig && beFig.beJobs
-      ? beFig.beJobs + ' jobs a month to break even' + (beFig.months != null ? ' · capital back around ' + monthsFromNow(beFig.months) : '')
+      ? beFig.beJobs + ' collections a month to break even' + (beFig.months != null ? ' · capital back around ' + monthsFromNow(beFig.months) : '')
       : 'Breakeven and earning back the capital',
     'rev-assess-section': 'The key questions, answered in plain words',
     'rev-chart-section': '$' + Math.round(sRev).toLocaleString() + ' across ' + sJobs + ' collections',
@@ -4419,11 +4420,12 @@ const MONTHS_LONG = ['January','February','March','April','May','June','July','A
 function dollars(v) { return (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString(); }
 
 // Point-form notes under a chart: what it shows, then what it means.
-function insightList(title, points, accent) {
+function insightList(title, points, accent, intro) {
   const pts = (points || []).filter(Boolean);
   if (!pts.length) return '';
   return `<div style="font-size:11px;line-height:1.55;color:var(--grey-500);background:#F7F8FA;border-left:3px solid ${accent || '#1B5E3A'};padding:8px 10px;border-radius:0 6px 6px 0;margin-top:10px;">
     <strong style="color:var(--navy);">${title}</strong>
+    ${intro ? `<div style="margin-top:2px;">${intro}</div>` : ''}
     <ul style="margin:4px 0 0 16px;padding:0;">${pts.map(t => `<li style="margin-bottom:3px;">${t}</li>`).join('')}</ul>
   </div>`;
 }
@@ -4512,70 +4514,116 @@ function renderBreakeven(keys) {
 
   const names = be.recent.map(k => MON_SHORT[parseInt(k.slice(5), 10) - 1]);
   const over = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
-  const c2 = v => (v < 0 ? '&minus;$' : '$') + Math.abs(v).toFixed(2);
+  const c2 = v => (v < 0 ? '&minus;$' : '$') + Math.abs(v).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const c0 = v => (v < 0 ? '&minus;$' : '$') + Math.abs(Math.round(v)).toLocaleString();
   const row = (label, value, note, o) => { o = o || {};
-    return `<tr style="border-bottom:1px solid ${o.total ? 'transparent' : 'var(--grey-100)'};${o.total ? 'background:#F4F7FA;' : ''}">
-      <td style="padding:6px 8px 6px ${o.indent ? '18px' : '8px'};font-size:11px;${o.total ? 'font-weight:700;color:var(--navy);' : 'color:var(--grey-500);'}">${label}
-        ${note ? `<div style="font-size:10px;color:var(--grey-400);">${note}</div>` : ''}</td>
+    const caret = o.toggle ? '<span style="color:var(--grey-300);">&#9662;</span> ' : '';
+    return `<tr${o.toggle ? ` onclick="toggleSpendCat('${o.toggle}')"` : ''} style="${o.toggle ? 'cursor:pointer;' : ''}border-bottom:1px solid ${o.total ? 'transparent' : 'var(--grey-100)'};${o.total ? 'background:#F4F7FA;' : ''}">
+      <td style="padding:6px 8px 6px ${o.indent ? '18px' : '8px'};font-size:11px;${o.total ? 'font-weight:700;color:var(--navy);' : 'color:var(--grey-500);'}">${caret}${label}
+        ${note ? `<div style="font-size:10px;color:var(--grey-400);${o.toggle ? 'padding-left:14px;' : ''}">${note}</div>` : ''}</td>
       <td style="padding:6px 8px 6px 0;text-align:right;vertical-align:top;font-size:${o.total ? '13' : '11'}px;font-weight:${o.total ? '700' : '600'};white-space:nowrap;color:${o.red ? '#C62828' : 'var(--navy)'};">${value}</td>
     </tr>`; };
+  // A hidden table under a row, opened by tapping the row
+  const detail = (id, head, lines, foot, note) => {
+    const cell = (v, i, bold) => `<td style="padding:3px ${i ? '0 3px 6px' : '6px 3px 0'};${i ? 'text-align:right;white-space:nowrap;' : ''}${bold ? 'font-weight:700;color:var(--navy);' : ''}">${v}</td>`;
+    return `<tr id="${id}" class="hidden"><td colspan="2" style="padding:0 8px 8px 22px;">
+      <table style="width:100%;border-collapse:collapse;font-size:10px;color:var(--grey-500);">
+        <tr style="color:var(--grey-400);text-transform:uppercase;letter-spacing:.3px;">${head.map((h, i) => cell(h, i)).join('')}</tr>
+        ${lines.map(l => `<tr style="border-top:1px dotted var(--grey-100);">${l.map((v, i) => cell(v, i)).join('')}</tr>`).join('')}
+        ${foot ? `<tr style="border-top:1px solid var(--grey-200);">${foot.map((v, i) => cell(v, i, true)).join('')}</tr>` : ''}
+      </table>
+      ${note ? `<div style="font-size:10px;color:var(--grey-400);margin-top:4px;">${note}</div>` : ''}
+    </td></tr>`;
+  };
   const answer = (text, sub) => `<div style="background:var(--navy);color:#fff;border-radius:6px;padding:9px 12px;margin-top:8px;font-size:12px;">
       ${text}${sub ? `<div style="font-size:10px;color:#9FB0C4;margin-top:2px;">${sub}</div>` : ''}</div>`;
   const head = (t, d) => `<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px;">${t}</div>
     <div style="font-size:11px;color:var(--grey-500);line-height:1.55;margin-bottom:8px;">${d}</div>`;
+  const P = k => revProfit[k];
+  const varOf = p => VARIABLE_CATS.reduce((t, c) => t + (p.opexByCat[c] || 0), 0);
+
+  // How the fixed cost is built: every non-job cost, month by month
+  const fixedCats = {};
+  be.recent.forEach(k => Object.keys(P(k).opexByCat).forEach(c => {
+    if (!VARIABLE_CATS.includes(c) && P(k).opexByCat[c] > 0.005) fixedCats[c] = 1;
+  }));
+  const fixedLines = Object.keys(fixedCats)
+    .map(c => ({ n: c, v: be.recent.map(k => P(k).opexByCat[c] || 0) }))
+    .concat([{ n: 'Machine cost', v: be.recent.map(k => P(k).deprec) }])
+    .map(x => Object.assign(x, { avg: x.v.reduce((a, b) => a + b, 0) / x.v.length }))
+    .sort((a, b) => b.avg - a.avg);
+  const fixedTotals = be.recent.map(k => P(k).opex - varOf(P(k)) + P(k).deprec);
+  const fixedDetail = detail('be-fixed', ['Cost'].concat(names, ['Average']),
+    fixedLines.map(x => [esc(x.n)].concat(x.v.map(c0), [c0(x.avg)])),
+    ['Total'].concat(fixedTotals.map(c0), [c0(be.fixed)]),
+    'Machine cost is each machine&#39;s price spread over the years it lasts.');
+
+  // How the cost of one collection is built: costs that only happen because of a collection
+  const worked = keys.filter(k => P(k).count > 0);
+  const varLines = VARIABLE_CATS.map(c => ({ n: c, v: worked.reduce((t, k) => t + (P(k).opexByCat[c] || 0), 0) }))
+    .concat([
+      { n: 'Masjid give-back', v: worked.reduce((t, k) => t + P(k).giveBack, 0) },
+      { n: 'Frames give-back', v: worked.reduce((t, k) => t + P(k).framesDonation, 0) }
+    ]).filter(x => x.v > 0.005).sort((a, b) => b.v - a.v);
+  const varTotal = varLines.reduce((t, x) => t + x.v, 0);
+  const span = worked.length ? `${MON_SHORT[parseInt(worked[0].slice(5), 10) - 1]} to ${MON_SHORT[parseInt(worked[worked.length - 1].slice(5), 10) - 1]} ${worked[worked.length - 1].slice(0, 4)}` : '';
+  const varDetail = detail('be-var', ['Cost', 'Total', 'Per collection'],
+    varLines.map(x => [esc(x.n), c0(x.v), c2(x.v / be.jobs)]),
+    ['Total', c0(varTotal), c2(be.costJob)],
+    `All months with collections (${span}), divided by ${be.jobs} collections.`);
+
+  // How the cash kept each month is built
+  const keptDetail = detail('be-kept', ['Month', 'Revenue', 'Costs and give-back', 'Kept'],
+    be.keptEach.map(x => [monLabel(x.k), c0(P(x.k).revenue), c0(P(x.k).revenue - x.v), c0(x.v)]),
+    ['Average', '', '', c0(be.kept)],
+    'Close to profit, but machine cost is not taken off: the machines are already paid for, so no more cash goes out for them.');
 
   // ---- 1. Monthly breakeven
   let part1 = head('1. Monthly breakeven',
-    'The number of jobs a month needed for revenue to cover all the costs of that month. Below it, the month makes a loss. Above it, a profit.');
+    'The number of collections a month needed for revenue to cover all the costs of that month. Below it, the month makes a loss. Above it, a profit.');
   part1 += `<table style="width:100%;border-collapse:collapse;">
-      ${row('Fixed costs a month', c0(be.fixed), 'Rent, ads, fees and machines. Average of ' + over + '. These stay the same however many jobs are done.')}
-      ${row('An average job brings in', c2(be.avgJob), '')}
-      ${row('Cost of doing that job', c2(-be.costJob), 'Transport, boxes and give-back', { indent: true, red: true })}
-      ${row('Each job leaves', c2(be.leftJob), 'This goes towards the fixed costs', { total: true })}
+      ${row('Fixed costs a month', c0(be.fixed), (fixedCats['Professional Fees'] ? 'Rent, ads, fees and machines' : 'Rent, ads and machines') + '. Average of ' + over + '. These stay the same however many collections are done. Tap for the breakdown', { toggle: 'be-fixed' })}
+      ${fixedDetail}
+      ${row('An average collection brings in', c2(be.avgJob), `${c0(be.avgJob * be.jobs)} revenue &divide; ${be.jobs} collections`)}
+      ${row('Cost of doing that collection', c2(-be.costJob), 'Transport, boxes and give-back. Tap for the breakdown', { indent: true, red: true, toggle: 'be-var' })}
+      ${varDetail}
+      ${row('Each collection leaves', c2(be.leftJob), 'This goes towards the fixed costs', { total: true })}
     </table>`;
   part1 += be.beJobs
-    ? answer(`${c0(be.fixed)} &divide; ${c2(be.leftJob)} = <strong style="color:var(--gold);">${be.beJobs} jobs a month</strong>`,
+    ? answer(`${c0(be.fixed)} &divide; ${c2(be.leftJob)} = <strong style="color:var(--gold);">${be.beJobs} collections a month</strong>`,
              'About ' + c0(be.beRev) + ' of revenue a month')
-    : answer('Each job costs more to do than it brings in, so there is no breakeven at these prices.');
+    : answer('Each collection costs more to do than it brings in, so there is no breakeven at these prices.');
 
   if (be.beJobs) {
     const scale = Math.max(be.recentJobs, be.beJobs) * 1.25;
-    const bePct = 100 * be.beJobs / scale;
-    const nowPct = 100 * be.recentJobs / scale;
+    const pct = v => 100 * v / scale;
+    const bePct = pct(be.beJobs), nowPct = pct(be.recentJobs);
     const shift = pc => pc > 70 ? '-85%' : pc < 20 ? '-15%' : '-50%';
+    const step = scale <= 30 ? 5 : scale <= 150 ? 10 : 25;
+    const ticks = [];
+    for (let t = 0; t <= scale; t += step) ticks.push(t);
     part1 += `
-      <div style="position:relative;margin:26px 0 28px;">
-        <div style="position:absolute;left:${bePct}%;top:-17px;transform:translateX(${shift(bePct)});font-size:10px;font-weight:700;color:var(--grey-500);white-space:nowrap;">Breakeven ${be.beJobs}</div>
-        <div style="display:flex;height:22px;border-radius:6px;overflow:hidden;">
+      <div style="position:relative;margin:40px 0 0;">
+        <div style="position:absolute;left:${bePct}%;top:-32px;transform:translateX(${shift(bePct)});font-size:10px;font-weight:700;color:var(--grey-500);white-space:nowrap;">Breakeven ${be.beJobs}</div>
+        <div style="position:absolute;left:${nowPct}%;top:-18px;transform:translateX(${shift(nowPct)});font-size:10px;font-weight:700;color:var(--navy);white-space:nowrap;">Recent average ${Math.round(be.recentJobs)}</div>
+        <div style="display:flex;height:22px;border-radius:6px 6px 0 0;overflow:hidden;">
           <div style="width:${bePct}%;background:#F6DADA;color:#C62828;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">Loss</div>
           <div style="flex:1;background:#D9EEE1;color:#1B5E3A;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">Profit</div>
         </div>
-        <div style="position:absolute;left:${bePct}%;top:0;height:22px;border-left:2px dashed var(--grey-500);"></div>
-        <div style="position:absolute;left:${nowPct}%;top:-4px;height:30px;border-left:3px solid var(--navy);"></div>
-        <div style="position:absolute;left:${nowPct}%;top:28px;transform:translateX(${shift(nowPct)});font-size:10px;font-weight:700;color:var(--navy);white-space:nowrap;">Recent average ${Math.round(be.recentJobs)} jobs</div>
-      </div>`;
+        <div style="position:absolute;left:${bePct}%;top:-4px;height:26px;border-left:2px dashed var(--grey-500);"></div>
+        <div style="position:absolute;left:${nowPct}%;top:-4px;height:26px;border-left:3px solid var(--navy);"></div>
+      </div>
+      <div style="position:relative;height:18px;border-top:1px solid var(--grey-400);">
+        ${ticks.map(t => `<div style="position:absolute;left:${pct(t)}%;top:0;height:4px;border-left:1px solid var(--grey-400);"></div>
+          <div style="position:absolute;left:${pct(t)}%;top:5px;transform:translateX(${t === 0 ? '0' : '-50%'});font-size:9px;color:var(--grey-400);">${t}</div>`).join('')}
+      </div>
+      <div style="text-align:center;font-size:10px;color:var(--grey-400);margin-bottom:6px;">Collections a month</div>`;
   }
 
-  const part = partialMonths(keys);
-  const lossNotes = keys.filter(k => !part[k] && revProfit[k].count > 0 && revProfit[k].profit < 0).map(k => {
-    const p = revProfit[k];
-    const avg = p.revenue / p.count;
-    const perJob = (VARIABLE_CATS.reduce((t, c) => t + (p.opexByCat[c] || 0), 0) + p.giveBack + p.framesDonation) / p.count;
-    if (p.count < (be.beJobs || 0)) {
-      return `<strong>${monLabel(k)}</strong> lost ${dollars(-p.profit)} with ${p.count} jobs, below breakeven${MONTH_NOTES[k] ? ' (' + MONTH_NOTES[k] + ')' : ''}.`;
-    }
-    const why = [];
-    if (avg < be.avgJob - 5) why.push(`jobs were smaller than usual ($${Math.round(avg)} each)`);
-    if (perJob > be.costJob + 5) why.push(`each job cost more to do ($${Math.round(perJob)}, against $${Math.round(be.costJob)} usually)`);
-    return `<strong>${monLabel(k)}</strong> had ${p.count} jobs and still lost ${dollars(-p.profit)}${why.length ? ': ' + why.join(' and ') : ''}. Breakeven is an average, not a guarantee.`;
-  });
   const diff = Math.round(be.recentJobs) - (be.beJobs || 0);
   part1 += insightList('What this tells us', [
-    be.beJobs ? `The last three full months averaged <strong>${Math.round(be.recentJobs)} jobs</strong>, ${Math.abs(diff)} ${diff >= 0 ? 'above' : 'below'} breakeven.` : '',
-    be.beJobs ? `Each job above ${be.beJobs} adds about <strong>$${Math.round(be.leftJob)}</strong> of profit. Each job short of it loses about the same.` : '',
-    ...lossNotes,
-    'Breakeven goes up if rent or ads go up, and down if each job leaves more.'
+    be.beJobs ? `The last three full months averaged <strong>${Math.round(be.recentJobs)} collections</strong>, ${Math.abs(diff)} ${diff >= 0 ? 'above' : 'below'} breakeven.` : '',
+    be.beJobs ? `Each collection above ${be.beJobs} adds about <strong>$${Math.round(be.leftJob)}</strong> of profit. Each collection short of it loses about the same.` : ''
   ]);
 
   // ---- 2. Earning back the capital
@@ -4587,7 +4635,7 @@ function renderBreakeven(keys) {
         ${row('Capital put in', c0(be.putIn), '')}
         ${row('Less: in the bank now', c0(-be.bank), '', { indent: true, red: true })}
         ${row('Still to earn back', c0(Math.max(0, be.gap)), '', { total: true })}
-        ${be.gap > 0 ? row('The business keeps each month', c0(be.kept), 'Average of ' + over + ', after day-to-day costs and give-back') : ''}
+        ${be.gap > 0 ? row('Cash the business keeps each month', c0(be.kept), 'Average of ' + over + ': revenue minus day-to-day costs and give-back. Tap for the breakdown', { toggle: 'be-kept' }) + keptDetail : ''}
       </table>`;
     if (be.gap <= 0) {
       part2 += answer('<strong style="color:var(--gold);">Already earned back.</strong>', 'The bank balance is above the capital put in.');
@@ -4596,19 +4644,6 @@ function renderBreakeven(keys) {
     } else {
       part2 += answer('No date yet', 'Over the last three full months the business did not keep money after its costs.');
     }
-    const lo = be.keptEach.reduce((a, x) => x.v < a.v ? x : a, be.keptEach[0]);
-    const hi = be.keptEach.reduce((a, x) => x.v > a.v ? x : a, be.keptEach[0]);
-    part2 += insightList('What this tells us', [
-      be.gap > 0 && be.dep > 0
-        ? (be.gapExDep <= 0
-            ? `Counting the ${c0(be.dep)} rental deposit, which comes back when the unit is returned, the capital is already covered.`
-            : be.monthsExDep != null
-              ? `${c0(be.dep)} of the gap is the rental deposit, which comes back when the unit is returned. Counting it, only <strong>${c0(be.gapExDep)}</strong> is left to earn back: about ${be.monthsExDep.toFixed(1)} months, around <strong>${monthsFromNow(be.monthsExDep)}</strong>.`
-              : '')
-        : '',
-      be.gap > 0 && hi.k !== lo.k ? `The amount kept swings a lot: ${c0(lo.v)} in ${monLabel(lo.k)}, ${c0(hi.v)} in ${monLabel(hi.k)}. Treat the date as a guide, not a promise.` : '',
-      be.gap > 0 ? 'This assumes no new machines are bought and the coming months look like the last three.' : ''
-    ]);
   }
 
   body.innerHTML = part1 + (part2 ? '<div style="height:18px;"></div>' + part2 : '');
@@ -4630,18 +4665,17 @@ const subList = pts => `<ul style="margin:3px 0 2px 14px;padding:0;list-style:ci
 
 function renderProfitInsight(keys) {
   const el = document.getElementById('rev-profit-insight');
+  const foot = document.getElementById('rev-profit-foot');
   if (!el) return;
   const part = partialMonths(keys);
   const P = k => revProfit[k];
   const full = keys.filter(k => !part[k] && P(k).count > 0);
-  if (!full.length) { el.innerHTML = ''; return; }
+  if (!full.length) { el.innerHTML = ''; if (foot) foot.innerHTML = ''; return; }
   const ads = k => (P(k) && P(k).byCat['Ads']) || 0;
   const odd = k => MONTH_NOTES[k] && !AD_NOTES[k];
-  const total = keys.reduce((t, k) => t + P(k).profit, 0);
   const wins = full.filter(k => P(k).profit >= 0).length;
   const best = full.reduce((a, k) => P(k).profit > P(a).profit ? k : a, full[0]);
   const losses = full.filter(k => P(k).profit < 0);
-  const setup = keys.filter(k => !P(k).count && P(k).profit < 0);
   const avg = (ks, f) => ks.reduce((t, k) => t + f(P(k)), 0) / (ks.length || 1);
   const before = full.filter(k => k < UNIT_FROM), after = full.filter(k => k >= UNIT_FROM);
   const be = breakevenFigures(keys);
@@ -4649,68 +4683,72 @@ function renderProfitInsight(keys) {
 
   // Why the best month was the best
   const regular = full.filter(k => !odd(k));
+  const mostCol = full.every(k => P(k).count <= P(best).count);
   const bestPts = [
     SCHOOL_HOLIDAYS[best] ? `It fell in the ${SCHOOL_HOLIDAYS[best]}.` : '',
     regular.length > 1 && regular.every(k => ads(k) >= ads(best))
-      ? `Its own ad spend was the lowest of the regular months (${dollars(ads(best))}), which kept costs down.` : '',
+      ? `Its ad spend was the lowest of the regular months (${dollars(ads(best))}), which kept costs down.` : '',
     P(best).giveBack === 0 && firstGb && firstGb > best ? `No masjid give-back was due yet. It started in ${monLabel(firstGb)}.` : ''
   ];
-  const mostJobs = full.every(k => P(k).count <= P(best).count);
-  const bestLine = `<strong>Best month: ${monLabel(best)}</strong>, ${dollars(P(best).profit)} from ${P(best).count} jobs${mostJobs ? ', the most of any month' : ''}.`
+  const bestLine = `<strong>${monLabel(best)} was the best month</strong>, with ${P(best).count} collections${mostCol ? ', the most of any month' : ''}.`
     + (bestPts.some(Boolean) ? subList(bestPts) : '');
 
-  // Why each loss month lost money, against the month before it
+  // Why each loss month made a loss, against the month before it
   const lossLine = k => {
     const p = P(k), pk = prevMonthKey(k), q = P(pk);
-    if (odd(k)) return `<strong>${monLabel(k)}</strong> lost ${dollars(-p.profit)}: only ${p.count} jobs (${MONTH_NOTES[k]}).`;
-    if (!q || !q.count) return `<strong>${monLabel(k)}</strong> lost ${dollars(-p.profit)} from ${p.count} jobs.`;
+    if (odd(k)) return `<strong>${monLabel(k)}</strong> made a loss because of ${MONTH_NOTES[k]}: only ${p.count} collections.`;
+    if (!q || !q.count) return `<strong>${monLabel(k)}</strong> made a loss with ${p.count} collections.`;
     const dRev = p.revenue - q.revenue, dCost = p.costs - q.costs;
-    const revSide = Math.abs(dRev) >= Math.abs(dCost);
-    const perJob = x => x.revenue / x.count, kgJob = x => x.kg / x.count, fee = x => x.feeCharged / x.count;
+    const lead = dRev < 0 && Math.abs(dRev) >= Math.abs(dCost)
+      ? `<strong>${monLabel(k)}</strong> profit dropped to negative because of low revenue (${dollars(-dRev)} drop in revenue from ${monLabel(pk)}).`
+      : `<strong>${monLabel(k)}</strong> profit dropped to negative because of higher spending (${dollars(dCost)} more than ${monLabel(pk)}).`;
     const pts = [];
     if (p.count < q.count) {
-      pts.push(`Fewer jobs: ${p.count} against ${q.count}${AD_NOTES[k] ? ', because ' + AD_NOTES[k].short : ''}.`);
+      pts.push(`Fewer collections: ${p.count} against ${q.count}${AD_NOTES[k] ? ', because ' + AD_NOTES[k].short : ''}.`);
     }
-    if (perJob(p) < perJob(q) - 5) {
-      const bits = [];
-      if (fee(p) < fee(q) - 3) bits.push(`the booking fee fell from $${Math.round(fee(q))} to $${Math.round(fee(p))} on average with discount codes`);
-      if (kgJob(p) < kgJob(q) - 1) bits.push(`loads were lighter (${Math.round(kgJob(p))} kg against ${Math.round(kgJob(q))} kg)`);
-      pts.push(`Smaller jobs: $${Math.round(perJob(p))} against $${Math.round(perJob(q))}${bits.length ? '. ' + capFirst(bits.join(', and ')) : ''}.`);
+    if (dCost > 0) {
+      const main = [], lower = [];
+      const gbUp = (p.giveBack + p.framesDonation) - (q.giveBack + q.framesDonation);
+      if (gbUp >= 150) main.push(`masjid give-back (${dollars(gbUp)}${q.giveBack + q.framesDonation <= 0 ? ', its first month' : ''})`);
+      Object.keys(Object.assign({}, p.opexByCat, q.opexByCat)).forEach(c => {
+        const d = (p.opexByCat[c] || 0) - (q.opexByCat[c] || 0);
+        if (d <= -150) lower.push(c.toLowerCase());
+        if (d >= 150 && ['Labour & Works', 'Equipment'].includes(c)) {
+          const top = opexItems(p, c).sort((x, y) => y.a - x.a)[0];
+          if (top && top.a >= 0.8 * d) main.push(`one-time ${esc(String(top.n).toLowerCase())} (${dollars(top.a)})`);
+        }
+      });
+      pts.push(`Increase in spending (${dollars(dCost)} total increase)${main.length ? ': mainly from ' + main.join(' and ') : ''}${lower.length ? ', partly offset by lower ' + lower.join(' and ') + ' spending' : ''}.`);
     }
-    // Cost lines that rose the most
-    const rose = [];
-    const add = (label, now, then, item) => { if (now - then >= 150) rose.push({ label, d: now - then, first: then <= 0, item }); };
-    add('masjid give-back', p.giveBack + p.framesDonation, q.giveBack + q.framesDonation);
-    Object.keys(Object.assign({}, p.opexByCat, q.opexByCat)).forEach(c => {
-      const now = p.opexByCat[c] || 0, then = q.opexByCat[c] || 0;
-      const top = opexItems(p, c).sort((x, y) => y.a - x.a)[0];
-      const named = top && !['Ads', 'Rent & Utilities'].includes(c) && top.a >= 0.8 * (now - then);
-      add(c.toLowerCase(), now, then, named ? String(top.n).toLowerCase() : '');
-    });
-    add('machine cost', p.deprec, q.deprec);
-    rose.sort((x, y) => y.d - x.d);
-    if (rose.length) {
-      pts.push('Costs that rose: ' + rose.slice(0, 3).map(r =>
-        `${r.label} +${dollars(r.d)}${r.first ? ' (first month)' : ''}${r.item ? ' (' + esc(r.item) + ')' : ''}`).join(', ') + '.');
-    }
-    return `<strong>${monLabel(k)}</strong> lost ${dollars(-p.profit)}. Compared with ${monLabel(pk)}, revenue ${dRev < 0 ? 'fell' : 'rose'}
-      ${dollars(Math.abs(dRev))} and costs ${dCost < 0 ? 'fell' : 'rose'}${revSide && Math.abs(dCost) < Math.abs(dRev) / 3 ? ' only' : ''}
-      ${dollars(Math.abs(dCost))}. So it was mainly a <strong>${revSide ? 'revenue' : 'cost'}</strong> problem.` + subList(pts);
+    return lead + subList(pts);
   };
 
   el.innerHTML = insightList('What the chart shows', [
-    `Total profit <strong>${dollars(total)}</strong>. <strong>${wins} of ${full.length}</strong> full months made money.`,
+    `<strong>${wins} of ${full.length}</strong> full months made a profit.`,
     bestLine,
-    ...losses.map(lossLine),
-    setup.length ? `${setup.map(monLabel).join(', ')}: set-up purchases before the first job.` : '',
-    ...keys.filter(k => part[k]).map(k => `${monLabel(k)} is not a full month yet, so its bar will still change.`)
+    ...losses.map(lossLine)
   ]) + insightList('What it means', [
     before.length && after.length
-      ? `Monthly costs rose from about <strong>${dollars(avg(before, p => p.costs))}</strong> to <strong>${dollars(avg(after, p => p.costs))}</strong> after moving into the Sindo unit and starting the masjid give-back. Revenue rose with them, so profit went from about ${dollars(avg(before, p => p.profit))} to ${dollars(avg(after, p => p.profit))} a month.`
+      ? `Monthly costs rose from about <strong>${dollars(avg(before, p => p.costs))}*</strong> to <strong>${dollars(avg(after, p => p.costs))}**</strong> after moving into the Sindo unit and starting the masjid give-back.`
       : '',
-    'Profit moves with the number of jobs, because the fixed costs stay the same every month.',
-    be && be.beJobs ? `A month needs about <strong>${be.beJobs} jobs</strong> to break even. See the Breakeven section.` : ''
+    be && be.beJobs ? `A month needs about <strong>${be.beJobs} collections</strong> to break even. See the Breakeven section.` : ''
   ], '#C9A961');
+
+  // Footnotes for the two cost averages
+  if (foot) {
+    const range = ks => `${MON_SHORT[parseInt(ks[0].slice(5), 10) - 1]} to ${MON_SHORT[parseInt(ks[ks.length - 1].slice(5), 10) - 1]} ${ks[ks.length - 1].slice(0, 4)}`;
+    const list = ks => ks.map(k => `${MON_SHORT[parseInt(k.slice(5), 10) - 1]} ${dollars(P(k).costs)}`).join(', ');
+    const rent = avg(after, p => p.opexByCat['Rent & Utilities'] || 0);
+    const gbFrom = after.find(k => P(k).giveBack > 0);
+    foot.innerHTML = before.length && after.length
+      ? `<div style="font-size:10px;line-height:1.55;color:var(--grey-400);border-top:1px solid var(--grey-100);margin-top:10px;padding-top:8px;">
+          <div>* Average monthly costs for ${range(before)}, before the Sindo unit: ${list(before)}.
+            Costs are day-to-day costs, machine cost and give-back.</div>
+          <div style="margin-top:4px;">** Average monthly costs for ${range(after)}, in the Sindo unit: ${list(after)}.
+            Includes rent and utilities of about ${dollars(rent)} a month${gbFrom ? `, and masjid give-back from ${MONTHS_LONG[parseInt(gbFrom.slice(5), 10) - 1]}` : ''}.</div>
+        </div>`
+      : '';
+  }
 }
 
 // Do the masjid partnerships bring customers, and could they replace some ads?
@@ -4763,17 +4801,17 @@ function renderReferralInsight(keys) {
 
   el.innerHTML = insightList('What the data shows', [
     ...MOSQUE_CODES.filter(c => byCode[c]).map(c =>
-      `<strong>${esc(MOSQUE_NAMES[c] || c)}</strong>: ${byCode[c].count} jobs, $${byCode[c].gb.toFixed(2)} given back.`),
-    `Masjid codes were used on <strong>${mJobs.length} of ${since} jobs</strong> since ${MONTHS_LONG[parseInt(startK.slice(5), 10) - 1]} ${startK.slice(0, 4)} (first one on ${firstDate}). By month: ${shareKeys.map(k => `${monLabel(k)} ${pct(k)}%${part[k] ? ' so far' : ''}`).join(', ')}.`,
+      `<strong>${esc(MOSQUE_NAMES[c] || c)}</strong>: ${byCode[c].count} collections, $${byCode[c].gb.toFixed(2)} given back.`),
+    `Masjid codes were used on <strong>${mJobs.length} of ${since} collections</strong> since ${MONTHS_LONG[parseInt(startK.slice(5), 10) - 1]} ${startK.slice(0, 4)} (first one on ${firstDate}). By month: ${shareKeys.map(k => `${monLabel(k)} ${pct(k)}%${part[k] ? ' so far' : ''}`).join(', ')}.`,
     beforeDef.length && afterDef.length && avgPct(afterDef) < avgPct(beforeDef)
       ? `The share fell after the booking page started pre-selecting ${DEFAULT_CODE} in ${monLabel(defMonth)}. That suggests many masjid-code bookings were website visitors picking a code, not people sent by the masjid.`
       : '',
     before.length && after.length
-      ? `Jobs a month ${move} after the partnerships began: about ${Math.round(jBefore)} before and ${Math.round(jAfter)} after (regular full months).`
+      ? `Collections a month ${move} after the partnerships began: about ${Math.round(jBefore)} before and ${Math.round(jAfter)} after (regular full months).`
       : '',
-    `Give-back works out at about <strong>$${Math.round(gbAll / mJobs.length)} a masjid job</strong>.`
+    `Give-back works out at about <strong>$${Math.round(gbAll / mJobs.length)} a masjid collection</strong>.`
       + (before.length && after.length
-        ? ` Ads cost about $${Math.round(aBefore)} a job before the partnerships and $${Math.round(aAfter)} after.`
+        ? ` Ads cost about $${Math.round(aBefore)} a collection before the partnerships and $${Math.round(aAfter)} after.`
           + (aAfter < aBefore && AD_CHANGES[startK] ? ` But ${AD_CHANGES[startK]}, so the drop cannot be credited to the masjids.` : '')
         : ''),
     pend ? `A further $${pend.toFixed(2)} is due for this month and is paid at month end.` : '',
@@ -4873,30 +4911,30 @@ function renderUnitEconomics(allKeys) {
     `<div style="width:${pct(v)}%;background:${col};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;">${pct(v) > 13 ? '$' + Math.round(v) : ''}</div>`;
 
   const bar = `
-    <div style="font-size:11px;color:var(--grey-400);margin-bottom:3px;">An average job brings in <strong style="color:var(--navy);font-size:14px;">$${revPerJob.toFixed(2)}</strong>. Here is where it goes:</div>
+    <div style="font-size:11px;color:var(--grey-400);margin-bottom:3px;">An average collection brings in <strong style="color:var(--navy);font-size:14px;">$${revPerJob.toFixed(2)}</strong>. Here is where it goes:</div>
     <div style="display:flex;height:34px;border-radius:6px;overflow:hidden;margin-bottom:6px;">
       ${seg(varPerJob, '#C62828')}${seg(fixPerJob, '#8FA9C4')}${seg(Math.max(0, profitPerJob), '#1B5E3A')}
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:10px;color:var(--grey-500);margin-bottom:4px;">
-      <span><span style="color:#C62828;font-weight:700;">&#9632;</span> Doing the job $${varPerJob.toFixed(2)}</span>
+      <span><span style="color:#C62828;font-weight:700;">&#9632;</span> Doing the collection $${varPerJob.toFixed(2)}</span>
       <span><span style="color:#8FA9C4;font-weight:700;">&#9632;</span> Rent, ads, machines $${fixPerJob.toFixed(2)}</span>
       <span><span style="color:#1B5E3A;font-weight:700;">&#9632;</span> Profit $${profitPerJob.toFixed(2)}</span>
     </div>
     <div id="unit-jobcost" class="hidden" style="margin-bottom:10px;padding-left:12px;">
-      <div style="font-size:10px;color:var(--grey-400);margin-bottom:3px;">Total of these costs &divide; ${tot.jobs} jobs:</div>
+      <div style="font-size:10px;color:var(--grey-400);margin-bottom:3px;">Total of these costs &divide; ${tot.jobs} collections:</div>
       ${jobCostRows}
     </div>`;
 
   const priceHealthy = marginPct >= 60;
   const left = revPerJob - varPerJob;
   const verdict = insightList('What this tells us', priceHealthy ? [
-    `An average job brings in <strong>$${revPerJob.toFixed(2)}</strong>. Doing it costs <strong>$${varPerJob.toFixed(2)}</strong>, which leaves <strong>$${left.toFixed(2)}</strong>.`,
-    `Rent, ads and machines take $${fixPerJob.toFixed(2)} of each job at the current number of jobs. The remaining <strong>$${profitPerJob.toFixed(2)}</strong> is profit.`,
-    `Rent and ads stay the same however many jobs are done. So each extra job adds close to $${Math.round(left)} to profit, and one more job a week is about <strong>$${Math.round(left * 4.3).toLocaleString()} a month</strong>.`,
-    'Pricing is not the problem. Profit grows with the number of jobs and by keeping fixed costs in check.'
+    `An average collection brings in <strong>$${revPerJob.toFixed(2)}</strong>. Doing it costs <strong>$${varPerJob.toFixed(2)}</strong>, which leaves <strong>$${left.toFixed(2)}</strong>.`,
+    `Rent, ads and machines take $${fixPerJob.toFixed(2)} of each collection at the current number of collections. The remaining <strong>$${profitPerJob.toFixed(2)}</strong> is profit.`,
+    `Rent and ads stay the same however many collections are done. So each extra collection adds close to $${Math.round(left)} to profit, and one more collection a week is about <strong>$${Math.round(left * 4.3).toLocaleString()} a month</strong>.`,
+    'Pricing is not the problem. Profit grows with the number of collections and by keeping fixed costs in check.'
   ] : [
-    `An average job brings in <strong>$${revPerJob.toFixed(2)}</strong>, but $${varPerJob.toFixed(2)} of it goes on doing the job, leaving only $${left.toFixed(2)}.`,
-    'At this level pricing or the cost of doing each job is the problem. More jobs alone will not fix it.'
+    `An average collection brings in <strong>$${revPerJob.toFixed(2)}</strong>, but $${varPerJob.toFixed(2)} of it goes on doing the collection, leaving only $${left.toFixed(2)}.`,
+    'At this level pricing or the cost of doing each collection is the problem. More collections alone will not fix it.'
   ]);
   const rpkLo = Math.min.apply(null, rows.map(r => r.revPerKg)), rpkHi = Math.max.apply(null, rows.map(r => r.revPerKg));
   const vpkLo = Math.min.apply(null, rows.map(r => r.varPerKg)), vpkHi = Math.max.apply(null, rows.map(r => r.varPerKg));
@@ -4921,11 +4959,11 @@ function renderUnitEconomics(allKeys) {
      </div>` + kgNotes;
 
   document.getElementById('rev-unit-verdict').innerHTML = `
-    <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px;">What the $${varPerJob.toFixed(2)} of "doing the job" is made of</div>
+    <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px;">What the $${varPerJob.toFixed(2)} of "doing the collection" is made of</div>
     <div style="font-size:10px;color:var(--grey-400);margin-bottom:6px;">Everything that only gets spent because a collection happened, divided by the ${tot.jobs} collections.</div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
       <tr style="color:var(--grey-400);font-size:10px;text-transform:uppercase;letter-spacing:.3px;">
-        <td style="padding:3px 0;">Cost</td><td style="text-align:right;">Total</td><td style="text-align:right;">Per job</td>
+        <td style="padding:3px 0;">Cost</td><td style="text-align:right;">Total</td><td style="text-align:right;">Per collection</td>
       </tr>
       ${jobCostParts.map(x => `<tr style="border-bottom:1px solid var(--grey-100);">
         <td style="padding:5px 0;font-size:11px;color:var(--grey-500);">${esc(COST_PLAIN[x.n] || x.n)}
@@ -5019,7 +5057,7 @@ function renderCustomerEconomics(monthly) {
       <tr style="color:var(--grey-400);font-size:10px;text-transform:uppercase;letter-spacing:.3px;">
         <td style="padding:3px 0;">Month</td><td style="text-align:right;">New</td>
         <td style="text-align:right;">Repeat</td><td style="text-align:right;">CAC</td>
-        <td style="padding-left:8px;">Jobs</td>
+        <td style="padding-left:8px;">Collections</td>
       </tr>${rows}
     </table>
     ${insightList('What this tells us', [
@@ -5032,7 +5070,7 @@ function renderCustomerEconomics(monthly) {
         ? 'None of the customers so far is a business or institution, so there is no regular contract work yet.'
         : `${bizCount} customer${bizCount === 1 ? ' is a business or institution' : 's are businesses or institutions'}.`,
       followUps
-        ? `<span style="color:var(--grey-400);">${followUps} zero-weight return trip${followUps === 1 ? '' : 's'} within three weeks of the original job ${followUps === 1 ? 'was' : 'were'} counted as part of that job, not as a repeat customer.</span>`
+        ? `<span style="color:var(--grey-400);">${followUps} zero-weight return trip${followUps === 1 ? '' : 's'} within three weeks of the original collection ${followUps === 1 ? 'was' : 'were'} counted as part of that collection, not as a repeat customer.</span>`
         : ''
     ])}`;
   sec.classList.remove('hidden');
@@ -5531,8 +5569,8 @@ function renderAssessment(keys, monthly) {
        machines are owned and in daily use, and the deposit is returned when the unit is returned.`) +
 
     (be && be.beJobs
-      ? card('How much work is needed to break even?', be.beJobs + ' jobs a month', be.recentJobs >= be.beJobs,
-          `Recent months averaged ${Math.round(be.recentJobs)} jobs, so the business is
+      ? card('How much work is needed to break even?', be.beJobs + ' collections a month', be.recentJobs >= be.beJobs,
+          `Recent months averaged ${Math.round(be.recentJobs)} collections, so the business is
            ${be.recentJobs >= be.beJobs ? 'above' : 'below'} breakeven in a normal month.`)
       : '') +
 
@@ -5723,7 +5761,7 @@ function showProfitDetail(key) {
     gb[c].jobs++; gb[c].kg += b.paperKg || 0; gb[c].a += 10 + (b.paperKg || 0);
   });
   const gbList = p.giveBackPending ? [] : Object.keys(gb).sort((a, b) => gb[b].a - gb[a].a).map(c =>
-    ({ n: MOSQUE_NAMES[c] || c, v: gb[c].jobs + ' job' + (gb[c].jobs === 1 ? '' : 's') + ', ' + gb[c].kg.toFixed(1) + ' kg of books', a: gb[c].a }));
+    ({ n: MOSQUE_NAMES[c] || c, v: gb[c].jobs + ' collection' + (gb[c].jobs === 1 ? '' : 's') + ', ' + gb[c].kg.toFixed(1) + ' kg of books', a: gb[c].a }));
   if (p.giveBack > 0 || p.giveBackPending > 0 || gbList.length) {
     html += costLine(id('gb'), 'Masjid give-back',
       p.giveBackPending ? `$${p.giveBackPending.toFixed(2)}, including frames, is paid at month end and counted then` : '$10 a booking plus $1 a kg of books',
@@ -5946,7 +5984,7 @@ function renderTrendInsight(keys, monthly, vals, metric) {
     </div>`;
 
   box.innerHTML = insightList('What the chart shows', shows)
-    + insightList('What moved revenue', moved, '#C9A961')
+    + insightList('What moved revenue', moved, '#C9A961', 'Revenue goes up and down from month to month. The main reasons:')
     + keyPoint;
 }
 
@@ -5997,7 +6035,7 @@ function renderPartMonthChart(parts) {
     const h = max > 0 ? Math.max(6, Math.round(100 * p.count / max)) : 6;
     const busiest = p.count === max;
     return `<div onclick="showPartMonthDetail(${i})" style="cursor:pointer;flex:1;text-align:center;">
-      <div style="font-size:12px;font-weight:700;margin-bottom:3px;">${p.count}<span style="font-size:9px;color:var(--grey-400);font-weight:600;"> job${p.count === 1 ? '' : 's'}</span></div>
+      <div style="font-size:12px;font-weight:700;margin-bottom:3px;">${p.count}<span style="font-size:9px;color:var(--grey-400);font-weight:600;"> collection${p.count === 1 ? '' : 's'}</span></div>
       <div style="height:${h}px;background:${busiest ? 'linear-gradient(180deg, var(--gold), #A8873A)' : 'linear-gradient(180deg, #C6CBD6, #9AA2B1)'};border-radius:6px 6px 0 0;"></div>
       <div style="font-size:10px;font-weight:600;color:var(--grey-500);border-top:2px solid var(--navy);padding-top:4px;">${p.label}</div>
       <div style="font-size:9px;color:var(--grey-400);">$${Math.round(p.revenue).toLocaleString()}</div>
