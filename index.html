@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-17.11';
+const APP_VERSION = '2026-09-19.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4423,7 +4423,7 @@ function dollars(v) { return (v < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLo
 function insightList(title, points, accent, intro) {
   const pts = (points || []).filter(Boolean);
   if (!pts.length) return '';
-  return `<div style="font-size:11px;line-height:1.55;color:var(--grey-500);background:#F7F8FA;border-left:3px solid ${accent || '#1B5E3A'};padding:8px 10px;border-radius:0 6px 6px 0;margin-top:10px;">
+  return `<div class="insight" style="font-size:11px;line-height:1.55;color:var(--grey-500);background:#F7F8FA;border-left:3px solid ${accent || '#1B5E3A'};padding:8px 10px;border-radius:0 6px 6px 0;margin-top:10px;">
     <strong style="color:var(--navy);">${title}</strong>
     ${intro ? `<div style="margin-top:2px;">${intro}</div>` : ''}
     <ul style="margin:4px 0 0 16px;padding:0;">${pts.map(t => `<li style="margin-bottom:3px;">${t}</li>`).join('')}</ul>
@@ -4525,20 +4525,20 @@ function renderBreakeven(keys) {
     </tr>`; };
   // A hidden table under a row, opened by tapping the row
   const detail = (id, head, lines, foot, note) => {
-    const cell = (v, i, bold) => `<td style="padding:3px ${i ? '0 3px 6px' : '6px 3px 0'};${i ? 'text-align:right;white-space:nowrap;' : ''}${bold ? 'font-weight:700;color:var(--navy);' : ''}">${v}</td>`;
+    const cell = (v, i, bold, indent) => `<td style="padding:3px ${i ? '0 3px 6px' : '6px 3px ' + (indent ? '10px' : '0')};${i ? 'text-align:right;white-space:nowrap;' : ''}${bold ? 'font-weight:700;color:var(--navy);' : ''}">${v}</td>`;
     return `<tr id="${id}" class="hidden"><td colspan="2" style="padding:0 8px 8px 22px;">
       <table style="width:100%;border-collapse:collapse;font-size:10px;color:var(--grey-500);">
         <tr style="color:var(--grey-400);text-transform:uppercase;letter-spacing:.3px;">${head.map((h, i) => cell(h, i)).join('')}</tr>
         ${lines.map(l => {
           const row = Array.isArray(l) ? { c: l } : l;
-          return `<tr style="border-top:1px ${row.rule ? 'solid var(--grey-200)' : 'dotted var(--grey-100)'};">${row.c.map((v, i) => cell(v, i, row.bold)).join('')}</tr>`;
+          return `<tr style="border-top:1px ${row.rule ? 'solid var(--grey-200)' : 'dotted var(--grey-100)'};">${row.c.map((v, i) => cell(v, i, row.bold, row.indent)).join('')}</tr>`;
         }).join('')}
         ${foot ? `<tr style="border-top:1px solid var(--grey-200);">${foot.map((v, i) => cell(v, i, true)).join('')}</tr>` : ''}
       </table>
       ${note ? `<div style="font-size:10px;color:var(--grey-400);margin-top:4px;">${note}</div>` : ''}
     </td></tr>`;
   };
-  const answer = (text, sub) => `<div style="background:var(--navy);color:#fff;border-radius:6px;padding:9px 12px;margin-top:8px;font-size:12px;">
+  const answer = (text, sub) => `<div class="be-answer" style="background:var(--navy);color:#fff;border-radius:6px;padding:9px 12px;margin-top:8px;font-size:12px;">
       ${text}${sub ? `<div style="font-size:10px;color:#9FB0C4;margin-top:2px;">${sub}</div>` : ''}</div>`;
   const head = (t, d) => `<div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:2px;">${t}</div>
     <div style="font-size:11px;color:var(--grey-500);line-height:1.55;margin-bottom:8px;">${d}</div>`;
@@ -4561,13 +4561,20 @@ function renderBreakeven(keys) {
   // The collection costs and the month total, so this table ties back to the
   // monthly cost figures under Profit by Month
   const withCols = be.recent.map(k => varOf(P(k)) + P(k).giveBack + P(k).framesDonation);
+  // What that collection cost is made of, so the line is never a black box
+  const withParts = VARIABLE_CATS.map(c => ({
+    n: c === 'Labour & Works' ? 'Part-time help' : c, v: be.recent.map(k => variablePart(P(k), c))
+  })).concat([
+    { n: 'Masjid give-back', v: be.recent.map(k => P(k).giveBack) },
+    { n: 'Frames give-back', v: be.recent.map(k => P(k).framesDonation) }
+  ]).filter(x => x.v.some(v => v > 0.005));
   const monthTotals = be.recent.map(k => P(k).costs);
   const mean = a => a.reduce((t, v) => t + v, 0) / a.length;
   const fixedDetail = detail('be-fixed', ['Cost'].concat(names, ['Average']),
     fixedLines.map(x => [esc(x.n)].concat(x.v.map(c0), [c0(x.avg)])).concat([
       { c: ['Fixed costs a month'].concat(fixedTotals.map(c0), [c0(be.fixed)]), bold: true, rule: true },
-      { c: ['Plus costs that come with the collections'].concat(withCols.map(c0), [c0(mean(withCols))]) }
-    ]),
+      { c: ['Plus cost of doing the collections'].concat(withCols.map(c0), [c0(mean(withCols))]), bold: true }
+    ]).concat(withParts.map(x => ({ c: [esc(x.n)].concat(x.v.map(c0), [c0(mean(x.v))]), indent: true }))),
     ['Total costs a month'].concat(monthTotals.map(c0), [c0(mean(monthTotals))]),
     'Machine cost is each machine&#39;s price spread over the years it lasts. The total matches the monthly costs under Profit by Month; breakeven uses the fixed part only, because the rest only happens when a collection happens.');
 
@@ -4616,7 +4623,7 @@ function renderBreakeven(keys) {
     const ticks = [];
     for (let t = 0; t <= scale; t += step) ticks.push(t);
     part1 += `
-      <div style="position:relative;margin:40px 0 0;">
+      <div class="be-gauge-wrap"><div style="position:relative;margin:40px 0 0;">
         <div style="position:absolute;left:${bePct}%;top:-32px;transform:translateX(${shift(bePct)});font-size:10px;font-weight:700;color:var(--grey-500);white-space:nowrap;">Breakeven ${be.beJobs}</div>
         <div style="position:absolute;left:${nowPct}%;top:-18px;transform:translateX(${shift(nowPct)});font-size:10px;font-weight:700;color:var(--navy);white-space:nowrap;">Recent average ${Math.round(be.recentJobs)}</div>
         <div style="display:flex;height:22px;border-radius:6px 6px 0 0;overflow:hidden;">
@@ -4630,8 +4637,43 @@ function renderBreakeven(keys) {
         ${ticks.map(t => `<div style="position:absolute;left:${pct(t)}%;top:0;height:4px;border-left:1px solid var(--grey-400);"></div>
           <div style="position:absolute;left:${pct(t)}%;top:5px;transform:translateX(${t === 0 ? '0' : '-50%'});font-size:9px;color:var(--grey-400);">${t}</div>`).join('')}
       </div>
-      <div style="text-align:center;font-size:10px;color:var(--grey-400);margin-bottom:6px;">Collections a month</div>`;
+      <div style="text-align:center;font-size:10px;color:var(--grey-400);margin-bottom:6px;">Collections a month</div></div>`;
   }
+
+  // A month with more collections than breakeven can still lose money, so show why
+  const part = partialMonths(keys);
+  const odd = k => MONTH_NOTES[k] && !AD_NOTES[k];
+  const missed = keys.filter(k => !part[k] && P(k).count > 0 && P(k).profit < 0 && P(k).count >= (be.beJobs || 0) && !odd(k));
+  missed.forEach(k => {
+    const p = P(k);
+    const fixedM = p.opex - varOf(p) + p.deprec;
+    const perCol = p.revenue / p.count;
+    const costCol = (varOf(p) + p.giveBack + p.framesDonation) / p.count;
+    const beM = perCol > costCol ? Math.ceil(fixedM / (perCol - costCol)) : null;
+    if (!beM) return;
+    const id = 'be-miss-' + k.replace('-', '');
+    part1 += `<div onclick="toggleSpendCat('${id}')" style="cursor:pointer;font-size:12px;font-weight:700;color:var(--navy);margin:12px 0 2px;">
+        <span style="color:var(--grey-300);">&#9662;</span> Why ${monLabel(k)} had ${p.count} collections and still lost money</div>
+      <div style="font-size:10px;color:var(--grey-400);margin-bottom:4px;padding-left:14px;">Breakeven is worked out on an average month. Tap to see ${monLabel(k)} against it.</div>
+      <table id="${id}" class="hidden" style="width:100%;border-collapse:collapse;font-size:11px;color:var(--grey-500);margin-bottom:6px;">
+        <tr style="color:var(--grey-400);font-size:10px;text-transform:uppercase;letter-spacing:.3px;">
+          <td style="padding:3px 0;"></td><td style="text-align:right;">Average month</td><td style="text-align:right;">${monLabel(k)}</td></tr>
+        <tr style="border-top:1px dotted var(--grey-100);"><td style="padding:4px 0;">A collection brings in</td>
+          <td style="text-align:right;">${c2(be.avgJob)}</td><td style="text-align:right;">${c2(perCol)}</td></tr>
+        <tr style="border-top:1px dotted var(--grey-100);"><td style="padding:4px 0;">Cost of doing it</td>
+          <td style="text-align:right;color:#C62828;">${c2(-be.costJob)}</td><td style="text-align:right;color:#C62828;">${c2(-costCol)}</td></tr>
+        <tr style="border-top:1px solid var(--grey-200);"><td style="padding:4px 0;font-weight:700;color:var(--navy);">Each collection leaves</td>
+          <td style="text-align:right;font-weight:700;color:var(--navy);">${c2(be.leftJob)}</td>
+          <td style="text-align:right;font-weight:700;color:var(--navy);">${c2(perCol - costCol)}</td></tr>
+        <tr style="border-top:1px dotted var(--grey-100);"><td style="padding:4px 0;">Fixed costs that month</td>
+          <td style="text-align:right;">${c0(be.fixed)}</td><td style="text-align:right;">${c0(fixedM)}</td></tr>
+        <tr style="border-top:1px solid var(--grey-200);"><td style="padding:4px 0;font-weight:700;color:var(--navy);">Collections needed</td>
+          <td style="text-align:right;font-weight:700;color:var(--navy);">${be.beJobs}</td>
+          <td style="text-align:right;font-weight:700;color:#C62828;">${beM}</td></tr>
+        <tr style="border-top:1px dotted var(--grey-100);"><td style="padding:4px 0;">Collections done</td>
+          <td style="text-align:right;color:var(--grey-300);">-</td><td style="text-align:right;font-weight:700;">${p.count}</td></tr>
+      </table>`;
+  });
 
   const diff = Math.round(be.recentJobs) - (be.beJobs || 0);
   part1 += insightList('What this tells us', [
@@ -4794,7 +4836,7 @@ function renderProfitInsight(keys) {
           ${ordered.map(r => tr([esc(r.n), dollars(r.a), dollars(r.b)], r)).join('')}
           ${tr(['Total costs a month', dollars(avg(before, p => p.costs)), dollars(avg(after, p => p.costs))], { bold: true, total: true })}
           ${tr(['Of that, fixed costs', dollars(avg(before, p => p.opex - variableOf(p) + p.deprec)), dollars(avg(after, p => p.opex - variableOf(p) + p.deprec))], { bold: true, total: true })}
-          ${tr(['Costs that come with the collections', dollars(avg(before, p => variableOf(p) + p.giveBack + p.framesDonation)), dollars(avg(after, p => variableOf(p) + p.giveBack + p.framesDonation))], {})}
+          ${tr(['Cost of doing the collections', dollars(avg(before, p => variableOf(p) + p.giveBack + p.framesDonation)), dollars(avg(after, p => variableOf(p) + p.giveBack + p.framesDonation))], {})}
         </table>
         <div style="margin-top:4px;">The fixed part is what the Breakeven section uses.</div>
       </div>`;
@@ -5787,8 +5829,11 @@ function setupFolds(summaries) {
       '<button onclick="foldAll(' + open + ')" style="flex:1;border:1px solid var(--navy);background:var(--white);'
       + 'color:var(--navy);font-size:12px;font-weight:700;padding:9px 10px;border-radius:8px;cursor:pointer;">'
       + icon + ' ' + label + '</button>';
-    bar.innerHTML = '<div style="display:flex;gap:8px;margin-bottom:16px;">'
-      + btn('Expand all', '&#9662;', true) + btn('Collapse all', '&#9656;', false) + '</div>';
+    bar.innerHTML = '<div style="display:flex;gap:8px;margin-bottom:8px;">'
+      + btn('Expand all', '&#9662;', true) + btn('Collapse all', '&#9656;', false) + '</div>'
+      + '<button onclick="presentOpen()" style="width:100%;margin-bottom:16px;border:none;background:var(--navy);'
+      + 'color:var(--gold);font-size:13px;font-weight:700;padding:11px 10px;border-radius:8px;cursor:pointer;">'
+      + '&#9654; Presentation mode</button>';
   }
 }
 
@@ -5796,6 +5841,129 @@ function toggleSpendCat(id) {
   const el = document.getElementById(id);
   if (el) el.classList.toggle('hidden');
 }
+
+// ---------------------------------------------------------------------------
+// Presentation mode. The slides clone what the report already rendered, so the
+// figures are always the live ones, then the whole slide is scaled to fill the
+// screen. Four slides: Revenue, Profit, Breakeven, Business Recap.
+// ---------------------------------------------------------------------------
+let presentIdx = 0;
+
+function presentSlides() {
+  const q = sel => document.querySelector(sel);
+  const all = sel => [...document.querySelectorAll(sel)];
+  const keys = revProfit ? Object.keys(revProfit).sort() : [];
+  let rev = 0, cols = 0, profit = 0;
+  keys.forEach(k => { const p = revProfit[k]; rev += p.revenue; cols += p.count; profit += p.profit; });
+  const be = revProfit ? breakevenFigures(keys) : null;
+  const cards = all('#rev-assess-body > div');
+  return [
+    { t: 'Revenue by Month', s: dollars(rev) + ' from ' + cols + ' collections',
+      n: [q('#rev-chart'), q('#rev-trend-insight .keypoint')] },
+    { t: 'Profit by Month', s: dollars(profit) + ' profit',
+      n: [q('#rev-profit-chart'), all('#rev-profit-insight .insight')[1]] },
+    { t: 'Breakeven', s: be && be.beJobs ? be.beJobs + ' collections a month' : '',
+      n: [q('#rev-breakeven-body .be-answer'), q('#rev-breakeven-body .be-gauge-wrap'), q('#rev-breakeven-body .insight')] },
+    { t: 'Business Recap', s: '', dark: true, n: cards.slice(0, 3) },
+    { t: 'Business Recap', s: '', dark: true, n: cards.slice(3) }
+  ].filter(x => x.n.some(Boolean));
+}
+
+function presentOpen() {
+  if (!revProfit) { toast('Generate the report first'); return; }
+  foldAll(true);
+  presentIdx = 0;
+  document.getElementById('present-overlay').classList.remove('hidden');
+  document.addEventListener('keydown', presentKey);
+  window.addEventListener('resize', presentFit);
+  presentShow();
+}
+
+function presentClose() {
+  document.getElementById('present-overlay').classList.add('hidden');
+  document.removeEventListener('keydown', presentKey);
+  window.removeEventListener('resize', presentFit);
+}
+
+function presentKey(e) {
+  if (e.key === 'Escape') presentClose();
+  else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') presentGo(1);
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') presentGo(-1);
+}
+
+function presentGo(step) {
+  const n = presentSlides().length;
+  const next = presentIdx + step;
+  if (next < 0 || next >= n) { if (next >= n) presentClose(); return; }
+  presentIdx = next;
+  presentShow();
+}
+
+function presentShow() {
+  const slides = presentSlides();
+  const slide = slides[Math.min(presentIdx, slides.length - 1)];
+  const canvas = document.getElementById('present-canvas');
+  canvas.innerHTML =
+    `<div style="font-size:12px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.6px;">${slide.t}</div>`
+    + (slide.s ? `<div style="font-size:24px;font-weight:700;color:var(--navy);line-height:1.2;margin:2px 0 10px;">${slide.s}</div>` : '<div style="height:8px;"></div>');
+  const box = document.createElement('div');
+  if (slide.dark) box.setAttribute('style', 'background:var(--navy);border-radius:10px;padding:14px 14px 2px;');
+  slide.n.forEach(el => {
+    if (!el) return;
+    const c = el.cloneNode(true);
+    c.classList.remove('hidden');
+    c.querySelectorAll('.hidden').forEach(x => x.remove());       // folded detail tables stay out
+    c.querySelectorAll('[onclick]').forEach(x => x.removeAttribute('onclick'));
+    c.querySelectorAll('button').forEach(x => x.remove());
+    // A chart that scrolls sideways in the app must show in full on a slide
+    [c].concat([...c.querySelectorAll('*')]).forEach(x => {
+      if (x.style && /auto|scroll/.test(x.style.overflowX || x.style.overflow || '')) {
+        x.style.overflowX = 'visible';
+        x.style.overflow = 'visible';
+      }
+    });
+    box.appendChild(c);
+  });
+  canvas.appendChild(box);
+  // Widen the slide to whatever the widest chart needs, so nothing is cut off
+  let wide = 400;
+  canvas.querySelectorAll('*').forEach(x => {
+    if (x.scrollWidth > wide && x.scrollWidth < 2400) wide = x.scrollWidth;
+  });
+  canvas.style.width = wide + 'px';
+  document.getElementById('present-count').textContent = (presentIdx + 1) + ' / ' + slides.length;
+  presentFit();
+}
+
+// Scale the whole slide so it fills the screen, whatever the screen is
+function presentFit() {
+  const stage = document.getElementById('present-stage');
+  const canvas = document.getElementById('present-canvas');
+  if (!stage || !canvas) return;
+  canvas.style.transform = 'none';
+  const w = Math.max(canvas.offsetWidth, canvas.scrollWidth, 400);
+  const h = canvas.scrollHeight;
+  if (!w || !h) return;
+  const k = Math.min((stage.clientWidth - 24) / w, (stage.clientHeight - 24) / h);
+  canvas.style.transform = 'scale(' + k + ')';
+  canvas.style.left = Math.max(0, (stage.clientWidth - w * k) / 2) + 'px';
+  canvas.style.top = Math.max(0, (stage.clientHeight - h * k) / 2) + 'px';
+}
+
+// Swipe between slides on a phone
+(function () {
+  let x0 = null;
+  document.addEventListener('touchstart', e => {
+    const stage = document.getElementById('present-stage');
+    if (stage && stage.contains(e.target)) x0 = e.touches[0].clientX;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (x0 == null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    x0 = null;
+    if (Math.abs(dx) > 50) presentGo(dx < 0 ? 1 : -1);
+  }, { passive: true });
+})();
 
 function toggleCostTable(btn) {
   const t = document.getElementById('profit-cost-table');
@@ -6060,7 +6228,7 @@ function renderTrendInsight(keys, monthly, vals, metric) {
       people see the same ad too often, fewer of them respond (ad fatigue), so new stories and images are needed
       regularly.`);
   }
-  const keyPoint = `<div style="background:var(--navy);color:#fff;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:12px;line-height:1.55;">
+  const keyPoint = `<div class="keypoint" style="background:var(--navy);color:#fff;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:12px;line-height:1.55;">
       <div style="font-size:10px;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;">Key point</div>
       <strong>Revenue depends on the number of collections.</strong>
       <div style="font-size:11px;color:#D6DEE7;margin-top:4px;">
@@ -6982,5 +7150,23 @@ function initApp() {
 }
 onReady(initApp);
 </script>
+
+  <!-- Presentation mode: the same live sections, four slides, scaled to the screen -->
+  <div id="present-overlay" class="hidden" style="position:fixed;inset:0;background:#F4F6F9;z-index:9999;display:flex;flex-direction:column;">
+    <div style="background:var(--navy);color:#fff;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;">
+      <div style="font-size:14px;font-weight:700;color:var(--gold);">ShredRite</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span id="present-count" style="font-size:12px;color:#9FB0C4;"></span>
+        <button onclick="presentClose()" style="border:1px solid #9FB0C4;background:transparent;color:#fff;font-size:12px;font-weight:600;padding:5px 12px;border-radius:8px;cursor:pointer;">Exit</button>
+      </div>
+    </div>
+    <div id="present-stage" style="flex:1 1 auto;position:relative;overflow:hidden;">
+      <div id="present-canvas" style="position:absolute;top:0;left:0;width:400px;transform-origin:top left;"></div>
+    </div>
+    <div style="display:flex;gap:8px;padding:10px 14px;flex:0 0 auto;background:#fff;border-top:1px solid var(--grey-100);">
+      <button onclick="presentGo(-1)" style="flex:1;border:1px solid var(--navy);background:var(--white);color:var(--navy);font-size:14px;font-weight:700;padding:12px;border-radius:8px;cursor:pointer;">Back</button>
+      <button onclick="presentGo(1)" style="flex:2;border:none;background:var(--navy);color:var(--gold);font-size:14px;font-weight:700;padding:12px;border-radius:8px;cursor:pointer;">Next</button>
+    </div>
+  </div>
 </body>
 </html>
