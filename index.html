@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.1';
+const APP_VERSION = '2026-09-19.4';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4189,6 +4189,8 @@ const CATEGORY_BLURB = {
   'Ads': 'Facebook / Meta ads for the disposal service',
   'Transport': 'GetGo car rental, Lalamove and own car',
   'Boxes & Consumables': 'Storage boxes, bags, blades, gloves',
+  'Transport and help': 'GetGo car rental, Lalamove, own car and part-time help',
+  'Consumables': 'Storage boxes, bags, blades, gloves',
   'Equipment': 'Tools and smaller machines',
   'Professional Fees': 'Sleek, ACRA, stamping and filing',
   'Labour & Works': 'Part-time helpers and contractor work',
@@ -4319,21 +4321,39 @@ async function renderProfitChart(monthly) {
 
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const label = k => MON[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4);
-  // Bars are signed, so scale against the largest magnitude either way
-  const peak = Math.max.apply(null, keys.map(k => Math.abs(revProfit[k].profit)).concat([1]));
+  // Profit above the zero line, losses below it, so a red bar reads as a loss
+  const maxUp = Math.max.apply(null, keys.map(k => revProfit[k].profit).concat([1]));
+  const maxDn = Math.max.apply(null, keys.map(k => -revProfit[k].profit).concat([0]));
+  const PH = 150, GAP = 20;                       // plot height, room for the value labels
+  const upH = Math.round((PH - GAP) * maxUp / (maxUp + maxDn));
+  const dnH = PH - GAP - upH;
+  const barH = v => Math.max(4, Math.round((v >= 0 ? upH : dnH) * Math.abs(v) / (v >= 0 ? maxUp : maxDn || 1)));
+  const zeroY = upH + GAP / 2;
+  const tick = v => (v < 0 ? '-$' : '$') + (Math.abs(v) >= 1000 ? Math.round(Math.abs(v) / 1000) + 'k' : Math.round(Math.abs(v)));
+  const pTicks = [{ v: tick(maxUp), y: GAP / 2 }, { v: '$0', y: zeroY }]
+    .concat(maxDn > 0 ? [{ v: tick(-maxDn), y: PH }] : []);
 
-  chartEl.innerHTML = '<div style="display:flex;align-items:flex-end;gap:8px;">' + keys.map(k => {
+  const bars = '<div style="display:flex;gap:8px;">' + keys.map(k => {
     const p = revProfit[k];
     const up = p.profit >= 0;
-    const h = Math.max(6, Math.round(110 * Math.abs(p.profit) / peak));
+    const h = barH(p.profit);
     const money = (up ? '$' : '-$') + Math.abs(Math.round(p.profit)).toLocaleString();
     return `<div onclick="showProfitDetail('${k}')" style="cursor:pointer;flex:1;min-width:56px;text-align:center;">
-      <div style="font-size:11px;font-weight:700;margin-bottom:3px;color:${up ? 'var(--navy)' : 'var(--red)'};">${money}</div>
-      <div style="height:${h}px;background:${up ? 'linear-gradient(180deg, #2E7D52, #1B5E3A)' : 'linear-gradient(180deg, #E57373, #C62828)'};border-radius:6px 6px 0 0;"></div>
-      <div style="font-size:10px;font-weight:600;color:var(--grey-500);border-top:2px solid var(--navy);padding-top:4px;">${label(k)}</div>
+      <div style="position:relative;height:${PH}px;">
+        <div style="position:absolute;left:0;right:0;top:${zeroY}px;border-top:2px solid var(--navy);"></div>
+        <div style="position:absolute;left:8%;right:8%;${up ? `bottom:${PH - zeroY}px` : `top:${zeroY}px`};height:${h}px;background:${up ? 'linear-gradient(180deg, #2E7D52, #1B5E3A)' : 'linear-gradient(180deg, #E57373, #C62828)'};border-radius:${up ? '5px 5px 0 0' : '0 0 5px 5px'};"></div>
+        <div style="position:absolute;left:0;right:0;${up ? `bottom:${PH - zeroY + h}px` : `top:${zeroY + h}px`};font-size:11px;font-weight:700;color:${up ? 'var(--navy)' : 'var(--red)'};">${money}</div>
+      </div>
+      <div style="font-size:10px;font-weight:600;color:var(--grey-500);padding-top:4px;">${label(k)}</div>
       <div style="font-size:9px;color:var(--grey-400);">${p.count} collection${p.count === 1 ? '' : 's'}</div>
     </div>`;
   }).join('') + '</div>';
+
+  chartEl.innerHTML = axisBox(bars, {
+    height: PH, left: true,
+    grid: axisGrid(pTicks.filter(t => t.v !== '$0'), 40, 0),
+    leftLabels: axisSide(pTicks, 'left', 'var(--grey-400)')
+  });
 
   section.classList.remove('hidden');
   if (keys.length === 1) showProfitDetail(keys[0]);
@@ -4552,7 +4572,7 @@ function renderBreakeven(keys) {
   }));
   const works = be.recent.map(k => oneTimeWorks(P(k)));
   const fixedLines = Object.keys(fixedCats)
-    .map(c => ({ n: c, v: be.recent.map(k => P(k).opexByCat[c] || 0) }))
+    .map(c => ({ n: costName(c), v: be.recent.map(k => P(k).opexByCat[c] || 0) }))
     .concat(works.some(v => v > 0.005) ? [{ n: 'One-time works', v: works }] : [])
     .concat([{ n: 'Machine cost', v: be.recent.map(k => P(k).deprec) }])
     .map(x => Object.assign(x, { avg: x.v.reduce((a, b) => a + b, 0) / x.v.length }))
@@ -4562,9 +4582,17 @@ function renderBreakeven(keys) {
   // monthly cost figures under Profit by Month
   const withCols = be.recent.map(k => varOf(P(k)) + P(k).giveBack + P(k).framesDonation);
   // What that collection cost is made of, so the line is never a black box
-  const withParts = VARIABLE_CATS.map(c => ({
-    n: c === 'Labour & Works' ? 'Part-time help' : c, v: be.recent.map(k => variablePart(P(k), c))
-  })).concat([
+  const withGroups = {}, withMerged = {};
+  VARIABLE_CATS.forEach(c => {
+    const home = JOB_COST_HOME[c] || c;
+    withGroups[home] = withGroups[home] || be.recent.map(() => 0);
+    be.recent.forEach((k, i) => {
+      const v = variablePart(P(k), c);
+      withGroups[home][i] += v;
+      if (JOB_COST_HOME[c] && v > 0.005) withMerged[home] = true;
+    });
+  });
+  const withParts = Object.keys(withGroups).map(c => ({ n: groupName(c, withMerged[c]), v: withGroups[c] })).concat([
     { n: 'Masjid give-back', v: be.recent.map(k => P(k).giveBack) },
     { n: 'Frames give-back', v: be.recent.map(k => P(k).framesDonation) }
   ]).filter(x => x.v.some(v => v > 0.005));
@@ -4580,7 +4608,7 @@ function renderBreakeven(keys) {
 
   // How the cost of one collection is built: costs that only happen because of a collection
   const worked = keys.filter(k => P(k).count > 0);
-  const varLines = VARIABLE_CATS.map(c => ({ n: c === 'Labour & Works' ? 'Part-time help' : c, v: worked.reduce((t, k) => t + variablePart(P(k), c), 0) }))
+  const varLines = jobCostParts(worked, variablePart)
     .concat([
       { n: 'Masjid give-back', v: worked.reduce((t, k) => t + P(k).giveBack, 0) },
       { n: 'Frames give-back', v: worked.reduce((t, k) => t + P(k).framesDonation, 0) }
@@ -4814,7 +4842,7 @@ function renderProfitInsight(keys) {
     }));
     const lines = [
       { n: 'Day-to-day costs', f: p => p.opex, bold: true },
-      ...Object.keys(cats).map(c => ({ n: c, f: p => p.opexByCat[c] || 0, indent: true })),
+      ...Object.keys(cats).map(c => ({ n: costName(c), f: p => p.opexByCat[c] || 0, indent: true })),
       { n: 'Machine cost', f: p => p.deprec, bold: true },
       { n: 'Masjid give-back', f: p => p.giveBack, bold: true },
       { n: 'Frames give-back', f: p => p.framesDonation, bold: true }
@@ -4935,7 +4963,24 @@ function variablePart(p, c) {
 function variableOf(p) { return VARIABLE_CATS.reduce((t, c) => t + variablePart(p, c), 0); }
 // Names match the Profit by Month breakdown exactly, so the same cost means the
 // same word wherever it appears in the report.
-const COST_PLAIN = {};
+const COST_PLAIN = { 'Boxes & Consumables': 'Consumables' };
+const costName = c => COST_PLAIN[c] || c;
+// Part-time help on collections belongs with the trip it was needed for, so it
+// is shown inside Transport rather than as a category of its own.
+const JOB_COST_HOME = { 'Labour & Works': 'Transport' };
+const groupName = (home, merged) => merged && home === 'Transport' ? 'Transport and help' : costName(home);
+// Cost of doing collections, grouped the way the report shows it
+function jobCostParts(ks, valueOf) {
+  const out = {};
+  VARIABLE_CATS.forEach(c => {
+    const home = JOB_COST_HOME[c] || c;
+    const v = ks.reduce((t, k) => t + valueOf(revProfit[k], c), 0);
+    if (!out[home]) out[home] = { v: 0, merged: false };
+    out[home].v += v;
+    if (JOB_COST_HOME[c] && v > 0.005) out[home].merged = true;
+  });
+  return Object.keys(out).map(c => ({ n: groupName(c, out[c].merged), v: out[c].v })).filter(x => x.v > 0.005);
+}
 
 function unitRow(k) {
   const p = revProfit[k];
@@ -5003,13 +5048,11 @@ function renderUnitEconomics(allKeys) {
   const pct = v => revPerJob ? Math.max(0, 100 * v / revPerJob) : 0;
 
   // What actually sits inside "doing the job", so it is never a black box
-  const jobCostParts = VARIABLE_CATS.map(c => ({
-    n: c === 'Labour & Works' ? 'Part-time help' : c, v: keys.reduce((s, k) => s + variablePart(revProfit[k], c), 0)
-  })).concat([
+  const jobCostRowsData = jobCostParts(keys, variablePart).concat([
     { n: 'Masjid give-back', v: keys.reduce((s, k) => s + revProfit[k].giveBack, 0) },
     { n: 'Frames give-back', v: keys.reduce((s, k) => s + revProfit[k].framesDonation, 0) }
   ]).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
-  const jobCostRows = jobCostParts.map(x =>
+  const jobCostRows = jobCostRowsData.map(x =>
     `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:2px 0;border-bottom:1px dotted var(--grey-100);">`
     + `<span>${esc(x.n)} <span style="color:var(--grey-300);">- $${x.v.toFixed(2)} in total</span></span>`
     + `<span style="white-space:nowrap;font-weight:600;">$${(tot.jobs ? x.v / tot.jobs : 0).toFixed(2)}</span></div>`).join('');
@@ -5058,7 +5101,11 @@ function renderUnitEconomics(allKeys) {
        Bars: revenue per kg (total revenue &divide; total kg).
        Line: cost to handle one kg (transport, boxes, give-back &divide; total kg).
        The wider the gap, the more each kg contributes.</div>
-     <div style="overflow-x:auto;">${svg}${cols}</div>
+     ${axisBox(`<div style="overflow-x:auto;">${svg}${cols}</div>`, {
+        height: H, left: true,
+        grid: axisGrid([0, 0.5, 1].map(f => ({ v: '$' + (peak * f).toFixed(2), y: PAD_T + plotH - plotH * f })), 40, 0),
+        leftLabels: axisSide([0, 0.5, 1].map(f => ({ v: '$' + (peak * f).toFixed(2), y: PAD_T + plotH - plotH * f })), 'left', 'var(--grey-400)')
+      })}
      <div style="font-size:10px;color:var(--grey-400);margin-top:6px;">
        <span style="color:#8FA9C4;font-weight:700;">&#9632;</span> Earned per kg
        &nbsp; <span style="color:#C62828;font-weight:700;">&#9679;&#8212;</span> Cost per kg
@@ -5070,7 +5117,7 @@ function renderUnitEconomics(allKeys) {
     if (!VARIABLE_CATS.includes(c)) fixedNames[c] = 1;
   }));
   const fixedParts = Object.keys(fixedNames)
-    .map(c => ({ n: c, v: keys.reduce((s, k) => s + (revProfit[k].opexByCat[c] || 0), 0) }))
+    .map(c => ({ n: costName(c), v: keys.reduce((s, k) => s + (revProfit[k].opexByCat[c] || 0), 0) }))
     .concat([
       { n: 'One-time works', v: keys.reduce((s, k) => s + oneTimeWorks(revProfit[k]), 0) },
       { n: 'Machine cost', v: keys.reduce((s, k) => s + revProfit[k].deprec, 0) }
@@ -5100,7 +5147,7 @@ function renderUnitEconomics(allKeys) {
   document.getElementById('rev-unit-verdict').innerHTML =
     costTable('unit-var-table', `What the $${varPerJob.toFixed(2)} of "doing the collection" is made of`,
       `Everything that only gets spent because a collection happened, ${span}, divided by the ${tot.jobs} collections.`,
-      jobCostParts, tot.variable, varPerJob, '#C62828')
+      jobCostRowsData, tot.variable, varPerJob, '#C62828')
     + costTable('unit-fixed-table', `What the $${fixPerJob.toFixed(2)} of "rent, ads, tools, machines" is made of`,
       `Costs that stay the same however many collections are done, ${span}, divided by the ${tot.jobs} collections. More collections make this share smaller.`,
       fixedParts, tot.fixed, fixPerJob, '#5B7FA6')
@@ -5303,7 +5350,17 @@ function renderCashFlow(keys) {
         <div style="font-size:10px;font-weight:700;color:${d.run >= 0 ? '#1B5E3A' : '#C62828'};">${d.run >= 0 ? '' : '-'}$${Math.abs(Math.round(d.run / 100) / 10)}k</div>
       </div>`).join('') + '</div>';
 
-    bodyHtml = `<div style="overflow-x:auto;">${svg}${cols}</div>
+    const cashTick = v => v >= 1000 ? '$' + Math.round(v / 1000) + 'k' : '$' + Math.round(v);
+    const cTicks = [
+      { v: cashTick(peak), y: MID - (MID - 16) },
+      { v: '$0', y: MID },
+      { v: cashTick(peak), y: MID + (MID - 16) }
+    ];
+    bodyHtml = axisBox(`<div style="overflow-x:auto;">${svg}${cols}</div>`, {
+      height: H, left: true,
+      grid: axisGrid(cTicks, 40, 0),
+      leftLabels: axisSide(cTicks, 'left', 'var(--grey-400)')
+    }) + `
       <div style="font-size:10px;color:var(--grey-400);margin-top:6px;">
         <span style="color:#2E7D52;font-weight:700;">&#9632;</span> Money in
         &nbsp; <span style="color:#D98383;font-weight:700;">&#9632;</span> Money out
@@ -5466,7 +5523,7 @@ function renderBridge(keys) {
   const catRows = id => `<tr id="${id}" class="hidden"><td colspan="2" style="padding:2px 8px 8px 34px;">`
     + Object.keys(cats).filter(c => cats[c] > 0.005).sort((a, b) => cats[b] - cats[a]).map(c =>
         `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--grey-500);padding:3px 0;border-bottom:1px dotted var(--grey-100);">
-          <span>${esc(c)}${CATEGORY_BLURB[c] ? `<div style="font-size:10px;color:var(--grey-400);">${esc(CATEGORY_BLURB[c])}</div>` : ''}</span>
+          <span>${esc(costName(c))}${CATEGORY_BLURB[c] ? `<div style="font-size:10px;color:var(--grey-400);">${esc(CATEGORY_BLURB[c])}</div>` : ''}</span>
           <span style="white-space:nowrap;font-weight:600;">$${Math.round(cats[c]).toLocaleString()}</span></div>`).join('')
     + `<div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:700;color:var(--navy);padding:4px 0;">
          <span>Total</span><span>$${Math.round(opex).toLocaleString()}</span></div></td></tr>`;
@@ -5667,9 +5724,10 @@ function renderAssessment(keys, monthly) {
   const sec = document.getElementById('rev-assess-section');
   if (!keys.length) { sec.classList.add('hidden'); return; }
 
-  let rev = 0, opex = 0, deprec = 0, gb = 0, fr = 0;
+  let rev = 0, opex = 0, deprec = 0, gb = 0, fr = 0, capex = 0, deposits = 0;
   keys.forEach(k => { const p = revProfit[k];
-    rev += p.revenue; opex += p.opex; deprec += p.deprec; gb += p.giveBack; fr += p.framesDonation; });
+    rev += p.revenue; opex += p.opex; deprec += p.deprec; gb += p.giveBack; fr += p.framesDonation;
+    capex += p.capex; deposits += p.deposits; });
   const profit = rev - opex - deprec - gb - fr;
   const part = partialMonths(keys);
   const full = keys.filter(k => !part[k] && revProfit[k].count > 0);
@@ -5689,47 +5747,27 @@ function renderAssessment(keys, monthly) {
   document.getElementById('rev-assess-body').innerHTML =
     card('Is the business profitable?', profit >= 0 ? 'Yes' : 'Not yet', profit >= 0,
       profit >= 0
-        ? `It makes money on the work it does. After everything it costs to run, it made a profit in
-           ${wins} of ${full.length} full months.`
-        : `The work is not yet covering what it costs to run the business. That has to change before anything else matters.`) +
+        ? `${dollars(rev)} collected, ${dollars(profit)} profit after everything it costs to run.
+           It made a profit in ${wins} of ${full.length} full months.`
+        : `The work is not yet covering what it costs to run the business.`) +
 
-    card('Why is the bank balance lower than the profit?', 'Machines and the deposit', true,
-      `Almost all of the difference went on the shredders and the rental deposit. Both were paid once, up front. The
-       machines are owned and in daily use, and the deposit is returned when the unit is returned.`) +
+    card('What drives revenue?', 'The number of collections', true,
+      `Revenue per collection and kg per collection stay roughly the same every month, so revenue follows the number
+       of collections. Ads are the main way to get more: keep them running without breaks, and keep them fresh.`) +
 
     (be && be.beJobs
-      ? card('How much work is needed to break even?', be.beJobs + ' collections a month', be.recentJobs >= be.beJobs,
-          `Recent months averaged ${Math.round(be.recentJobs)} collections, so the business is
-           ${be.recentJobs >= be.beJobs ? 'above' : 'below'} breakeven in a normal month.`)
+      ? card('How much work is needed?', be.beJobs + ' collections a month', be.recentJobs >= be.beJobs,
+          `That covers every cost in an average month. Recent months averaged ${Math.round(be.recentJobs)}.`)
       : '') +
 
-    (be && be.putIn > 0
-      ? card('When is the ' + dollars(be.putIn) + ' capital earned back?',
-          earned ? 'Already' : when ? 'Around ' + when : 'No date yet', earned || !!when,
-          earned
-            ? 'The bank balance is back above the capital put in.'
-            : when
-              ? `At the pace of the last three full months. ${be.gapExDep <= 0
-                  ? 'Counting the rental deposit, which is returned, it is already covered.'
-                  : `Counting the rental deposit, which is returned, around <strong>${monthsFromNow(be.monthsExDep)}</strong>.`}
-                 This assumes no new machines are bought.`
-              : 'The business is not yet keeping money each month at its recent pace.')
-      : '') +
+    card('Where has the money gone?', 'Machines and the deposit', true,
+      `The bank holds less than the profit because ${dollars(capex)} went on the shredders and ${dollars(deposits)} on
+       the rental deposit, both paid up front. The machines are owned and in daily use, and the deposit comes back when
+       the unit is returned.${be && be.putIn > 0 && when ? ` The ${dollars(be.putIn)} put in should be earned back around <strong>${when}</strong>.` : ''}`) +
 
     card('What is the main risk?', 'Work has to be found again every month', false,
-      `A household clears its books once, so most customers are one-time by nature and each month begins with no
-       committed work. The business also depends on one person for collection, shredding and administration, which
-       caps how much work can be taken on and leaves no cover if he is unavailable.`) +
-
-    card('What would reduce that risk?', adBreak ? 'Steady, fresh ads' : 'Steady demand', true,
-      adBreak
-        ? `Customers usually book within a week or two of seeing an ad, so collections drop soon after ads stop.
-           Ads were off from 30 June to 8 July, and the first half of July had only 10 collections. Two things keep
-           the work coming: ads running without breaks, and new stories and images added regularly so the same
-           people do not tire of the same ad (ad fatigue). Regular contract work would steady the business further,
-           but none has been won yet.`
-        : `Work that recurs without being bought again each month. Regular contract work would do this, but none has
-           been won yet.`);
+      `Most customers are one-time, and the business depends on one person. Steady, fresh ads are what keep the work
+       coming; regular contract work would steady it further, but none has been won yet.`);
 
   sec.classList.remove('hidden');
 }
@@ -5853,19 +5891,86 @@ function presentSlides() {
   const q = sel => document.querySelector(sel);
   const all = sel => [...document.querySelectorAll(sel)];
   const keys = revProfit ? Object.keys(revProfit).sort() : [];
-  let rev = 0, cols = 0, profit = 0;
-  keys.forEach(k => { const p = revProfit[k]; rev += p.revenue; cols += p.count; profit += p.profit; });
+  const P = k => revProfit[k];
+  let rev = 0, cols = 0, profit = 0, capex = 0, dep = 0;
+  keys.forEach(k => { const p = P(k);
+    rev += p.revenue; cols += p.count; profit += p.profit; capex += p.capex; dep += p.deposits; });
   const be = revProfit ? breakevenFigures(keys) : null;
-  const cards = all('#rev-assess-body > div');
+  const part = partialMonths(keys);
+  const full = keys.filter(k => !part[k] && P(k).count > 0);
+  const money = k => P(k).revenue;
+  const best = full.length ? full.reduce((a, k) => money(k) > money(a) ? k : a, full[0]) : null;
+  const worst = full.length ? full.reduce((a, k) => money(k) < money(a) ? k : a, full[0]) : null;
+  const bestP = full.length ? full.reduce((a, k) => P(k).profit > P(a).profit ? k : a, full[0]) : null;
+  const losses = full.filter(k => P(k).profit < 0);
+  const back = full.filter(k => losses.length && k > losses[losses.length - 1] && P(k).profit > 0)[0];
+  const perCol = cols ? rev / cols : 0;
+  let kg = 0; keys.forEach(k => { kg += P(k).kg; });
+
+  // A list of short lines, big enough to read across a room
+  const points = (items, colour) => {
+    const li = items.filter(Boolean).map(t =>
+      `<li style="margin-bottom:6px;">${t}</li>`).join('');
+    return `<ul style="margin:10px 0 0 18px;padding:0;font-size:14px;line-height:1.5;color:${colour || 'var(--grey-500)'};">${li}</ul>`;
+  };
+  const html = h => { const d = document.createElement('div'); d.innerHTML = h; return d; };
+  const figure = (label, value, sub) => `<div style="flex:1;min-width:120px;background:#fff;border:1px solid var(--grey-100);border-radius:8px;padding:10px 12px;">
+      <div style="font-size:11px;color:var(--grey-400);text-transform:uppercase;letter-spacing:.4px;">${label}</div>
+      <div style="font-size:22px;font-weight:700;color:var(--navy);line-height:1.2;">${value}</div>
+      ${sub ? `<div style="font-size:11px;color:var(--grey-400);">${sub}</div>` : ''}</div>`;
+  const note = k => (REVENUE_NOTES[k] || '').replace(/ Likely reason:.*$/, '');
+
   return [
-    { t: 'Revenue by Month', s: dollars(rev) + ' from ' + cols + ' collections',
-      n: [q('#rev-chart'), q('#rev-trend-insight .keypoint')] },
-    { t: 'Profit by Month', s: dollars(profit) + ' profit',
-      n: [q('#rev-profit-chart'), all('#rev-profit-insight .insight')[1]] },
+    { t: 'Revenue Summary', s: 'Jan to today',
+      n: [html(`<div style="display:flex;gap:10px;flex-wrap:wrap;">
+            ${figure('Revenue collected', dollars(rev), cols + ' collections')}
+            ${figure('Profit', dollars(profit), 'after everything it costs to run')}
+            ${figure('The business owns', dollars(capex + dep), dollars(capex) + ' machines, ' + dollars(dep) + ' deposit')}
+          </div>`)] },
+
+    { t: 'Revenue by Month', s: best && worst ? 'Best ' + monLabel(best) + ', weakest ' + monLabel(worst) : '',
+      live: true,
+      n: [q('#rev-chart'), html(points([
+        'Yellow bars: revenue. Green line: collections.',
+        '1. Why revenue moves month to month',
+        '2. What affects revenue',
+        '3. What to focus on to grow it'
+      ]))] },
+
+    { t: '1. Why revenue moves', s: '',
+      n: [html(points(full.filter(k => note(k)).map(k =>
+        `<strong>${monLabel(k)}:</strong> ${capFirst(note(k))}`)))] },
+
+    { t: '2. What affects revenue', s: 'The number of collections',
+      n: [html(points([
+        `Revenue per collection is about <strong>$${Math.round(perCol)}</strong> every month.`,
+        `kg per collection is about <strong>${Math.round(cols ? kg / cols : 0)} kg</strong> every month.`,
+        'So revenue follows how many collections we do.'
+      ]))] },
+
+    { t: '3. How to get more collections', s: 'Ads are the main driver',
+      n: [html(points([
+        'Keep ads running without breaks.',
+        'Keep them fresh, so people do not tire of the same ad.'
+      ]))] },
+
+    { t: 'Profit by Month', s: dollars(profit) + ' profit', live: true,
+      n: [q('#rev-profit-chart'), html(points([
+        'Green: profit. Red: loss.',
+        bestP ? `<strong>${monLabel(bestP)}</strong> best: ${SCHOOL_HOLIDAYS[bestP] ? SCHOOL_HOLIDAYS[bestP] : 'most collections'}.` : '',
+        losses.length ? `<strong>${monLabel(losses[losses.length - 1])}</strong> negative: fewer collections after ads stopped, and higher spending (electrical works and masjid give-back).` : '',
+        back ? `<strong>${monLabel(back)}</strong> recovered on more collections.` : ''
+      ]))] },
+
     { t: 'Breakeven', s: be && be.beJobs ? be.beJobs + ' collections a month' : '',
-      n: [q('#rev-breakeven-body .be-answer'), q('#rev-breakeven-body .be-gauge-wrap'), q('#rev-breakeven-body .insight')] },
-    { t: 'Business Recap', s: '', dark: true, n: cards.slice(0, 3) },
-    { t: 'Business Recap', s: '', dark: true, n: cards.slice(3) }
+      n: [q('#rev-breakeven-body .be-answer'), q('#rev-breakeven-body .be-gauge-wrap'),
+          html(points([
+            be ? `Recent months averaged <strong>${Math.round(be.recentJobs)} collections</strong>.` : '',
+            be ? `Fixed costs ${dollars(be.fixed)} a month. Each collection leaves about $${Math.round(be.leftJob)}.` : ''
+          ]))] },
+
+    { t: 'Business Recap', s: '', dark: true, n: all('#rev-assess-body > div').slice(0, 3) },
+    { t: 'Business Recap', s: '', dark: true, n: all('#rev-assess-body > div').slice(3) }
   ].filter(x => x.n.some(Boolean));
 }
 
@@ -5913,8 +6018,10 @@ function presentShow() {
     const c = el.cloneNode(true);
     c.classList.remove('hidden');
     c.querySelectorAll('.hidden').forEach(x => x.remove());       // folded detail tables stay out
-    c.querySelectorAll('[onclick]').forEach(x => x.removeAttribute('onclick'));
-    c.querySelectorAll('button').forEach(x => x.remove());
+    if (!slide.live) {
+      c.querySelectorAll('[onclick]').forEach(x => x.removeAttribute('onclick'));
+      c.querySelectorAll('button').forEach(x => x.remove());
+    }
     // A chart that scrolls sideways in the app must show in full on a slide
     [c].concat([...c.querySelectorAll('*')]).forEach(x => {
       if (x.style && /auto|scroll/.test(x.style.overflowX || x.style.overflow || '')) {
@@ -5925,6 +6032,9 @@ function presentShow() {
     box.appendChild(c);
   });
   canvas.appendChild(box);
+  const extra = document.createElement('div');
+  extra.id = 'present-extra';
+  canvas.appendChild(extra);
   // Widen the slide to whatever the widest chart needs, so nothing is cut off
   let wide = 400;
   canvas.querySelectorAll('*').forEach(x => {
@@ -5932,6 +6042,26 @@ function presentShow() {
   });
   canvas.style.width = wide + 'px';
   document.getElementById('present-count').textContent = (presentIdx + 1) + ' / ' + slides.length;
+  presentFit();
+}
+
+function presentIsOpen() {
+  const o = document.getElementById('present-overlay');
+  return o && !o.classList.contains('hidden');
+}
+
+// A month tapped on a slide shows its breakdown right there
+function presentAttach(id) {
+  if (!presentIsOpen()) return;
+  const src = document.getElementById(id);
+  const extra = document.getElementById('present-extra');
+  if (!src || !extra) return;
+  const c = src.cloneNode(true);
+  c.classList.remove('hidden');
+  c.querySelectorAll('[onclick]').forEach(x => x.removeAttribute('onclick'));
+  c.setAttribute('style', 'background:#fff;border:1px solid var(--grey-100);border-radius:8px;padding:10px 12px;margin-top:10px;');
+  extra.innerHTML = '';
+  extra.appendChild(c);
   presentFit();
 }
 
@@ -6004,7 +6134,7 @@ function showProfitDetail(key) {
   const cats = Object.keys(p.opexByCat || {}).filter(c => p.opexByCat[c] > 0.005)
     .sort((a, b) => p.opexByCat[b] - p.opexByCat[a]);
   cats.forEach(c => {
-    html += costLine(id('cat_' + c.replace(/[^A-Za-z]/g, '')), esc(c), esc(CATEGORY_BLURB[c] || ''),
+    html += costLine(id('cat_' + c.replace(/[^A-Za-z]/g, '')), esc(costName(c)), esc(CATEGORY_BLURB[c] || ''),
                      p.opexByCat[c], drillItems(c, opexItems(p, c)));
   });
 
@@ -6066,6 +6196,7 @@ function showProfitDetail(key) {
   const el = document.getElementById('rev-profit-detail');
   el.innerHTML = html;
   el.classList.remove('hidden');
+  presentAttach('rev-profit-detail');
 }
 
 /* ── Revenue by Month: interactive bar chart ─────────────── */
@@ -6105,6 +6236,27 @@ function redrawRevenueChart() {
 function setTrendMetric(k) { revTrendMetric = k; redrawRevenueChart(); }
 function toggleRevAds() { revShowAds = !revShowAds; redrawRevenueChart(); }
 
+// A value axis beside a chart. The chart keeps its own pixel geometry; this
+// only draws the gridlines and the numbers, in HTML, so nothing is stretched.
+// ticks: [{ v, y }] in chart pixels. side 'left' or 'right'.
+function axisSide(ticks, side, colour, width) {
+  const w = width || 40;
+  return ticks.map(t => `<div style="position:absolute;${side}:0;top:${t.y - 6}px;width:${w}px;text-align:${side === 'left' ? 'right' : 'left'};padding-${side === 'left' ? 'right' : 'left'}:4px;font-size:9px;line-height:12px;color:${colour || 'var(--grey-400)'};white-space:nowrap;">${t.v}</div>`).join('');
+}
+function axisGrid(ticks, left, right) {
+  return ticks.map(t => `<div style="position:absolute;left:${left}px;right:${right}px;top:${t.y}px;border-top:1px dashed var(--grey-100);"></div>`).join('');
+}
+// Wraps a chart in a box that has room for the axis numbers on either side
+function axisBox(inner, opts) {
+  const o = opts || {};
+  const l = o.left ? 40 : 0, r = o.right ? 40 : 0;
+  return `<div style="position:relative;padding-left:${l}px;padding-right:${r}px;">
+      <div style="position:absolute;left:0;right:0;top:0;height:${o.height}px;pointer-events:none;">
+        ${o.grid || ''}${o.leftLabels || ''}${o.rightLabels || ''}
+      </div>
+      ${inner}
+    </div>`;
+}
 const MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const monLabel = k => MON_SHORT[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4);
 
@@ -6169,9 +6321,20 @@ function drawRevenueChart(allKeys, monthly, chartEl) {
       + chip((revShowAds ? '&#10003; ' : '') + 'Ad spend', revShowAds, ADS_COLOUR, 'toggleRevAds()')
     : '';
 
+  // Money on the left, the green line's own scale on the right
+  const money0 = v => v >= 1000 ? '$' + Math.round(v / 1000) + 'k' : '$' + Math.round(v);
+  const lTicks = [0, 0.5, 1].map(f => ({ v: money0(maxRev * f), y: PAD_T + plotH - plotH * f }));
+  const rTicks = [0, 0.5, 1].map(f => ({ v: metric.fmt(maxV * f), y: ly(maxV * f) }));
+  const chart = axisBox(`<div style="overflow-x:auto;">${svg}${cols}</div>`, {
+    height: H, left: true, right: true,
+    grid: axisGrid(lTicks, 40, 40),
+    leftLabels: axisSide(lTicks, 'left', 'var(--grey-400)'),
+    rightLabels: axisSide(rTicks, 'right', '#1B5E3A')
+  });
+
   chartEl.innerHTML =
     `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">${chips}${adsChip}</div>` +
-    `<div style="overflow-x:auto;">${svg}${cols}</div>` +
+    chart +
     `<div style="font-size:10px;color:var(--grey-400);margin-top:6px;">
        <span style="color:#A8873A;font-weight:700;">&#9632;</span> Revenue
        &nbsp; <span style="color:#1B5E3A;font-weight:700;">&#9679;&#8212;</span> ${metric.label}
@@ -6179,6 +6342,7 @@ function drawRevenueChart(allKeys, monthly, chartEl) {
      </div>`;
 
   renderTrendInsight(keys, monthly, vals, metric);
+  if (presentIsOpen()) presentShow();   // the slide follows the toggle
 }
 
 // Notes under the revenue chart: what it shows, what moved it, and the one
@@ -6271,6 +6435,7 @@ function showMonthDetail(key) {
     + row(partial ? 'Revenue (selected dates)' : 'Month Revenue', '$' + m.revenue.toFixed(2), true)
     + `</table>`;
   document.getElementById('rev-month-detail').classList.remove('hidden');
+  presentAttach('rev-month-detail');
 }
 
 /* ── Bookings by part of month: which stretch is busiest ──── */
@@ -6286,16 +6451,26 @@ function renderPartMonthChart(parts) {
   if (!total) { section.classList.add('hidden'); return; }
 
   const max = Math.max.apply(null, parts.map(p => p.count));
-  chartEl.innerHTML = '<div style="display:flex;align-items:flex-end;gap:8px;">' + parts.map((p, i) => {
-    const h = max > 0 ? Math.max(6, Math.round(100 * p.count / max)) : 6;
+  const PH = 120, TOP = 18;                       // plot height, room for the counts
+  const bars = '<div style="display:flex;gap:8px;">' + parts.map((p, i) => {
+    const h = max > 0 ? Math.max(4, Math.round((PH - TOP) * p.count / max)) : 4;
     const busiest = p.count === max;
     return `<div onclick="showPartMonthDetail(${i})" style="cursor:pointer;flex:1;text-align:center;">
-      <div style="font-size:12px;font-weight:700;margin-bottom:3px;">${p.count}<span style="font-size:9px;color:var(--grey-400);font-weight:600;"> collection${p.count === 1 ? '' : 's'}</span></div>
-      <div style="height:${h}px;background:${busiest ? 'linear-gradient(180deg, var(--gold), #A8873A)' : 'linear-gradient(180deg, #C6CBD6, #9AA2B1)'};border-radius:6px 6px 0 0;"></div>
-      <div style="font-size:10px;font-weight:600;color:var(--grey-500);border-top:2px solid var(--navy);padding-top:4px;">${p.label}</div>
+      <div style="position:relative;height:${PH}px;">
+        <div style="position:absolute;left:0;right:0;bottom:0;border-top:2px solid var(--navy);"></div>
+        <div style="position:absolute;left:8%;right:8%;bottom:0;height:${h}px;background:${busiest ? 'linear-gradient(180deg, var(--gold), #A8873A)' : 'linear-gradient(180deg, #C6CBD6, #9AA2B1)'};border-radius:5px 5px 0 0;"></div>
+        <div style="position:absolute;left:0;right:0;bottom:${h + 2}px;font-size:12px;font-weight:700;">${p.count}<span style="font-size:9px;color:var(--grey-400);font-weight:600;"> collection${p.count === 1 ? '' : 's'}</span></div>
+      </div>
+      <div style="font-size:10px;font-weight:600;color:var(--grey-500);padding-top:4px;">${p.label}</div>
       <div style="font-size:9px;color:var(--grey-400);">$${Math.round(p.revenue).toLocaleString()}</div>
     </div>`;
   }).join('') + '</div>';
+  const mTicks = [0, 0.5, 1].map(f => ({ v: Math.round(max * f), y: PH - (PH - TOP) * f }));
+  chartEl.innerHTML = axisBox(bars, {
+    height: PH, left: true,
+    grid: axisGrid(mTicks.filter(t => t.v > 0), 40, 0),
+    leftLabels: axisSide(mTicks, 'left', 'var(--grey-400)')
+  });
 
   // The last stretch runs to month end, so compare per day, not raw counts
   const DAYS = [7, 7, 7, 9.4];
