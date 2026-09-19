@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.11';
+const APP_VERSION = '2026-09-19.12';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -5976,7 +5976,7 @@ function presentSlides() {
   const grp = arr => arr.filter(Boolean);
 
   return grp([
-    { t: 'Revenue Summary', s: '',
+    { p: 'Part 1: Revenue summary', t: 'Revenue Summary', s: '',
       n: [html(row3(
             figure('Revenue collected', dollars(rev), cols + ' collections')
             + figure('Profit', dollars(profit), 'after everything it costs to run')
@@ -6053,7 +6053,7 @@ function presentSlides() {
     { t: 'Business Recap', s: '', dark: true, n: all('#rev-assess-body > div').slice(1, 3) }
   ]).concat(grp([
 
-    { t: '', s: '',
+    { p: 'Part 2: Challenges', t: '', s: '',
       n: [html(`<div style="min-height:340px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 20px;">
             <div style="font-size:36px;font-weight:700;color:var(--navy);line-height:1.25;">A collection is only half the job</div>
           </div>`)] },
@@ -6064,33 +6064,28 @@ function presentSlides() {
 
   ])).concat(grp([
 
-    { t: 'Who are our competitors', s: '',
+    { p: 'Part 3: Strategy 2027', t: 'Who are our competitors', s: '',
       n: [html(tbl(['Competitor', 'What are their strengths', 'What it means for us'], [
-        ['Renewed Resources', 'Collects recyclables, runs recycling drives, and has mosque and community relationships', 'Pre-booked household routes through the mosques we already work with'],
-        ['Abu Umar', 'Cheaper cost, $3.80/kg', 'Quote the full price up front, collection included, so there is no surprise'],
+        ['Renewed Resources', 'Collects recyclables, runs recycling drives, and has mosque and community relationships', 'Look harder at recyclables, and at reaching more mosques and community groups'],
+        ['Abu Umar', 'Cheaper cost, $3.80/kg', 'We collect from the doorstep. Abu Umar is drop-off only, so the customer does the carrying'],
         ['Amanah Home SG', 'Offers other home services, not only Islamic material disposal', 'We are the focused specialist; stay clearly better at the one thing we do']
       ]))] },
 
     { t: 'Where we stand', s: '',
       n: [html(quad([
         { t: 'Strengths', c: '#1B5E3A', n: [
-          'Paying customers, ' + cols + ' collections so far',
-          'Our own unit and shredder',
           'Two mosque partners already running',
           'We collect Jawi books and are paid per kg, with Perikatan Tulisan Jawi Singapura'] },
         { t: 'Weaknesses', c: '#C62828', n: [
-          'One person does every job',
-          'Kitab waiting, frames blocking a room',
-          'We only do Islamic material disposal, no other services',
-          'Any new material adds handling and storage'] },
+          'Every collection is handled personally, so capacity is limited to one person',
+          'We only do Islamic material disposal, no other services'] },
         { t: 'Opportunities', c: '#2E7D52', n: [
           'Collect recyclables, the way Renewed Resources do',
           'Recover saleable metal from frames',
-          'Paid shredding for institutions we already know',
-          'Paid collection events with mosques'] },
+          'Collection events with mosques'] },
         { t: 'Threats', c: '#B26A00', n: [
-          'Cheaper competitors and free recycling routes',
-          'Buyers can reject material or change prices',
+          'Cheaper competitors',
+          'Free routes for the same items: we charge by weight for sejadah and telekung, but a customer can give them away instead',
           'A trip for recyclables can cost more than it earns'] }
       ]))] }
 
@@ -6152,7 +6147,8 @@ function presentShow() {
   const slide = slides[Math.min(presentIdx, slides.length - 1)];
   const canvas = document.getElementById('present-canvas');
   canvas.innerHTML =
-    (slide.t ? `<div style="font-size:26px;font-weight:700;color:var(--navy);line-height:1.15;letter-spacing:-.2px;">${slide.t}</div>` : '')
+    (slide.p ? `<div style="font-size:13px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">${slide.p}</div>` : '')
+    + (slide.t ? `<div style="font-size:26px;font-weight:700;color:var(--navy);line-height:1.15;letter-spacing:-.2px;">${slide.t}</div>` : '')
     + (slide.s ? `<div style="font-size:17px;font-weight:600;color:var(--gold);line-height:1.25;margin:3px 0 12px;">${slide.s}</div>` : '<div style="height:10px;"></div>');
   const box = document.createElement('div');
   if (slide.dark) box.setAttribute('style', 'background:var(--navy);border-radius:10px;padding:14px 14px 2px;');
