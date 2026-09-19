@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.10';
+const APP_VERSION = '2026-09-19.11';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4522,7 +4522,9 @@ function breakevenFigures(keys) {
   // ones, keeps it honest.
   const profitEach = keys.map(k => ({ k, v: revProfit[k].profit }));
   const profitAll = profitEach.reduce((t, x) => t + x.v, 0);
-  const monthsN = keys.length || 1;
+  // Months before the first collection are not trading months, so they would
+  // drag the average down. Their costs still count inside the total.
+  const monthsN = keys.filter(k => revProfit[k].count > 0).length || 1;
   const avgProfit = profitAll / monthsN;
 
   let cash = 0, dep = 0;
@@ -4640,8 +4642,8 @@ function renderBreakeven(keys) {
   // How the average profit is built: every month in the range
   const keptDetail = detail('be-kept', ['Month', 'Revenue', 'Costs', 'Profit'],
     be.profitEach.map(x => [monLabel(x.k), c0(P(x.k).revenue), c0(P(x.k).costs), c0(x.v)]),
-    ['Total &divide; ' + be.monthsN + ' months', c0(be.profitAll), '', c0(be.avgProfit)],
-    'Every month in the range, quiet ones included, so the average is not flattered.');
+    ['Total &divide; ' + be.monthsN + ' months with collections', c0(be.profitAll), '', c0(be.avgProfit)],
+    'The total counts every month, including any before the first collection. The average is divided by the months that had collections.');
 
   // ---- 1. Monthly breakeven
   let part1 = head('1. Monthly breakeven',
@@ -4734,7 +4736,7 @@ function renderBreakeven(keys) {
         ${row('Capital put in', c0(be.putIn), '')}
         ${row('Less: in the bank now', c0(-be.bank), '', { indent: true, red: true })}
         ${row('Still to earn back', c0(Math.max(0, be.gap)), '', { total: true })}
-        ${be.gap > 0 ? row('Average profit a month', c0(be.avgProfit), c0(be.profitAll) + ' of profit over ' + be.monthsN + ' months. Tap for the breakdown', { toggle: 'be-kept' }) + keptDetail : ''}
+        ${be.gap > 0 ? row('Average profit a month', c0(be.avgProfit), c0(be.profitAll) + ' of profit over ' + be.monthsN + ' months with collections. Tap for the breakdown', { toggle: 'be-kept' }) + keptDetail : ''}
       </table>`;
     if (be.gap <= 0) {
       part2 += answer('<strong style="color:var(--gold);">Already earned back.</strong>', 'The bank balance is above the capital put in.');
@@ -5960,21 +5962,21 @@ function presentSlides() {
   const sum = text => `<div style="background:var(--navy);color:#fff;border-radius:6px;padding:10px 13px;margin-top:12px;font-size:15px;">${text}</div>`;
   const note = k => (REVENUE_NOTES[k] || '').replace(/ Likely reason:.*$/, '');
   // A plain table, readable across a room
-  const tbl = (head, rows) => `<table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:10px;">
+  const tbl = (head, rows) => `<table style="width:100%;min-width:700px;border-collapse:collapse;font-size:14px;margin-top:10px;">
       <tr style="background:var(--navy);color:#fff;">${head.map(h => `<th style="text-align:left;padding:7px 10px;font-weight:700;">${h}</th>`).join('')}</tr>
       ${rows.map((r, i) => `<tr style="background:${i % 2 ? '#F4F7FA' : '#fff'};">${r.map((c, j) => `<td style="padding:7px 10px;border-bottom:1px solid var(--grey-100);${j ? '' : 'font-weight:700;color:var(--navy);'}">${c}</td>`).join('')}</tr>`).join('')}
     </table>`;
   // Four boxes side by side, for the SWOT
-  const quad = items => `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;">${items.map(x => `
+  const quad = items => `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;min-width:700px;">${items.map(x => `
       <div style="flex:1 1 44%;min-width:210px;background:#fff;border:1px solid var(--grey-100);border-top:3px solid ${x.c};border-radius:8px;padding:9px 12px;">
         <div style="font-size:12px;font-weight:700;color:${x.c};text-transform:uppercase;letter-spacing:.4px;">${x.t}</div>
         <ul style="margin:5px 0 0 16px;padding:0;font-size:13px;line-height:1.45;color:var(--grey-500);">${x.n.map(t => `<li style="margin-bottom:3px;">${t}</li>`).join('')}</ul>
       </div>`).join('')}</div>`;
-  // Every slide carries the part it belongs to, so a long deck stays legible
-  const stamp = (label, arr) => arr.filter(Boolean).map(x => Object.assign({ p: label }, x));
+  // The deck runs in three parts; the slides themselves carry no part label
+  const grp = arr => arr.filter(Boolean);
 
-  return stamp('Part 1. Revenue summary', [
-    { t: 'Revenue Summary', s: 'Jan to today',
+  return grp([
+    { t: 'Revenue Summary', s: '',
       n: [html(row3(
             figure('Revenue collected', dollars(rev), cols + ' collections')
             + figure('Profit', dollars(profit), 'after everything it costs to run')
@@ -6025,11 +6027,9 @@ function presentSlides() {
             + figure('Average per collection', be ? '$' + be.avgJob.toFixed(2) : '', ''))),
           html(points([
             '<strong>Breakeven = fixed costs a month &divide; what one collection leaves.</strong>',
-            be ? `<strong>${dollars(be.fixed)} of fixed costs a month</strong>: rent, ads, tools and machines. Paid whether we do 10 collections or 100.` : '',
-            be ? `Not the whole $${be.avgJob.toFixed(2)} is left over. Part of every collection is spent doing that collection:`
-                 + subList([`$${be.avgJob.toFixed(2)} collected`,
-                            `minus $${be.costJob.toFixed(2)} to do it: transport, boxes, part-time help, masjid give-back`,
-                            `leaves <strong>$${be.leftJob.toFixed(2)}</strong> towards the fixed costs`]) : ''
+            be ? `<strong>${dollars(be.fixed)} of fixed costs a month</strong>: rent, ads, tools and machines.` : '',
+            be ? `A collection brings in <strong>$${be.avgJob.toFixed(2)}</strong>, but <strong>$${be.costJob.toFixed(2)}</strong> of that is spent getting the job done: transport, boxes and the masjid give-back. These are the direct costs of that collection.` : '',
+            be ? `So <strong>$${be.leftJob.toFixed(2)}</strong> of every collection is left to put towards the fixed costs.` : ''
           ])),
           be && be.beJobs ? html(sum(`${dollars(be.fixed)} &divide; $${be.leftJob.toFixed(2)} = <strong style="color:var(--gold);">${be.beJobs} collections a month</strong>`)) : null,
           q('#rev-breakeven-body .be-gauge-wrap')] },
@@ -6040,7 +6040,7 @@ function presentSlides() {
             + figure('In the bank now', dollars(be.bank), '')
             + figure('Still to earn back', dollars(Math.max(0, be.gap)), ''))),
           html(points([
-            `Total profit <strong>${dollars(be.profitAll)}</strong> over <strong>${be.monthsN} months</strong>.`,
+            `Total profit <strong>${dollars(be.profitAll)}</strong> over <strong>${be.monthsN} months of collections</strong>.`,
             `${dollars(be.profitAll)} &divide; ${be.monthsN} = <strong>${dollars(be.avgProfit)} average profit a month</strong>.`
           ])),
           be.gap <= 0
@@ -6051,74 +6051,40 @@ function presentSlides() {
 
     { t: 'Business Recap', s: '', dark: true, n: [all('#rev-assess-body > div')[0], all('#rev-assess-body > div')[3]] },
     { t: 'Business Recap', s: '', dark: true, n: all('#rev-assess-body > div').slice(1, 3) }
-  ]).concat(stamp('Part 2. The challenge', [
+  ]).concat(grp([
 
-    { t: 'The challenge', s: 'A collection is only half the job',
-      n: [html(points([
-        'Revenue counts collections. It does not count what has been shredded.',
-        'One person does the collecting, the shredding and the admin.',
-        'Work has been arriving faster than it is being finished.'
-      ]))] },
-
-    { t: 'One blockage, three rooms', s: '',
-      n: [html(points([
-        'Kitab waiting to be shredded fills the main floor.',
-        'The frames then have nowhere to go, so they sit in the frame work room.',
-        'So no frame work can happen.'
-      ]))] },
+    { t: '', s: '',
+      n: [html(`<div style="min-height:340px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 20px;">
+            <div style="font-size:36px;font-weight:700;color:var(--navy);line-height:1.25;">A collection is only half the job</div>
+          </div>`)] },
 
     { t: 'Before and after', s: 'Clear the kitab, free the frame work room',
       n: [html(`<img src="${FLOORPLAN}" alt="Before and after floor plan"
-             style="width:100%;max-width:940px;display:block;margin-top:8px;border:1px solid var(--grey-100);border-radius:8px;">`)] },
+             style="width:100%;max-width:940px;display:block;margin-top:8px;border:1px solid var(--grey-100);border-radius:8px;">`)] }
 
-    { t: 'What clearing it gives us', s: '',
-      n: [html(points([
-        'The frame work room back in use.',
-        'A proper home for the frames, out of the work space.',
-        'Rent is already paid on that room, whether it works or not.',
-        'How we will know: paper in against paper shredded each week, and the age of the oldest batch still waiting.'
-      ]))] }
+  ])).concat(grp([
 
-  ])).concat(stamp('Part 3. Expansion plan', [
-
-    { t: 'The plan for 2027', s: 'Three things, in this order',
-      n: [html(points([
-        'Finish the backlog and free the room.',
-        'Earn more from the collections we already get.',
-        'Only then test new streams, and only where a buyer is agreed.'
+    { t: 'Who are our competitors', s: '',
+      n: [html(tbl(['Competitor', 'What are their strengths', 'What it means for us'], [
+        ['Renewed Resources', 'Collects recyclables, runs recycling drives, and has mosque and community relationships', 'Pre-booked household routes through the mosques we already work with'],
+        ['Abu Umar', 'Cheaper cost, $3.80/kg', 'Quote the full price up front, collection included, so there is no surprise'],
+        ['Amanah Home SG', 'Offers other home services, not only Islamic material disposal', 'We are the focused specialist; stay clearly better at the one thing we do']
       ]))] },
-
-    { t: 'Who else does this', s: '',
-      n: [html(tbl(['Competitor', 'What they lead on', 'Where we meet them'], [
-        ['Renewed Resources', 'Recycling drives and mosque relationships', 'Mosque referrals and events'],
-        ['Abu Umar', 'Headline paper price, S$3.80 a kg', 'Ordinary household enquiries'],
-        ['Amanah Home SG', 'Load bands at $70, $110 and $170', 'Medium and heavy loads']
-      ]))] },
-
-    { t: 'Where our price sits', s: 'Our paper price against Amanah&#39;s load bands',
-      n: [html(tbl(['Paper', 'ShredRite', 'Amanah', ''], [
-            ['5 kg', '$37.50', '$70', '<span style="color:#1B5E3A;font-weight:700;">we win</span>'],
-            ['15 kg', '$92.50', '$110', '<span style="color:#1B5E3A;font-weight:700;">we win</span>'],
-            ['25 kg', '$147.50', '$110', '<span style="color:#C62828;font-weight:700;">we lose</span>'],
-            ['50 kg', '$285', '$170', '<span style="color:#C62828;font-weight:700;">we lose</span>']
-          ])),
-          html(points([
-            'Strong on small loads. Exposed on large ones.',
-            'Before setting any bulk price, write down every big quote we give and whether we won it.'
-          ]))] },
 
     { t: 'Where we stand', s: '',
       n: [html(quad([
         { t: 'Strengths', c: '#1B5E3A', n: [
           'Paying customers, ' + cols + ' collections so far',
           'Our own unit and shredder',
-          'Two mosque partners already running'] },
+          'Two mosque partners already running',
+          'We collect Jawi books and are paid per kg, with Perikatan Tulisan Jawi Singapura'] },
         { t: 'Weaknesses', c: '#C62828', n: [
           'One person does every job',
           'Kitab waiting, frames blocking a room',
+          'We only do Islamic material disposal, no other services',
           'Any new material adds handling and storage'] },
         { t: 'Opportunities', c: '#2E7D52', n: [
-          'Sell accepted paper and cardboard',
+          'Collect recyclables, the way Renewed Resources do',
           'Recover saleable metal from frames',
           'Paid shredding for institutions we already know',
           'Paid collection events with mosques'] },
@@ -6126,22 +6092,6 @@ function presentSlides() {
           'Cheaper competitors and free recycling routes',
           'Buyers can reject material or change prices',
           'A trip for recyclables can cost more than it earns'] }
-      ]))] },
-
-    { t: '2027, quarter by quarter', s: '',
-      n: [html(tbl(['When', 'What we do'], [
-        ['Rest of 2026', 'Count and date the backlog, free the frame room'],
-        ['Q1 2027', 'Measure two normal weeks, trial four paid helper sessions'],
-        ['Q2 2027', 'One recycling event, one paid institutional paper job'],
-        ['Q3 2027', 'Repeat whichever worked, one site at a time'],
-        ['Q4 2027', 'Review the year before committing to regular help']
-      ]))] },
-
-    { t: 'Before we spend anything', s: '',
-      n: [html(points([
-        'No buyer has approved our material, quoted a price or agreed a pickup yet.',
-        'Everything in the 2027 plan is a test to run, not income to expect.',
-        'Stop if the backlog grows two weeks running, the space runs out, or a pilot loses money.'
       ]))] }
 
   ])).filter(x => x.n.some(Boolean));
@@ -6202,8 +6152,7 @@ function presentShow() {
   const slide = slides[Math.min(presentIdx, slides.length - 1)];
   const canvas = document.getElementById('present-canvas');
   canvas.innerHTML =
-    (slide.p ? `<div style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.7px;margin-bottom:3px;">${slide.p}</div>` : '')
-    + `<div style="font-size:26px;font-weight:700;color:var(--navy);line-height:1.15;letter-spacing:-.2px;">${slide.t}</div>`
+    (slide.t ? `<div style="font-size:26px;font-weight:700;color:var(--navy);line-height:1.15;letter-spacing:-.2px;">${slide.t}</div>` : '')
     + (slide.s ? `<div style="font-size:17px;font-weight:600;color:var(--gold);line-height:1.25;margin:3px 0 12px;">${slide.s}</div>` : '<div style="height:10px;"></div>');
   const box = document.createElement('div');
   if (slide.dark) box.setAttribute('style', 'background:var(--navy);border-radius:10px;padding:14px 14px 2px;');
