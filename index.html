@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.6';
+const APP_VERSION = '2026-09-19.7';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4420,7 +4420,7 @@ const REVENUE_NOTES = {
   '2026-03': 'Puasa/Hari Raya period.',
   '2026-04': 'low revenue due to reservist.',
   '2026-06': 'best month, during the June school holidays.',
-  '2026-07': 'lower revenue from fewer collections. Ads were off from 30 June and only started running again on 9 July: 10 collections in the first half of July, 35 in the second half. Likely reason: the June ads were aimed at the June school holiday clear-out, and there was no time to prepare ads for July.'
+  '2026-07': 'lower revenue from fewer collections. Ads were off from 30 June and only started running again on 9 July. Likely reason: the June ads were aimed at the June school holiday clear-out, and there was no time to prepare ads for July.'
 };
 const SCHOOL_HOLIDAYS = { '2026-06': 'June school holidays' };
 // Changes to the ads themselves, so a better or worse month is not credited to the wrong cause
@@ -5912,12 +5912,10 @@ function presentSlides() {
   const be = revProfit ? breakevenFigures(keys) : null;
   const part = partialMonths(keys);
   const full = keys.filter(k => !part[k] && P(k).count > 0);
-  const money = k => P(k).revenue;
-  const best = full.length ? full.reduce((a, k) => money(k) > money(a) ? k : a, full[0]) : null;
-  const worst = full.length ? full.reduce((a, k) => money(k) < money(a) ? k : a, full[0]) : null;
   const bestP = full.length ? full.reduce((a, k) => P(k).profit > P(a).profit ? k : a, full[0]) : null;
   const losses = full.filter(k => P(k).profit < 0);
   const back = full.filter(k => losses.length && k > losses[losses.length - 1] && P(k).profit > 0)[0];
+  const adGap = full.filter(k => AD_NOTES[k])[0];     // the month the ads were off
   const perCol = cols ? rev / cols : 0;
   let kg = 0; keys.forEach(k => { kg += P(k).kg; });
 
@@ -5932,20 +5930,20 @@ function presentSlides() {
       <div style="font-size:11px;color:var(--grey-400);text-transform:uppercase;letter-spacing:.4px;">${label}</div>
       <div style="font-size:22px;font-weight:700;color:var(--navy);line-height:1.2;">${value}</div>
       ${sub ? `<div style="font-size:11px;color:var(--grey-400);">${sub}</div>` : ''}</div>`;
+  const row3 = inner => `<div style="display:flex;gap:10px;flex-wrap:wrap;">${inner}</div>`;
+  // The same navy answer box the report uses, without the extra line under it
+  const sum = text => `<div style="background:var(--navy);color:#fff;border-radius:6px;padding:10px 13px;margin-top:12px;font-size:15px;">${text}</div>`;
   const note = k => (REVENUE_NOTES[k] || '').replace(/ Likely reason:.*$/, '');
 
   return [
     { t: 'Revenue Summary', s: 'Jan to today',
-      n: [html(`<div style="display:flex;gap:10px;flex-wrap:wrap;">
-            ${figure('Revenue collected', dollars(rev), cols + ' collections')}
-            ${figure('Profit', dollars(profit), 'after everything it costs to run')}
-            ${figure('The business owns', dollars(capex + dep), dollars(capex) + ' machines, ' + dollars(dep) + ' deposit')}
-          </div>`)] },
+      n: [html(row3(
+            figure('Revenue collected', dollars(rev), cols + ' collections')
+            + figure('Profit', dollars(profit), 'after everything it costs to run')
+            + figure('The business owns', dollars(capex + dep), dollars(capex) + ' machines, ' + dollars(dep) + ' deposit')))] },
 
-    { t: 'Revenue by Month', s: best && worst ? 'Best ' + monLabel(best) + ', weakest ' + monLabel(worst) : '',
-      live: true,
+    { t: 'Revenue by Month', s: '', live: true,
       n: [q('#rev-chart'), html(points([
-        'Yellow bars: revenue. Green line: collections.',
         '1. Why revenue moves month to month',
         '2. What affects revenue',
         '3. What to focus on to grow it'
@@ -5955,38 +5953,62 @@ function presentSlides() {
       n: [q('#rev-chart'), html(points(full.filter(k => note(k)).map(k =>
         `<strong>${monLabel(k)}:</strong> ${capFirst(note(k))}`)))] },
 
-    { t: '2. What affects revenue', s: 'The number of collections', live: true,
+    { t: '2. What affects revenue', s: '', live: true,
       n: [q('#rev-chart'), html(points([
         `Revenue per collection is about <strong>$${Math.round(perCol)}</strong> every month.`,
         `kg per collection is about <strong>${Math.round(cols ? kg / cols : 0)} kg</strong> every month.`,
         'So revenue follows how many collections we do.'
       ]))] },
 
-    { t: '3. How to get more collections', s: 'Ads are the main driver', live: true,
+    { t: '3. How to get more collections', s: '', live: true,
       n: [q('#rev-chart'), html(points([
-        'Keep ads running without breaks.',
+        adGap ? `<strong>${monLabel(adGap)}</strong> is the proof: revenue dropped because there were fewer collections, and the collections dropped because the ads were stopped.`
+              : 'Revenue dropped in the month the ads were stopped.',
+        'So ads are what brings the work in.',
+        'Keep them running without breaks.',
         'Keep them fresh, so people do not tire of the same ad.'
       ]))] },
 
-    { t: 'Profit by Month', s: dollars(profit) + ' profit', live: true,
+    { t: 'Profit by Month', s: '', live: true,
       n: [q('#rev-profit-chart'), html(points([
-        'Green: profit. Red: loss.',
         bestP ? `<strong>${monLabel(bestP)}</strong> best: ${SCHOOL_HOLIDAYS[bestP] ? SCHOOL_HOLIDAYS[bestP] : 'most collections'}.` : '',
-        losses.length ? `<strong>${monLabel(losses[losses.length - 1])}</strong> negative: fewer collections after ads stopped, and higher spending (electrical works and masjid give-back).` : '',
+        losses.length ? `<strong>${monLabel(losses[losses.length - 1])}</strong> negative, for two reasons:`
+          + subList(['Fewer collections after the ads stopped.',
+                     'Higher spending: electrical works and the masjid give-back.']) : '',
         back ? `<strong>${monLabel(back)}</strong> recovered on more collections.` : ''
       ]))] },
 
     { t: 'Breakeven', s: be && be.beJobs ? be.beJobs + ' collections a month' : '',
-      n: [q('#rev-breakeven-body .be-answer'), q('#rev-breakeven-body .be-gauge-wrap'),
+      n: [html(row3(
+            figure('Revenue collected', dollars(rev), '')
+            + figure('Collections', String(cols), '')
+            + figure('Average per collection', be ? '$' + be.avgJob.toFixed(2) : '', ''))),
           html(points([
-            be ? `<strong>${dollars(be.fixed)} fixed costs</strong> a month: rent, ads, tools and machines, averaged over the last three full months.` : '',
-            be ? `<strong>$${be.leftJob.toFixed(2)} left by each collection</strong>: $${be.avgJob.toFixed(2)} collected, minus $${be.costJob.toFixed(2)} to do the collection.` : '',
-            be ? `Recent months averaged <strong>${Math.round(be.recentJobs)} collections</strong>.` : ''
-          ]))] },
+            be ? `<strong>${dollars(be.fixed)} of fixed costs a month</strong>: rent, ads, tools and machines. These are paid however many collections we do.` : '',
+            be ? `<strong>$${be.costJob.toFixed(2)} to do one collection</strong>: transport, boxes, part-time help and the masjid give-back.` : '',
+            be ? `So a collection leaves <strong>$${be.leftJob.toFixed(2)}</strong> towards the fixed costs: $${be.avgJob.toFixed(2)} in, minus $${be.costJob.toFixed(2)} out.` : ''
+          ])),
+          be && be.beJobs ? html(sum(`${dollars(be.fixed)} &divide; $${be.leftJob.toFixed(2)} = <strong style="color:var(--gold);">${be.beJobs} collections a month</strong>`)) : null,
+          q('#rev-breakeven-body .be-gauge-wrap')] },
+
+    be && be.putIn > 0 ? { t: 'Earning back the ' + dollars(be.putIn), s: 'The money put into the business',
+      n: [html(row3(
+            figure('Put into the business', dollars(be.putIn), 'machines, deposit, start-up')
+            + figure('In the bank now', dollars(be.bank), '')
+            + figure('Still to earn back', dollars(Math.max(0, be.gap)), ''))),
+          html(points([
+            `The business keeps about <strong>${dollars(be.kept)}</strong> a month after its day-to-day costs.`,
+            'That is cash kept, so the machines are not counted again: they are already paid for.'
+          ])),
+          be.gap <= 0
+            ? html(sum('<strong style="color:var(--gold);">Already earned back.</strong>'))
+            : (be.months != null
+                ? html(sum(`${dollars(be.gap)} &divide; ${dollars(be.kept)} = ${be.months.toFixed(1)} months &rarr; <strong style="color:var(--gold);">around ${monthsFromNow(be.months)}</strong>`))
+                : html(sum('No date yet: the last three full months did not keep money after costs.')))] } : null,
 
     { t: 'Business Recap', s: '', dark: true, n: all('#rev-assess-body > div').slice(0, 3) },
     { t: 'Business Recap', s: '', dark: true, n: all('#rev-assess-body > div').slice(3) }
-  ].filter(x => x.n.some(Boolean));
+  ].filter(Boolean).filter(x => x.n.some(Boolean));
 }
 
 function presentOpen() {
@@ -6019,6 +6041,26 @@ function presentGo(step) {
   presentShow();
 }
 
+// A clone carries copies of the original's ids, so a bar would point at the
+// gradient in the report rather than the one in its own copy. Give the copy
+// fresh ids, and drop the rest so nothing is duplicated in the document.
+let presentCloneN = 0;
+function presentFreshIds(node) {
+  const tag = 'pc' + (++presentCloneN) + '-';
+  node.querySelectorAll('svg').forEach(svg => {
+    const ids = [...svg.querySelectorAll('[id]')].map(x => x.id);
+    if (!ids.length) return;
+    let h = svg.innerHTML;
+    ids.forEach(old => {
+      h = h.split('id="' + old + '"').join('id="' + tag + old + '"')
+           .split('url(#' + old + ')').join('url(#' + tag + old + ')');
+    });
+    svg.innerHTML = h;
+  });
+  if (node.id) node.removeAttribute('id');
+  node.querySelectorAll('[id]').forEach(x => { if (!x.closest('svg')) x.removeAttribute('id'); });
+}
+
 function presentShow() {
   const slides = presentSlides();
   const slide = slides[Math.min(presentIdx, slides.length - 1)];
@@ -6033,6 +6075,7 @@ function presentShow() {
     const c = el.cloneNode(true);
     c.classList.remove('hidden');
     c.querySelectorAll('.hidden').forEach(x => x.remove());       // folded detail tables stay out
+    presentFreshIds(c);
     if (!slide.live) {
       c.querySelectorAll('[onclick]').forEach(x => x.removeAttribute('onclick'));
       c.querySelectorAll('button').forEach(x => x.remove());
@@ -6089,6 +6132,7 @@ function presentAttach(id) {
   c.classList.remove('hidden');
   c.querySelectorAll('[onclick]').forEach(x => x.removeAttribute('onclick'));
   c.querySelectorAll('button').forEach(x => x.remove());
+  presentFreshIds(c);
   c.setAttribute('style', 'background:#fff;border:1px solid var(--grey-100);border-radius:8px;padding:10px 12px;margin-top:10px;');
   extra.innerHTML = `<div style="display:flex;justify-content:flex-end;margin-top:10px;">
       <button onclick="hideDetail('${id}')" style="border:1px solid var(--navy);background:var(--white);color:var(--navy);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;">&#10005; Hide breakdown, back to chart</button>
@@ -6259,7 +6303,7 @@ const TREND_METRICS = {
   kgjob: { label: 'kg per collection',          get: m => m.count ? m.kg / m.count : 0,      fmt: v => v.toFixed(1) }
 };
 let revTrendMetric = 'jobs';
-let revShowAds = true;          // ad spend line, independent of the view picked above
+let revShowAds = false;         // ad spend line, off until it is toggled on
 const ADS_COLOUR = '#3B6FB6';
 
 function redrawRevenueChart() {
@@ -6339,7 +6383,7 @@ function drawRevenueChart(allKeys, monthly, chartEl) {
     const m = monthly[k];
     return `<div onclick="showMonthDetail('${k}')" style="cursor:pointer;width:${COLW}px;flex:0 0 ${COLW}px;text-align:center;">
       <div style="font-size:10px;font-weight:600;color:var(--grey-500);padding-top:3px;">${monLabel(k)}</div>
-      <div style="font-size:11px;font-weight:700;color:var(--navy);">$${Math.round(m.revenue).toLocaleString()}</div>
+      <div style="font-size:11px;font-weight:700;color:#A8873A;">$${Math.round(m.revenue).toLocaleString()}</div>
       <div style="font-size:10px;font-weight:700;color:#1B5E3A;">${metric.fmt(vals[i])}</div>
       ${showAds ? `<div style="font-size:10px;font-weight:700;color:${ADS_COLOUR};">$${Math.round(ads[i]).toLocaleString()}</div>` : ''}
     </div>`;
@@ -6496,7 +6540,7 @@ function renderPartMonthChart(parts) {
         <div style="position:absolute;left:0;right:0;bottom:${h + 2}px;font-size:12px;font-weight:700;">${p.count}<span style="font-size:9px;color:var(--grey-400);font-weight:600;"> collection${p.count === 1 ? '' : 's'}</span></div>
       </div>
       <div style="font-size:10px;font-weight:600;color:var(--grey-500);padding-top:4px;">${p.label}</div>
-      <div style="font-size:9px;color:var(--grey-400);">$${Math.round(p.revenue).toLocaleString()}</div>
+      <div style="font-size:9px;font-weight:700;color:#A8873A;">$${Math.round(p.revenue).toLocaleString()}</div>
     </div>`;
   }).join('') + '</div>';
   const mTicks = [0, 0.5, 1].map(f => ({ v: Math.round(max * f), y: PH - (PH - TOP) * f }));
