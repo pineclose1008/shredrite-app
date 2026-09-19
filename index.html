@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.15';
+const APP_VERSION = '2026-09-19.16';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -6061,13 +6061,10 @@ function presentSlides() {
   ])).concat(grp([
 
     { p: 'Part 3: Strategy 2027', t: 'Who are our competitors', s: '',
-      n: [html(tbl(['Competitor', 'What are their strengths', 'What it means for us'], [
-        ['Renewed Resources', 'Collects recyclables, runs recycling drives, and has mosque and community relationships', 'Look harder at recyclables, and at reaching more mosques and community groups'],
-        ['Abu Umar', 'Cheaper cost, $3.80/kg', 'We collect from the doorstep. Abu Umar is drop-off only'],
-        ['Amanah Home SG', 'Offers other home services, not only Islamic material disposal',
-         'We are the focused specialist, so stay clearly better at the one thing we do. '
-         + 'Their other services keep them in touch with the same household all year, while most of ours come to us once. '
-         + 'They are also cheaper on large loads, so work out our own bulk price before quoting one']
+      n: [html(tbl(['Competitor', 'What are their strengths'], [
+        ['Renewed Resources', 'Eco and sustainability'],
+        ['Abu Umar', 'Cheaper price'],
+        ['Amanah Home SG', 'Holistic home services (sertu, qiblah finding service)']
       ]))] },
 
     { t: 'Where we stand', s: '',
@@ -6081,11 +6078,11 @@ function presentSlides() {
         { t: 'Opportunities', c: '#2E7D52', n: [
           'Collect recyclables, the way Renewed Resources do',
           'Recover saleable metal from frames',
-          'Collection events with mosques'] },
+          'Collection events with mosques',
+          'Corporate shredding'] },
         { t: 'Threats', c: '#B26A00', n: [
           'Cheaper competitors',
-          'Free routes for the same items: we charge by weight for sejadah and telekung, but a customer can give them away instead',
-          'A trip for recyclables can cost more than it earns'] }
+          'Competitors have longer standing partnerships with mosques'] }
       ]))] }
 
   ])).filter(x => x.n.some(Boolean));
