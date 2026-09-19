@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.5';
+const APP_VERSION = '2026-09-19.6';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -5670,7 +5670,8 @@ function showCashDetail(key) {
     return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;${o.indent ? 'padding-left:12px;color:var(--grey-400);' : 'color:var(--grey-500);'}${o.bold ? 'color:var(--navy);font-weight:700;' : ''}">${l}</td>`
       + `<td style="padding:5px 0;text-align:right;font-weight:${o.bold ? '700' : '600'};${o.color ? 'color:' + o.color + ';' : ''}">${v}</td></tr>`; };
 
-  let html = `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name} - money in and out</div>`
+  let html = hideDetailBtn('rev-cash-detail')
+    + `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name} - money in and out</div>`
     + '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
     + line('Collected from customers', '$' + p.revenue.toFixed(2), { bold: true, color: 'var(--green)' });
 
@@ -5738,6 +5739,9 @@ function renderAssessment(keys, monthly) {
   const be = breakevenFigures(keys);
   const when = be && be.months != null ? monthsFromNow(be.months) : null;
   const earned = be && be.gap <= 0;
+  let jobs = 0, kgAll = 0;
+  keys.forEach(k => { jobs += revProfit[k].count; kgAll += revProfit[k].kg; });
+  const perCol = jobs ? rev / jobs : 0, kgCol = jobs ? kgAll / jobs : 0;
   const adBreak = Object.keys(AD_NOTES).some(k => keys.includes(k));
 
   const card = (title, verdict, good, body) => `
@@ -5747,30 +5751,37 @@ function renderAssessment(keys, monthly) {
       <div style="font-size:11px;line-height:1.6;color:#D6DEE7;">${body}</div>
     </div>`;
 
+  const pts = items => `<ul style="margin:2px 0 0 15px;padding:0;">${items.filter(Boolean).map(t => `<li style="margin-bottom:3px;">${t}</li>`).join('')}</ul>`;
+
   document.getElementById('rev-assess-body').innerHTML =
     card('Is the business profitable?', profit >= 0 ? 'Yes' : 'Not yet', profit >= 0,
       profit >= 0
-        ? `${dollars(rev)} collected, ${dollars(profit)} profit after everything it costs to run.
-           It made a profit in ${wins} of ${full.length} full months.`
-        : `The work is not yet covering what it costs to run the business.`) +
+        ? pts([`${dollars(rev)} collected`, `${dollars(profit)} profit after all running costs`,
+               `Profit in ${wins} of ${full.length} full months`])
+        : pts(['The work does not yet cover what it costs to run the business'])) +
 
     card('What drives revenue?', 'The number of collections', true,
-      `Revenue per collection and kg per collection stay roughly the same every month, so revenue follows the number
-       of collections. Ads are the main way to get more: keep them running without breaks, and keep them fresh.`) +
+      pts([`Revenue per collection is about $${Math.round(perCol)} every month`,
+           `kg per collection is about ${Math.round(kgCol)} kg every month`,
+           'Ads are the main way to get more collections',
+           'Keep ads running without breaks, and keep them fresh'])) +
 
     (be && be.beJobs
       ? card('How much work is needed?', be.beJobs + ' collections a month', be.recentJobs >= be.beJobs,
-          `That covers every cost in an average month. Recent months averaged ${Math.round(be.recentJobs)}.`)
+          pts(['Covers every cost in an average month',
+               `Recent months averaged ${Math.round(be.recentJobs)} collections`]))
       : '') +
 
     card('Where has the money gone?', 'Machines and the deposit', true,
-      `The bank holds less than the profit because ${dollars(capex)} went on the shredders and ${dollars(deposits)} on
-       the rental deposit, both paid up front. The machines are owned and in daily use, and the deposit comes back when
-       the unit is returned.${be && be.putIn > 0 && when ? ` The ${dollars(be.putIn)} put in should be earned back around <strong>${when}</strong>.` : ''}`) +
+      pts([`${dollars(capex)} on the shredders, owned and in daily use`,
+           `${dollars(deposits)} rental deposit, returned when the unit is returned`,
+           be && be.putIn > 0 && when ? `${dollars(be.putIn)} put in, earned back around ${when}` : ''])) +
 
     card('What is the main risk?', 'Work has to be found again every month', false,
-      `Most customers are one-time, and the business depends on one person. Steady, fresh ads are what keep the work
-       coming; regular contract work would steady it further, but none has been won yet.`);
+      pts(['Most customers are one-time',
+           'One person does the collection, shredding and admin',
+           'Steady, fresh ads are what keep the work coming',
+           'No regular contract work yet']));
 
   sec.classList.remove('hidden');
 }
@@ -5940,19 +5951,19 @@ function presentSlides() {
         '3. What to focus on to grow it'
       ]))] },
 
-    { t: '1. Why revenue moves', s: '',
-      n: [html(points(full.filter(k => note(k)).map(k =>
+    { t: '1. Why revenue moves', s: '', live: true,
+      n: [q('#rev-chart'), html(points(full.filter(k => note(k)).map(k =>
         `<strong>${monLabel(k)}:</strong> ${capFirst(note(k))}`)))] },
 
-    { t: '2. What affects revenue', s: 'The number of collections',
-      n: [html(points([
+    { t: '2. What affects revenue', s: 'The number of collections', live: true,
+      n: [q('#rev-chart'), html(points([
         `Revenue per collection is about <strong>$${Math.round(perCol)}</strong> every month.`,
         `kg per collection is about <strong>${Math.round(cols ? kg / cols : 0)} kg</strong> every month.`,
         'So revenue follows how many collections we do.'
       ]))] },
 
-    { t: '3. How to get more collections', s: 'Ads are the main driver',
-      n: [html(points([
+    { t: '3. How to get more collections', s: 'Ads are the main driver', live: true,
+      n: [q('#rev-chart'), html(points([
         'Keep ads running without breaks.',
         'Keep them fresh, so people do not tire of the same ad.'
       ]))] },
@@ -5968,8 +5979,9 @@ function presentSlides() {
     { t: 'Breakeven', s: be && be.beJobs ? be.beJobs + ' collections a month' : '',
       n: [q('#rev-breakeven-body .be-answer'), q('#rev-breakeven-body .be-gauge-wrap'),
           html(points([
-            be ? `Recent months averaged <strong>${Math.round(be.recentJobs)} collections</strong>.` : '',
-            be ? `Fixed costs ${dollars(be.fixed)} a month. Each collection leaves about $${Math.round(be.leftJob)}.` : ''
+            be ? `<strong>${dollars(be.fixed)} fixed costs</strong> a month: rent, ads, tools and machines, averaged over the last three full months.` : '',
+            be ? `<strong>$${be.leftJob.toFixed(2)} left by each collection</strong>: $${be.avgJob.toFixed(2)} collected, minus $${be.costJob.toFixed(2)} to do the collection.` : '',
+            be ? `Recent months averaged <strong>${Math.round(be.recentJobs)} collections</strong>.` : ''
           ]))] },
 
     { t: 'Business Recap', s: '', dark: true, n: all('#rev-assess-body > div').slice(0, 3) },
@@ -6012,8 +6024,8 @@ function presentShow() {
   const slide = slides[Math.min(presentIdx, slides.length - 1)];
   const canvas = document.getElementById('present-canvas');
   canvas.innerHTML =
-    `<div style="font-size:12px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.6px;">${slide.t}</div>`
-    + (slide.s ? `<div style="font-size:24px;font-weight:700;color:var(--navy);line-height:1.2;margin:2px 0 10px;">${slide.s}</div>` : '<div style="height:8px;"></div>');
+    `<div style="font-size:26px;font-weight:700;color:var(--navy);line-height:1.15;letter-spacing:-.2px;">${slide.t}</div>`
+    + (slide.s ? `<div style="font-size:17px;font-weight:600;color:var(--gold);line-height:1.25;margin:3px 0 12px;">${slide.s}</div>` : '<div style="height:10px;"></div>');
   const box = document.createElement('div');
   if (slide.dark) box.setAttribute('style', 'background:var(--navy);border-radius:10px;padding:14px 14px 2px;');
   slide.n.forEach(el => {
@@ -6053,6 +6065,20 @@ function presentIsOpen() {
   return o && !o.classList.contains('hidden');
 }
 
+// Hides a breakdown panel and returns to the chart
+function hideDetail(id) {
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('hidden'); el.innerHTML = ''; }
+  const extra = document.getElementById('present-extra');
+  if (extra && presentIsOpen()) { extra.innerHTML = ''; presentFit(); }
+}
+// The button that sits at the top of every breakdown panel
+function hideDetailBtn(id) {
+  return `<div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+      <button onclick="hideDetail('${id}')" style="border:1px solid var(--grey-200);background:var(--white);color:var(--grey-500);font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;cursor:pointer;">&#10005; Hide breakdown</button>
+    </div>`;
+}
+
 // A month tapped on a slide shows its breakdown right there
 function presentAttach(id) {
   if (!presentIsOpen()) return;
@@ -6062,8 +6088,11 @@ function presentAttach(id) {
   const c = src.cloneNode(true);
   c.classList.remove('hidden');
   c.querySelectorAll('[onclick]').forEach(x => x.removeAttribute('onclick'));
+  c.querySelectorAll('button').forEach(x => x.remove());
   c.setAttribute('style', 'background:#fff;border:1px solid var(--grey-100);border-radius:8px;padding:10px 12px;margin-top:10px;');
-  extra.innerHTML = '';
+  extra.innerHTML = `<div style="display:flex;justify-content:flex-end;margin-top:10px;">
+      <button onclick="hideDetail('${id}')" style="border:1px solid var(--navy);background:var(--white);color:var(--navy);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;">&#10005; Hide breakdown, back to chart</button>
+    </div>`;
   extra.appendChild(c);
   presentFit();
 }
@@ -6129,7 +6158,8 @@ function showProfitDetail(key) {
     + `<td style="padding:7px 0;text-align:right;font-weight:700;color:${colour || 'var(--navy)'};">${value}</td></tr>`;
   const id = t => t + '_' + key.replace('-', '');
 
-  let html = `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name}: profit</div>`
+  let html = hideDetailBtn('rev-profit-detail')
+    + `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name}: profit</div>`
     + '<table style="width:100%;font-size:12px;border-collapse:collapse;">'
     + total('Revenue collected', m2(p.revenue), 'var(--gold)')
     + '<tr><td colspan="2" style="padding:8px 0 2px;font-size:10px;color:var(--grey-400);text-transform:uppercase;letter-spacing:.3px;">Costs</td></tr>';
@@ -6425,7 +6455,8 @@ function showMonthDetail(key) {
   const row = (l, v, bold) => `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;color:${bold ? 'var(--navy)' : 'var(--grey-500)'};${bold ? 'font-weight:700;' : ''}">${l}</td><td style="padding:5px 0;text-align:right;font-weight:${bold ? '700' : '600'};${bold ? 'color:var(--gold);' : ''}">${v}</td></tr>`;
 
   document.getElementById('rev-month-detail').innerHTML =
-    `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name}</div>
+    hideDetailBtn('rev-month-detail')
+    + `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">${name}</div>
     <table style="width:100%;font-size:12px;border-collapse:collapse;">`
     + row('Collections', m.count)
     + row('Total Weight', m.kg.toFixed(1) + ' kg')
@@ -6506,7 +6537,8 @@ function showPartMonthDetail(i) {
   const row = (l, v, bold) => `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;color:${bold ? 'var(--navy)' : 'var(--grey-500)'};${bold ? 'font-weight:700;' : ''}">${l}</td><td style="padding:5px 0;text-align:right;font-weight:${bold ? '700' : '600'};${bold ? 'color:var(--gold);' : ''}">${v}</td></tr>`;
 
   document.getElementById('rev-partmonth-detail').innerHTML =
-    `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">Day ${p.label} of the month</div>
+    hideDetailBtn('rev-partmonth-detail')
+    + `<div style="font-weight:700;font-size:13px;margin-bottom:6px;">Day ${p.label} of the month</div>
     <table style="width:100%;font-size:12px;border-collapse:collapse;">`
     + row('Bookings', p.count, true)
     + row('Share of all bookings', share.toFixed(0) + '%')
