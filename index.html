@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.16';
+const APP_VERSION = '2026-09-19.17';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -5926,7 +5926,6 @@ let presentIdx = 0;
 
 function presentSlides() {
   const q = sel => document.querySelector(sel);
-  const all = sel => [...document.querySelectorAll(sel)];
   const keys = revProfit ? Object.keys(revProfit).sort() : [];
   const P = k => revProfit[k];
   let rev = 0, cols = 0, profit = 0, capex = 0, dep = 0;
@@ -6043,10 +6042,7 @@ function presentSlides() {
             ? html(sum('<strong style="color:var(--gold);">Already earned back.</strong>'))
             : (be.months != null
                 ? html(sum(`${dollars(be.gap)} &divide; ${dollars(be.avgProfit)} = ${be.months.toFixed(1)} months &rarr; <strong style="color:var(--gold);">around ${monthsFromNow(be.months)}</strong>`))
-                : html(sum('No date yet: the business has not made a profit on average.')))] } : null,
-
-    { t: 'Business Recap', s: '', dark: true, n: [all('#rev-assess-body > div')[0], all('#rev-assess-body > div')[3]] },
-    { t: 'Business Recap', s: '', dark: true, n: all('#rev-assess-body > div').slice(1, 3) }
+                : html(sum('No date yet: the business has not made a profit on average.')))] } : null
   ]).concat(grp([
 
     { p: 'Part 2: Challenges', t: '', s: '',
