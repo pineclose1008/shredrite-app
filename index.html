@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.13';
+const APP_VERSION = '2026-09-19.14';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -6005,9 +6005,8 @@ function presentSlides() {
 
     { t: '3. How to get more collections', s: '', live: true,
       n: [q('#rev-chart'), html(points([
-        adGap ? `<strong>${monLabel(adGap)}</strong> is the proof: revenue dropped because there were fewer collections, and the collections dropped because the ads were stopped.`
-              : 'Revenue dropped in the month the ads were stopped.',
-        'So ads are what brings the work in. Keep them running without breaks, and keep them fresh.',
+        adGap ? `<strong>${monLabel(adGap)}</strong>: our current channel is advertising. When the ads were stopped, the number of collections dropped, and revenue dropped with them.`
+              : 'Our current channel is advertising. When the ads were stopped, collections and revenue dropped with them.',
         mosque ? `<strong>Mosque referrals are another way of getting customers, and one we can track.</strong>` + subList([
           `${mosque.label}: <strong>${mosque.n} of ${mosque.of} collections</strong> came in on a mosque code, ${mosque.pc}%.`,
           `${MOSQUE_PARTNERS.join(' and ')} today. ${MOSQUE_NEXT} starting, ${MOSQUE_ENQUIRIES} more mosques asking.`
@@ -6023,18 +6022,16 @@ function presentSlides() {
         back ? `<strong>${monLabel(back)}</strong> recovered on more collections.` : ''
       ]))] },
 
-    { t: 'Breakeven', s: '',
+    { t: 'Breakeven', s: 'How many collections a month to cover the fixed costs?',
       n: [html(row3(
-            figure('Revenue collected', dollars(rev), '')
-            + figure('Collections', String(cols), '')
-            + figure('Average per collection', be ? '$' + be.avgJob.toFixed(2) : '', ''))),
+            figure('Fixed cost a month', be ? dollars(be.fixed) : '', 'rent, ads, tools and machines')
+            + figure('Gross profit per collection', be ? '$' + be.leftJob.toFixed(2) : '',
+                     be ? '$' + be.avgJob.toFixed(2) + ' less $' + be.costJob.toFixed(2) + ' of direct costs' : ''))),
           html(points([
-            '<strong>Breakeven = fixed costs a month &divide; what one collection leaves.</strong>',
-            be ? `<strong>${dollars(be.fixed)} of fixed costs a month</strong>: rent, ads, tools and machines.` : '',
-            be ? `A collection brings in <strong>$${be.avgJob.toFixed(2)}</strong>, but <strong>$${be.costJob.toFixed(2)}</strong> is spent on the direct costs of that collection (transport, consumables and the masjid give-back).` : '',
+            be ? `A collection brings in <strong>$${be.avgJob.toFixed(2)}</strong>, but <strong>$${be.costJob.toFixed(2)}</strong> is spent on the direct costs of that collection: transport, consumables and other per-collection costs.` : '',
             be ? `So <strong>$${be.leftJob.toFixed(2)}</strong> of every collection is left to put towards the fixed costs.` : ''
           ])),
-          be && be.beJobs ? html(sum(`${dollars(be.fixed)} &divide; $${be.leftJob.toFixed(2)} = <strong style="color:var(--gold);">${be.beJobs} collections a month</strong>`)) : null,
+          be && be.beJobs ? html(sum(`Breakeven point = ${dollars(be.fixed)} &divide; $${be.leftJob.toFixed(2)} = <strong style="color:var(--gold);">${be.beJobs} collections a month</strong>`)) : null,
           q('#rev-breakeven-body .be-gauge-wrap')] },
 
     be && be.putIn > 0 ? { t: 'Earning back the ' + dollars(be.putIn), s: 'The money put into the business',
