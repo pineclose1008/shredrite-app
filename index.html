@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.12';
+const APP_VERSION = '2026-09-19.13';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4330,9 +4330,12 @@ async function renderProfitChart(monthly) {
 
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const label = k => MON[parseInt(k.slice(5), 10) - 1] + ' ' + k.slice(2, 4);
+  // Months before the first collection are spending only, so a bar for them
+  // says nothing about trading. They stay in every total, just not on the chart.
+  const plotKeys = keys.filter(k => revProfit[k].count > 0);
   // Profit above the zero line, losses below it, so a red bar reads as a loss
-  const maxUp = Math.max.apply(null, keys.map(k => revProfit[k].profit).concat([1]));
-  const maxDn = Math.max.apply(null, keys.map(k => -revProfit[k].profit).concat([0]));
+  const maxUp = Math.max.apply(null, plotKeys.map(k => revProfit[k].profit).concat([1]));
+  const maxDn = Math.max.apply(null, plotKeys.map(k => -revProfit[k].profit).concat([0]));
   const PH = 150, GAP = 20;                       // plot height, room for the value labels
   const upH = Math.round((PH - GAP) * maxUp / (maxUp + maxDn));
   const dnH = PH - GAP - upH;
@@ -4342,7 +4345,7 @@ async function renderProfitChart(monthly) {
   const pTicks = [{ v: tick(maxUp), y: GAP / 2 }, { v: '$0', y: zeroY }]
     .concat(maxDn > 0 ? [{ v: tick(-maxDn), y: PH }] : []);
 
-  const bars = '<div style="display:flex;gap:8px;">' + keys.map(k => {
+  const bars = '<div style="display:flex;gap:8px;">' + plotKeys.map(k => {
     const p = revProfit[k];
     const up = p.profit >= 0;
     const h = barH(p.profit);
@@ -6028,7 +6031,7 @@ function presentSlides() {
           html(points([
             '<strong>Breakeven = fixed costs a month &divide; what one collection leaves.</strong>',
             be ? `<strong>${dollars(be.fixed)} of fixed costs a month</strong>: rent, ads, tools and machines.` : '',
-            be ? `A collection brings in <strong>$${be.avgJob.toFixed(2)}</strong>, but <strong>$${be.costJob.toFixed(2)}</strong> of that is spent getting the job done: transport, boxes and the masjid give-back. These are the direct costs of that collection.` : '',
+            be ? `A collection brings in <strong>$${be.avgJob.toFixed(2)}</strong>, but <strong>$${be.costJob.toFixed(2)}</strong> is spent on the direct costs of that collection (transport, consumables and the masjid give-back).` : '',
             be ? `So <strong>$${be.leftJob.toFixed(2)}</strong> of every collection is left to put towards the fixed costs.` : ''
           ])),
           be && be.beJobs ? html(sum(`${dollars(be.fixed)} &divide; $${be.leftJob.toFixed(2)} = <strong style="color:var(--gold);">${be.beJobs} collections a month</strong>`)) : null,
@@ -6067,8 +6070,11 @@ function presentSlides() {
     { p: 'Part 3: Strategy 2027', t: 'Who are our competitors', s: '',
       n: [html(tbl(['Competitor', 'What are their strengths', 'What it means for us'], [
         ['Renewed Resources', 'Collects recyclables, runs recycling drives, and has mosque and community relationships', 'Look harder at recyclables, and at reaching more mosques and community groups'],
-        ['Abu Umar', 'Cheaper cost, $3.80/kg', 'We collect from the doorstep. Abu Umar is drop-off only, so the customer does the carrying'],
-        ['Amanah Home SG', 'Offers other home services, not only Islamic material disposal', 'We are the focused specialist; stay clearly better at the one thing we do']
+        ['Abu Umar', 'Cheaper cost, $3.80/kg', 'We collect from the doorstep. Abu Umar is drop-off only'],
+        ['Amanah Home SG', 'Offers other home services, not only Islamic material disposal',
+         'We are the focused specialist, so stay clearly better at the one thing we do. '
+         + 'Their other services keep them in touch with the same household all year, while most of ours come to us once. '
+         + 'They are also cheaper on large loads, so work out our own bulk price before quoting one']
       ]))] },
 
     { t: 'Where we stand', s: '',
