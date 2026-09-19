@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.4';
+const APP_VERSION = '2026-09-19.5';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4189,7 +4189,6 @@ const CATEGORY_BLURB = {
   'Ads': 'Facebook / Meta ads for the disposal service',
   'Transport': 'GetGo car rental, Lalamove and own car',
   'Boxes & Consumables': 'Storage boxes, bags, blades, gloves',
-  'Transport and help': 'GetGo car rental, Lalamove, own car and part-time help',
   'Consumables': 'Storage boxes, bags, blades, gloves',
   'Equipment': 'Tools and smaller machines',
   'Professional Fees': 'Sleek, ACRA, stamping and filing',
@@ -4592,7 +4591,7 @@ function renderBreakeven(keys) {
       if (JOB_COST_HOME[c] && v > 0.005) withMerged[home] = true;
     });
   });
-  const withParts = Object.keys(withGroups).map(c => ({ n: groupName(c, withMerged[c]), v: withGroups[c] })).concat([
+  const withParts = Object.keys(withGroups).map(c => ({ n: costName(c), v: withGroups[c] })).concat([
     { n: 'Masjid give-back', v: be.recent.map(k => P(k).giveBack) },
     { n: 'Frames give-back', v: be.recent.map(k => P(k).framesDonation) }
   ]).filter(x => x.v.some(v => v > 0.005));
@@ -4968,7 +4967,9 @@ const costName = c => COST_PLAIN[c] || c;
 // Part-time help on collections belongs with the trip it was needed for, so it
 // is shown inside Transport rather than as a category of its own.
 const JOB_COST_HOME = { 'Labour & Works': 'Transport' };
-const groupName = (home, merged) => merged && home === 'Transport' ? 'Transport and help' : costName(home);
+// The label stays the plain category name; help is inside the number and is
+// spelled out in the small print under the row.
+const MERGED_BLURB = { 'Transport': 'GetGo car rental, Lalamove, own car and part-time help' };
 // Cost of doing collections, grouped the way the report shows it
 function jobCostParts(ks, valueOf) {
   const out = {};
@@ -4979,7 +4980,9 @@ function jobCostParts(ks, valueOf) {
     out[home].v += v;
     if (JOB_COST_HOME[c] && v > 0.005) out[home].merged = true;
   });
-  return Object.keys(out).map(c => ({ n: groupName(c, out[c].merged), v: out[c].v })).filter(x => x.v > 0.005);
+  return Object.keys(out)
+    .map(c => ({ n: costName(c), v: out[c].v, b: out[c].merged ? MERGED_BLURB[c] : null }))
+    .filter(x => x.v > 0.005);
 }
 
 function unitRow(k) {
@@ -5135,7 +5138,7 @@ function renderUnitEconomics(allKeys) {
       </tr>
       ${parts.map(x => `<tr style="border-bottom:1px solid var(--grey-100);">
         <td style="padding:5px 0;font-size:11px;color:var(--grey-500);">${esc(COST_PLAIN[x.n] || x.n)}
-          ${CATEGORY_BLURB[x.n] ? `<div style="font-size:10px;color:var(--grey-400);">${esc(CATEGORY_BLURB[x.n])}</div>` : ''}</td>
+          ${x.b || CATEGORY_BLURB[x.n] ? `<div style="font-size:10px;color:var(--grey-400);">${esc(x.b || CATEGORY_BLURB[x.n])}</div>` : ''}</td>
         <td style="text-align:right;font-size:11px;vertical-align:top;padding-top:5px;">$${Math.round(x.v).toLocaleString()}</td>
         <td style="text-align:right;font-size:11px;font-weight:600;vertical-align:top;padding-top:5px;">$${(tot.jobs ? x.v / tot.jobs : 0).toFixed(2)}</td>
       </tr>`).join('')}
