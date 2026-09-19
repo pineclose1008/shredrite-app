@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.14';
+const APP_VERSION = '2026-09-19.15';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -6027,14 +6027,10 @@ function presentSlides() {
             figure('Fixed cost a month', be ? dollars(be.fixed) : '', 'rent, ads, tools and machines')
             + figure('Gross profit per collection', be ? '$' + be.leftJob.toFixed(2) : '',
                      be ? '$' + be.avgJob.toFixed(2) + ' less $' + be.costJob.toFixed(2) + ' of direct costs' : ''))),
-          html(points([
-            be ? `A collection brings in <strong>$${be.avgJob.toFixed(2)}</strong>, but <strong>$${be.costJob.toFixed(2)}</strong> is spent on the direct costs of that collection: transport, consumables and other per-collection costs.` : '',
-            be ? `So <strong>$${be.leftJob.toFixed(2)}</strong> of every collection is left to put towards the fixed costs.` : ''
-          ])),
           be && be.beJobs ? html(sum(`Breakeven point = ${dollars(be.fixed)} &divide; $${be.leftJob.toFixed(2)} = <strong style="color:var(--gold);">${be.beJobs} collections a month</strong>`)) : null,
           q('#rev-breakeven-body .be-gauge-wrap')] },
 
-    be && be.putIn > 0 ? { t: 'Earning back the ' + dollars(be.putIn), s: 'The money put into the business',
+    be && be.putIn > 0 ? { t: 'Breakeven', s: 'When will we recover an initial investment of ' + dollars(be.putIn) + '?',
       n: [html(row3(
             figure('Put into the business', dollars(be.putIn), 'machines, deposit, start-up')
             + figure('In the bank now', dollars(be.bank), '')
