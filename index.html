@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.7';
+const APP_VERSION = '2026-09-19.8';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4094,7 +4094,7 @@ async function loadRevenueSummary() {
     bookings.forEach(b => {
       const key = (b.date || '').slice(0, 7); // YYYY-MM
       if (key.length !== 7) return;
-      if (!monthly[key]) monthly[key] = { revenue: 0, count: 0, kg: 0, paper: 0, frame: 0, service: 0, fees: 0, tipsExact: 0, tipsKnown: false, giveBack: 0, feeCharged: 0 };
+      if (!monthly[key]) monthly[key] = { revenue: 0, count: 0, kg: 0, paper: 0, frame: 0, service: 0, fees: 0, tipsExact: 0, tipsKnown: false, giveBack: 0, feeCharged: 0, mosque: 0, mosqueRev: 0 };
       const m = monthly[key];
       m.revenue += b.totalCollected || 0;
       m.count++;
@@ -4115,6 +4115,9 @@ async function loadRevenueSummary() {
       // zero, so this must test against a small epsilon - a plain > 0 lets the
       // sentinel through and pays a $10 that was never owed.
       const mCode = (b.referral || '').trim().toUpperCase();
+      // Every collection booked on a mosque code, whatever it weighed. The
+      // give-back below is a narrower test: it only pays on books returned.
+      if (MOSQUE_CODES.includes(mCode)) { m.mosque++; m.mosqueRev += b.totalCollected || 0; }
       if (MOSQUE_CODES.includes(mCode) && (b.paperKg || 0) > 0.001) {
         m.giveBack += 10 + (b.paperKg || 0);
       }
@@ -4152,6 +4155,11 @@ async function loadRevenueSummary() {
 /* ── Approximate profit by month ──────────────────────────── */
 // Mosque partnership codes that earn give-back (must match the backend list)
 const MOSQUE_CODES = ['ALEEM10', 'KHALID10'];
+// The partnerships behind those codes, and what is coming. Names only, so the
+// slide never has to be edited in two places.
+const MOSQUE_PARTNERS = ['Masjid Aleem Siddique', 'Masjid Khalid'];
+const MOSQUE_NEXT = 'Masjid Pertempatan Kampung Sembawang';   // starting
+const MOSQUE_ENQUIRIES = 2;                                   // early talks
 // Give-back is paid out at the end of each month, so only months that have
 // already closed count. Local date, not UTC, so the 1st rolls over correctly.
 function currentMonthKey() {
@@ -4312,7 +4320,8 @@ async function renderProfitChart(monthly) {
       giveBackPending: monthClosed ? 0 : (m.giveBack || 0) + frames,
       framesAdjusted: FRAMES_KG_OVERRIDE[k] != null && Math.abs(billableKg - recordedKg) > 0.05,
       framesDonation: frCount, costs: costs, profit: m.revenue - costs, count: m.count,
-      kg: m.kg || 0, paper: m.paper || 0, frame: m.frame || 0, feeCharged: m.feeCharged || 0
+      kg: m.kg || 0, paper: m.paper || 0, frame: m.frame || 0, feeCharged: m.feeCharged || 0,
+      mosque: m.mosque || 0, mosqueRev: m.mosqueRev || 0
     };
   });
 
@@ -5743,6 +5752,10 @@ function renderAssessment(keys, monthly) {
   keys.forEach(k => { jobs += revProfit[k].count; kgAll += revProfit[k].kg; });
   const perCol = jobs ? rev / jobs : 0, kgCol = jobs ? kgAll / jobs : 0;
   const adBreak = Object.keys(AD_NOTES).some(k => keys.includes(k));
+  const lastFullK = full.length ? full[full.length - 1] : null;
+  const mosqueLast = lastFullK && revProfit[lastFullK].mosque
+    ? { k: lastFullK, pc: Math.round(100 * revProfit[lastFullK].mosque / revProfit[lastFullK].count) }
+    : null;
 
   const card = (title, verdict, good, body) => `
     <div style="border-left:3px solid ${good ? '#4CAF7D' : '#EF7B7B'};padding:2px 0 2px 10px;margin-bottom:14px;">
@@ -5764,7 +5777,9 @@ function renderAssessment(keys, monthly) {
       pts([`Revenue per collection is about $${Math.round(perCol)} every month`,
            `kg per collection is about ${Math.round(kgCol)} kg every month`,
            'Ads are the main way to get more collections',
-           'Keep ads running without breaks, and keep them fresh'])) +
+           'Keep ads running without breaks, and keep them fresh',
+           mosqueLast ? `Mosque codes brought ${mosqueLast.pc}% of ${monLabel(mosqueLast.k)} collections, a second way in`
+                      : ''])) +
 
     (be && be.beJobs
       ? card('How much work is needed?', be.beJobs + ' collections a month', be.recentJobs >= be.beJobs,
@@ -5916,6 +5931,13 @@ function presentSlides() {
   const losses = full.filter(k => P(k).profit < 0);
   const back = full.filter(k => losses.length && k > losses[losses.length - 1] && P(k).profit > 0)[0];
   const adGap = full.filter(k => AD_NOTES[k])[0];     // the month the ads were off
+  // Mosque codes on the last FULL month: the running month is half a month of
+  // bookings and would understate it.
+  const lastFull = full.length ? full[full.length - 1] : null;
+  const mosque = lastFull && P(lastFull).mosque
+    ? { k: lastFull, n: P(lastFull).mosque, of: P(lastFull).count,
+        pc: Math.round(100 * P(lastFull).mosque / P(lastFull).count) }
+    : null;
   const perCol = cols ? rev / cols : 0;
   let kg = 0; keys.forEach(k => { kg += P(k).kg; });
 
@@ -5964,10 +5986,13 @@ function presentSlides() {
       n: [q('#rev-chart'), html(points([
         adGap ? `<strong>${monLabel(adGap)}</strong> is the proof: revenue dropped because there were fewer collections, and the collections dropped because the ads were stopped.`
               : 'Revenue dropped in the month the ads were stopped.',
-        'So ads are what brings the work in.',
-        'Keep them running without breaks.',
-        'Keep them fresh, so people do not tire of the same ad.'
-      ]))] },
+        'So ads are what brings the work in. Keep them running without breaks, and keep them fresh.',
+        mosque ? `<strong>The mosques are the second way in.</strong>` + subList([
+          `${monLabel(mosque.k)}: <strong>${mosque.n} of ${mosque.of} collections</strong> were booked on a mosque code, ${mosque.pc}% of the month.`,
+          `${MOSQUE_PARTNERS.join(' and ')} today. ${MOSQUE_NEXT} starting, ${MOSQUE_ENQUIRIES} more mosques asking.`
+        ]) : ''
+      ])),
+      mosque ? html(`<div style="font-size:12px;color:var(--grey-400);margin-top:6px;">The code is picked by the customer at booking, so it shows the mosque link, not a proven source.</div>`) : null] },
 
     { t: 'Profit by Month', s: '', live: true,
       n: [q('#rev-profit-chart'), html(points([
