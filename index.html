@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-19.17';
+const APP_VERSION = '2026-09-24.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -5937,7 +5937,6 @@ function presentSlides() {
   const bestP = full.length ? full.reduce((a, k) => P(k).profit > P(a).profit ? k : a, full[0]) : null;
   const losses = full.filter(k => P(k).profit < 0);
   const back = full.filter(k => losses.length && k > losses[losses.length - 1] && P(k).profit > 0)[0];
-  const adGap = full.filter(k => AD_NOTES[k])[0];     // the month the ads were off
   // Mosque codes over the two most recent months with work. One month on its
   // own swings too much to say anything with.
   const mosKeys = keys.filter(k => P(k).count > 0).slice(-2);
@@ -6004,8 +6003,7 @@ function presentSlides() {
 
     { t: '3. How to get more collections', s: '', live: true,
       n: [q('#rev-chart'), html(points([
-        adGap ? `<strong>${monLabel(adGap)}</strong>: our current channel is advertising. When the ads were stopped, the number of collections dropped, and revenue dropped with them.`
-              : 'Our current channel is advertising. When the ads were stopped, collections and revenue dropped with them.',
+        'Our current channel is advertising. When the ads were stopped, the number of collections dropped, and revenue dropped with them.',
         mosque ? `<strong>Mosque referrals are another way of getting customers, and one we can track.</strong>` + subList([
           `${mosque.label}: <strong>${mosque.n} of ${mosque.of} collections</strong> came in on a mosque code, ${mosque.pc}%.`,
           `${MOSQUE_PARTNERS.join(' and ')} today. ${MOSQUE_NEXT} starting, ${MOSQUE_ENQUIRIES} more mosques asking.`
@@ -6017,7 +6015,7 @@ function presentSlides() {
         bestP ? `<strong>${monLabel(bestP)}</strong> best: ${SCHOOL_HOLIDAYS[bestP] ? SCHOOL_HOLIDAYS[bestP] : 'most collections'}.` : '',
         losses.length ? `<strong>${monLabel(losses[losses.length - 1])}</strong> negative, for two reasons:`
           + subList(['Fewer collections after the ads stopped.',
-                     'Higher spending: electrical works and the masjid give-back.']) : '',
+                     'Higher spending: electrical works and consumables.']) : '',
         back ? `<strong>${monLabel(back)}</strong> recovered on more collections.` : ''
       ]))] },
 
@@ -6075,7 +6073,9 @@ function presentSlides() {
           'Collect recyclables, the way Renewed Resources do',
           'Recover saleable metal from frames',
           'Collection events with mosques',
-          'Corporate shredding'] },
+          'Corporate shredding',
+          'Institutional pricing for learning centres',
+          'Sell shredded material to recycling companies or other avenues (paper recyclers do not take shredded paper: the fibres are too short to recycle)'] },
         { t: 'Threats', c: '#B26A00', n: [
           'Cheaper competitors',
           'Competitors have longer standing partnerships with mosques'] }
