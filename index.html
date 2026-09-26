@@ -2133,7 +2133,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-26.1';
+const APP_VERSION = '2026-09-26.2';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -5978,7 +5978,7 @@ function presentSlides() {
   const grp = arr => arr.filter(Boolean);
 
   return grp([
-    { p: 'Part 1: Revenue summary', t: 'Revenue Summary', s: '',
+    { p: 'Part 1: Revenue summary', t: 'Revenue Summary', s: '', w: 540,
       n: [html(row3(
             figure('Revenue collected', dollars(rev), cols + ' collections')
             + figure('Profit', dollars(profit), 'after everything it costs to run')
@@ -6176,7 +6176,8 @@ function presentShow() {
   extra.id = 'present-extra';
   canvas.appendChild(extra);
   // Widen the slide to whatever the widest chart needs, so nothing is cut off
-  let wide = 400;
+  // A slide can ask for a wider base; the wider it is, the less it is blown up
+  let wide = slide.w || 400;
   canvas.querySelectorAll('*').forEach(x => {
     if (x.scrollWidth > wide && x.scrollWidth < 2400) wide = x.scrollWidth;
   });
