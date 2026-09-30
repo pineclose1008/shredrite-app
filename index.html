@@ -1327,6 +1327,10 @@ textarea.form-input {
               Assign Times
             </button>
           </div>
+          <button class="btn-primary" onclick="autoPlanForDate()" style="margin-top:8px;background:#1B5E3A;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+            Auto Plan (best order + arrival times)
+          </button>
         </div>
       </div>
       <div id="pickup-list"></div>
@@ -1341,6 +1345,8 @@ textarea.form-input {
 
       <h2 class="section-title">Assign Collection Times</h2>
       <p class="section-subtitle">Set times based on your route order. Drag to reorder.</p>
+
+      <div id="assign-autoplan" class="hidden" style="background:#EEF6F1;border:1px solid #CFE6D8;border-radius:var(--radius-md);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--grey-500);"></div>
 
       <div id="assign-list"></div>
 
@@ -1362,6 +1368,9 @@ textarea.form-input {
         Back
       </button>
 
+      <div id="collect-edit-banner" class="hidden" style="background:#FFF8E1;border:1px solid #F0D98A;color:#7A5D00;border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px;font-size:13px;font-weight:600;">
+        Editing a saved collection. Saving will update it, not add a new one.
+      </div>
       <div id="collect-customer-info" style="margin-bottom: 20px;">
         <h2 class="section-title" id="collect-name"></h2>
         <p class="text-sm text-grey" id="collect-address"></p>
@@ -1585,6 +1594,10 @@ textarea.form-input {
         <p style="font-size:11px;color:var(--grey-400);margin-top:6px;">Update tip and sync to Google Sheet.</p>
       </div>
 
+      <button onclick="editCompleted()" style="width:100%;padding:14px;margin-bottom:10px;border-radius:var(--radius-md);font-weight:600;font-size:14px;cursor:pointer;background:var(--white);color:var(--navy);border:1.5px solid var(--navy);">
+        &#9998; Edit weights and amounts
+      </button>
+
       <div style="display:flex;flex-direction:column;gap:10px;">
         <button onclick="sendCompletedPaymentMsg()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:var(--radius-md);font-weight:600;font-size:14px;cursor:pointer;background:#25D366;color:white;border:none;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -1599,8 +1612,10 @@ textarea.form-input {
       <p class="section-subtitle">Manual entry for walk-in or phone bookings</p>
 
       <div class="form-group">
-        <label class="form-label">Shopify Order #</label>
-        <input type="text" class="form-input" id="b-order" placeholder="e.g. #1234 (optional for manual bookings)">
+        <label class="form-label">Paste customer details</label>
+        <textarea class="form-input" id="b-paste" rows="4" oninput="fillFromPaste()"
+          placeholder="Paste the customer's WhatsApp reply here. Name, phone and address fill in by themselves."></textarea>
+        <div id="b-paste-note" class="hidden" style="margin-top:6px;font-size:12px;color:var(--grey-500);"></div>
       </div>
 
       <div class="form-group">
@@ -2133,7 +2148,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-26.2';
+const APP_VERSION = '2026-09-30.2';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2381,8 +2396,171 @@ function openAssignTimesForDate() {
   }
 
   assignList = [...routeDatePickups];
+  autoPlanLast = null;
   renderAssignList();
+  renderAutoPlanPanel();
   showPage('assign');
+}
+
+/* ── Auto plan ────────────────────────────────────────────────
+   Finds each address on OneMap (Singapore's own map service, free, no key),
+   gets road drive times between every pair of stops from the public OSRM
+   router, picks the order with the least driving, and works out when you
+   would reach each door. Anyone booked for 12:00 or later is kept in the
+   afternoon. Times are estimates: roads without live traffic, padded. */
+const HOME_LATLNG = [1.309469496579834, 103.8824375245669];   // 9 Pine Close, OneMap
+const TRAFFIC_PAD = 1.25;                                    // free-flow times run short
+let autoPlanLast = null;
+
+function autoPlanSettings() {
+  const saved = safeParse('sr_autoplan', {});
+  return { leave: saved.leave || '09:00', perStop: saved.perStop != null ? saved.perStop : 15 };
+}
+
+async function geocodeStop(address) {
+  const clean = String(address || '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+  const postal = (clean.match(/(?<!\d)(\d{6})(?!\d)/) || [])[1];
+  const cache = safeParse('sr_geo_cache', {});
+  const key = postal || clean.toLowerCase();
+  if (cache[key]) return cache[key];
+  // A postal code pins the block exactly; otherwise search the street address
+  const query = postal || clean.replace(/#\s*[\w-]+/g, ' ').replace(/\b(blk|block|lift\s*\w|singapore|spore|s)\b\.?/gi, ' ').replace(/\s+/g, ' ').trim();
+  // OneMap turns away bursts of requests, so a refused lookup gets one retry
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const r = await fetch('https://www.onemap.gov.sg/api/common/elastic/search?returnGeom=Y&getAddrDetails=Y&pageNum=1&searchVal=' + encodeURIComponent(query));
+      const j = await r.json();
+      const hit = (j.results || [])[0];
+      if (!hit) return null;
+      const ll = [parseFloat(hit.LATITUDE), parseFloat(hit.LONGITUDE)];
+      cache[key] = ll;
+      safeStore.setItem('sr_geo_cache', JSON.stringify(cache));
+      return ll;
+    } catch (e) {
+      await new Promise(res => setTimeout(res, 1500));
+    }
+  }
+  return null;
+}
+
+// Least total driving from `from` through every stop in `idx` (open path)
+function bestOrder(from, idx, dur) {
+  if (idx.length <= 1) return idx.slice();
+  const cost = ord => ord.reduce((t, k, i) => t + dur[i ? ord[i - 1] : from][k], 0);
+  if (idx.length <= 8) {
+    let best = null, bestC = Infinity;
+    const perm = (arr, l) => {
+      if (l === arr.length) { const c = cost(arr); if (c < bestC) { bestC = c; best = arr.slice(); } return; }
+      for (let i = l; i < arr.length; i++) { [arr[l], arr[i]] = [arr[i], arr[l]]; perm(arr, l + 1); [arr[l], arr[i]] = [arr[i], arr[l]]; }
+    };
+    perm(idx.slice(), 0);
+    return best;
+  }
+  // many stops: nearest next stop, then untangle with 2-opt
+  let ord = [], left = idx.slice(), cur = from;
+  while (left.length) { left.sort((a, b) => dur[cur][a] - dur[cur][b]); cur = left.shift(); ord.push(cur); }
+  let better = true;
+  while (better) {
+    better = false;
+    for (let i = 0; i < ord.length - 1; i++) for (let j = i + 1; j < ord.length; j++) {
+      const cand = ord.slice(0, i).concat(ord.slice(i, j + 1).reverse(), ord.slice(j + 1));
+      if (cost(cand) + 1 < cost(ord)) { ord = cand; better = true; }
+    }
+  }
+  return ord;
+}
+
+const toMin = t => { const [h, m] = String(t || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
+const toHHMM = m => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(Math.round(m % 60)).padStart(2, '0');
+
+async function autoPlanForDate() {
+  if (routeDatePickups.length === 0) { toast('Load a date first'); return; }
+  const set = autoPlanSettings();
+  document.getElementById('sync-overlay').style.display = 'flex';
+  try {
+    const stops = routeDatePickups.slice();
+    // One address at a time: OneMap refuses several at once
+    const pts = [];
+    for (const b of stops) {
+      const cached = Object.keys(safeParse('sr_geo_cache', {})).length;
+      pts.push(await geocodeStop(b.address));
+      if (Object.keys(safeParse('sr_geo_cache', {})).length > cached) await new Promise(res => setTimeout(res, 400));
+    }
+    const found = stops.map((b, i) => ({ b, ll: pts[i] })).filter(x => x.ll);
+    const lost = stops.filter((b, i) => !pts[i]);
+    if (!found.length) throw new Error('None of the addresses could be found on the map');
+
+    // Drive times (seconds) between home and every stop, home first
+    const coords = [HOME_LATLNG].concat(found.map(x => x.ll)).map(ll => ll[1] + ',' + ll[0]).join(';');
+    const r = await fetch('https://router.project-osrm.org/table/v1/driving/' + coords + '?annotations=duration');
+    const j = await r.json();
+    if (j.code !== 'Ok') throw new Error('Could not get drive times');
+    const dur = j.durations;
+
+    // Morning first, then anyone booked from 12:00
+    const idx = found.map((_, i) => i + 1);
+    const pm = idx.filter(i => found[i - 1].b.time && found[i - 1].b.time >= '12:00');
+    const am = idx.filter(i => !pm.includes(i));
+    const amOrd = bestOrder(0, am, dur);
+    const pmOrd = bestOrder(amOrd.length ? amOrd[amOrd.length - 1] : 0, pm, dur);
+    const order = amOrd.concat(pmOrd);
+
+    let t = toMin(set.leave), cur = 0, driveTotal = 0;
+    const plan = order.map(i => {
+      const drive = dur[cur][i] * TRAFFIC_PAD / 60;
+      driveTotal += drive;
+      t += drive;
+      if (pmOrd.includes(i) && t < 12 * 60) t = 12 * 60;
+      const eta = Math.ceil(t / 5) * 5;                   // round up to the next 5 minutes
+      t = eta + Number(set.perStop || 0);
+      cur = i;
+      return { b: found[i - 1].b, eta: toHHMM(eta), drive: Math.round(drive) };
+    });
+    autoPlanLast = { plan, lost, driveTotal: Math.round(driveTotal), finish: toHHMM(t) };
+
+    assignList = plan.map(p => p.b).concat(lost);
+    renderAssignList();
+    plan.forEach((p, i) => { const inp = document.getElementById('assign-time-' + i); if (inp) inp.value = p.eta; });
+    renderAutoPlanPanel();
+    showPage('assign');
+  } catch (err) {
+    console.error('Auto plan error:', err);
+    toast('Auto plan failed: ' + err.message);
+  } finally {
+    document.getElementById('sync-overlay').style.display = 'none';
+  }
+}
+
+function renderAutoPlanPanel() {
+  const box = document.getElementById('assign-autoplan');
+  if (!autoPlanLast) { box.classList.add('hidden'); return; }
+  const set = autoPlanSettings();
+  const a = autoPlanLast;
+  const stops = a.plan.map(p => {
+    let addr = p.b.address.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!/singapore/i.test(addr)) addr += ' Singapore';
+    return encodeURIComponent(addr);
+  });
+  const maps = 'https://www.google.com/maps/dir/' + encodeURIComponent(HOME_ADDRESS) + '/' + stops.join('/') + '/' + encodeURIComponent(HOME_ADDRESS);
+  box.innerHTML = `
+    <div style="font-weight:700;color:#1B5E3A;font-size:14px;margin-bottom:4px;">Auto-planned route</div>
+    <div>Best order below, times filled in. About <strong>${a.driveTotal} min</strong> of driving; last stop done around <strong>${a.finish}</strong>.</div>
+    ${a.lost.length ? `<div style="color:#B26A00;margin-top:4px;">Could not find on the map: ${a.lost.map(b => esc(b.name)).join(', ')}. Placed last with their current time; check the address has a postal code.</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+      <label style="font-size:12px;">Leave home <input type="time" id="ap-leave" value="${set.leave}" style="padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;"></label>
+      <label style="font-size:12px;">Min per stop <input type="number" id="ap-stop" value="${set.perStop}" min="0" step="5" inputmode="numeric" style="width:56px;padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;"></label>
+      <button onclick="replanWithSettings()" style="padding:6px 10px;border:1px solid #1B5E3A;background:#fff;color:#1B5E3A;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;">Re-plan</button>
+      <a href="${maps}" target="_blank" style="font-size:12px;font-weight:600;color:var(--navy);">Open in Google Maps &rarr;</a>
+    </div>
+    <div style="font-size:11px;color:var(--grey-400);margin-top:6px;">Estimates: road times without live traffic, padded 25%, plus the minutes per stop. Check, then Save Times.</div>`;
+  box.classList.remove('hidden');
+}
+
+function replanWithSettings() {
+  const leave = document.getElementById('ap-leave').value || '09:00';
+  const perStop = Math.max(0, parseInt(document.getElementById('ap-stop').value, 10) || 0);
+  safeStore.setItem('sr_autoplan', JSON.stringify({ leave, perStop }));
+  autoPlanForDate();
 }
 
 function updateRouteButton() {
@@ -2424,7 +2602,9 @@ function openAssignTimes() {
     }
   }
 
+  autoPlanLast = null;
   renderAssignList();
+  renderAutoPlanPanel();
   showPage('assign');
 }
 
@@ -2913,7 +3093,7 @@ async function syncCollectionToSheet(pickup, collectionData) {
     notes: collectionData.notes || '',
     referral: pickup.referral || '',
     customerType: getToggle('toggle-collect-type') || 'Home',
-    paymentReceived: collectionData.paymentMethod === 'Cash' ? 'Yes' : 'No'
+    paymentReceived: (collectionData.paymentMethod === 'Cash' || pickup.paymentStatus === 'Received') ? 'Yes' : 'No'
   };
 
   try {
@@ -3376,8 +3556,43 @@ function startCollection(bookingId) {
 
   collectionPhotos = [];
   document.getElementById('photo-grid').innerHTML = '';
+  document.getElementById('collect-edit-banner').classList.add('hidden');
 
   showPage('collect');
+}
+
+// Reopen a saved collection with its figures filled in. The rest of the
+// flow is the usual one: receipt, then Save, which updates the same sheet
+// row instead of adding a new one.
+function editCompleted() {
+  if (!viewedBooking) return;
+  const b = viewedBooking;
+  if (!b.row) { toast('This one has not reached the sheet yet. Sync, then edit.'); return; }
+  startCollection(b.id);
+  if (!currentPickup) return;
+  currentPickup._editing = true;
+
+  // The phone's own record is the freshest; the sheet row fills any gaps
+  const h = getHistory().find(x => x.bookingId === b.id) || {};
+  const pick = (a, c) => (a != null && a !== '' ? a : c);
+  const kg = v => { const n = Number(v) || 0; return n < 0.001 ? 0 : Math.round(n * 100) / 100; };
+  weightEntries = {
+    paper: [kg(pick(h.paper, b.paperKg))], frame: [kg(pick(h.frame, b.frameKg))],
+    other: [kg(pick(h.other, b.otherKg))], tare: [kg(pick(h.tare, b.boxTare))]
+  };
+  ['paper', 'frame', 'other', 'tare'].forEach(cat => renderEntries(cat));
+  calcWeights();
+
+  const tips = Number(pick(h.tips, b.tips)) || 0;
+  const discM = String(b.notes || '').match(/Discount:\s*\$([\d.]+)/i);
+  const discount = Number(pick(h.discount, discM ? discM[1] : 0)) || 0;
+  document.getElementById('c-tips').value = tips ? tips : '';
+  document.getElementById('c-discount').value = discount ? discount : '';
+  document.getElementById('c-booking-fee').value = pick(h.bookingFee, b.bookingFee != null ? b.bookingFee : 20);
+  setToggle('toggle-paid', pick(h.bookingPaid, b.bookingPaid) === 'Yes' ? 'Yes' : 'No');
+  setToggle('toggle-payment', pick(h.paymentMethod, b.paymentMethod) || 'PayNow');
+  setToggle('toggle-collect-type', (b.customerType === 'Institution' || b.certNum) ? 'Institution' : 'Home');
+  document.getElementById('collect-edit-banner').classList.remove('hidden');
 }
 
 // Weight entries per category
@@ -3557,7 +3772,9 @@ function proceedGenerateReceipt() {
 
   // Populate receipt
   document.getElementById('r-name').textContent = currentPickup.name;
-  document.getElementById('r-date').textContent = new Date().toLocaleDateString('en-SG', {
+  // An edited collection keeps the day it was collected, not today
+  const receiptDay = currentPickup._editing && currentPickup.date ? new Date(currentPickup.date + 'T12:00:00') : new Date();
+  document.getElementById('r-date').textContent = receiptDay.toLocaleDateString('en-SG', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   });
 
@@ -3650,7 +3867,9 @@ function proceedGenerateReceipt() {
     serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod,
     notes: remarks || '',
     photos: collectionPhotos.length,
-    date: localDateStr() // local SGT date; toISOString() is UTC and shifts back a day before 8am
+    // local SGT date; toISOString() is UTC and shifts back a day before 8am.
+    // An edit keeps the original collection day.
+    date: currentPickup._editing && currentPickup.date ? currentPickup.date : localDateStr()
   };
 
   // Set tip edit field to current value
@@ -3801,14 +4020,31 @@ async function saveCollection() {
   document.getElementById('sync-overlay').style.display = 'flex';
 
   const history = getHistory();
-  history.unshift({
+  const entry = {
     bookingId: currentPickup.id,
     name: currentPickup.name,
     address: currentPickup.address,
     phone: currentPickup.phone,
     ...c
-  });
+  };
+  // An edit replaces its own entry; a new collection goes on top
+  const hAt = currentPickup._editing ? history.findIndex(h => h.bookingId === currentPickup.id) : -1;
+  if (hAt !== -1) history[hAt] = entry; else history.unshift(entry);
   saveHistoryData(history);
+
+  // Keep the All-tab copy in step so the edited figures show straight away
+  if (currentPickup._editing) {
+    const filtered = safeParse('sr_filtered_bookings', []);
+    const f = filtered.find(x => x.id === currentPickup.id);
+    if (f) {
+      Object.assign(f, {
+        paperKg: c.paper, frameKg: c.frame, otherKg: c.other, boxTare: c.tare, netWeight: c.netWeight,
+        serviceTotal: c.serviceTotal, bookingFee: c.bookingFee, bookingPaid: c.bookingPaid,
+        tips: c.tips, totalCollected: c.totalDue, paymentMethod: c.paymentMethod
+      });
+      safeStore.setItem('sr_filtered_bookings', JSON.stringify(filtered));
+    }
+  }
 
   // Mark booking as completed in local bookings
   const bookings = getBookings();
@@ -3822,7 +4058,7 @@ async function saveCollection() {
   const certNum = await syncCollectionToSheet(currentPickup, c);
 
   document.getElementById('sync-overlay').style.display = 'none';
-  toast('Collection saved' + (certNum ? ' - Certificate ' + certNum : ''));
+  toast((currentPickup._editing ? 'Collection updated' : 'Collection saved') + (certNum ? ' - Certificate ' + certNum : ''));
   showPage('home');
 }
 
@@ -3837,8 +4073,78 @@ function onDiscountCodeChange() {
   if (sel !== 'OTHER') manual.value = '';
 }
 
+// Customer details as they come back on WhatsApp. Two shapes turn up:
+//   Norlela / BLK 767 #18-225 / BEDOK RESERVOIR VIEW 470767             (no labels)
+//   Name: Mdm Liza / Phone number: 81288624 / Address: Blk 289 ...      (labelled)
+// sometimes under our own "May i have the following details" question.
+function parseCustomerDetails(text) {
+  const out = { name: '', phone: '', address: '' };
+  const PHONE = /(?:\+?65[\s-]?)?([689]\d{3})[\s-]?(\d{4})(?!\d)/;
+  const LABEL = /^(name|nama|phone(?:\s*(?:no|number|num))?\.?|contact(?:\s*(?:no|number))?\.?|mobile(?:\s*(?:no|number))?\.?|hp(?:\s*no)?\.?|h\/p|tel(?:ephone)?\.?|no\.?\s*(?:tel|hp|phone)|address|addr\.?|alamat)\s*[:\-]\s*(.*)$/i;
+  const lines = String(text || '').replace(/\r/g, '').split('\n')
+    // a line copied with WhatsApp's "[30/09, 10:15 am] Sender:" prefix
+    .map(l => l.replace(/^\[[^\]]*\]\s*[^:]{1,40}:\s*/, '').replace(/^[\s*_~•-]+|[\s*_~]+$/g, '').trim())
+    .filter(Boolean)
+    // our own question, and any other question line, is not customer data
+    .filter(l => !/\?\s*$/.test(l) && !/^(may i|can i|could i|kindly|please (provide|share|send))/i.test(l));
+
+  let labelled = false, current = null;
+  const loose = [];
+  lines.forEach(l => {
+    const m = l.match(LABEL);
+    if (m) {
+      labelled = true;
+      current = /^(name|nama)/i.test(m[1]) ? 'name' : /^(address|addr|alamat)/i.test(m[1]) ? 'address' : 'phone';
+      if (current === 'name') out.name = m[2].trim();
+      else if (current === 'address') out.address = m[2].trim();
+      else { const p = m[2].match(PHONE); out.phone = p ? p[1] + p[2] : m[2].replace(/\D/g, '').replace(/^65(?=\d{8}$)/, ''); }
+      return;
+    }
+    // an address often runs on to the next line
+    if (labelled && current === 'address') { out.address += (out.address ? '\n' : '') + l; return; }
+    loose.push(l);
+  });
+
+  // Unlabelled lines: a line that is only a phone number is the phone
+  const rest = [];
+  loose.forEach(l => {
+    const digits = l.replace(/[\s\-+().]/g, '');
+    if (!out.phone && /^(65)?[689]\d{7}$/.test(digits)) { out.phone = digits.slice(-8); return; }
+    rest.push(l);
+  });
+  if (!labelled || (!out.name && !out.address)) {
+    const looksAddress = l => /(\b(blk|block|jalan|jln|street|st|road|rd|avenue|ave|drive|dr|crescent|cres|close|lane|ln|way|walk|place|pl|link|view|park|terrace|rise|hill|circle|loop|vale|grove|green|garden|gardens|central|north|south|east|west|singapore|spore)\b|#\s*\d|\b\d{6}\b)/i.test(l);
+    const nameAt = rest.findIndex(l => !looksAddress(l));
+    if (!out.name && nameAt !== -1) out.name = rest[nameAt];
+    const addr = rest.filter((_, i) => i !== nameAt);
+    if (!out.address && addr.length) out.address = addr.join('\n');
+  }
+  // a phone number sitting inside another line (e.g. "Liza 81288624")
+  if (!out.phone) {
+    for (const l of lines) { const p = l.match(PHONE); if (p && !/#|\b\d{6}\b/.test(l)) { out.phone = p[1] + p[2]; break; } }
+  }
+  out.name = out.name.replace(/\s+/g, ' ').trim();
+  out.address = out.address.split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+  return out;
+}
+
+function fillFromPaste() {
+  const box = document.getElementById('b-paste');
+  const note = document.getElementById('b-paste-note');
+  if (!box.value.trim()) { note.classList.add('hidden'); return; }
+  const d = parseCustomerDetails(box.value);
+  const filled = [];
+  if (d.name) { document.getElementById('b-name').value = d.name; filled.push('name'); }
+  if (d.phone) { document.getElementById('b-phone').value = d.phone; filled.push('phone'); }
+  if (d.address) { document.getElementById('b-address').value = d.address; filled.push('address'); }
+  const missing = ['name', 'phone', 'address'].filter(x => !filled.includes(x));
+  note.innerHTML = (filled.length ? '&#10003; Filled ' + filled.join(', ') + '. Please check them.' : 'Could not read the details. Please fill them in below.')
+    + (filled.length && missing.length ? ' <span style="color:#B26A00;">No ' + missing.join(' or ') + ' found.</span>' : '');
+  note.classList.remove('hidden');
+}
+
 async function saveBooking() {
-  const orderNum = document.getElementById('b-order').value.trim();
+  const orderNum = '';
   const name = document.getElementById('b-name').value.trim();
   const phone = document.getElementById('b-phone').value.trim();
   const address = document.getElementById('b-address').value.trim();
@@ -3888,9 +4194,10 @@ async function saveBooking() {
   document.getElementById('sync-overlay').style.display = 'none';
 
   // Reset form
-  ['b-order', 'b-name', 'b-phone', 'b-address', 'b-email', 'b-referral'].forEach(id => {
+  ['b-paste', 'b-name', 'b-phone', 'b-address', 'b-email', 'b-referral'].forEach(id => {
     document.getElementById(id).value = '';
   });
+  document.getElementById('b-paste-note').classList.add('hidden');
   document.getElementById('b-referral-select').value = '';
   document.getElementById('b-referral').classList.add('hidden');
   document.getElementById('b-date').value = '';
