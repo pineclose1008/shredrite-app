@@ -1682,6 +1682,15 @@ textarea.form-input {
         <input type="text" class="form-input hidden" id="b-referral" placeholder="Type discount code" style="text-transform:uppercase;margin-top:8px;">
       </div>
 
+      <div class="btn-row" style="margin-top:16px;">
+        <button onclick="waBookingMessage('confirm')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border:none;border-radius:var(--radius-md);background:#25D366;color:#fff;font-weight:600;font-size:13px;cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.2 1.6 1.9 1.1.9 2 1.2 2.3 1.4.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg> Send confirmation
+        </button>
+        <button onclick="waBookingMessage('morning')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border:none;border-radius:var(--radius-md);background:#25D366;color:#fff;font-weight:600;font-size:13px;cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.2 1.6 1.9 1.1.9 2 1.2 2.3 1.4.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg> Ask for morning slot
+        </button>
+      </div>
+
       <button class="btn-primary mt-16" onclick="guardSave(saveBooking)">Save Booking</button>
     </div>
 
@@ -2148,7 +2157,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-30.2';
+const APP_VERSION = '2026-09-30.3';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4141,6 +4150,38 @@ function fillFromPaste() {
   note.innerHTML = (filled.length ? '&#10003; Filled ' + filled.join(', ') + '. Please check them.' : 'Could not read the details. Please fill them in below.')
     + (filled.length && missing.length ? ' <span style="color:#B26A00;">No ' + missing.join(' or ') + ' found.</span>' : '');
   note.classList.remove('hidden');
+}
+
+// WhatsApp messages sent from New Booking, before the booking is saved,
+// using whatever name, phone and date are on the form
+function waBookingMessage(kind) {
+  const name = document.getElementById('b-name').value.trim();
+  const phone = cleanPhone(document.getElementById('b-phone').value);
+  const date = document.getElementById('b-date').value;
+  if (!phone) { toast('Add the phone number first'); return; }
+  const dateStr = date ? formatDateStr(date, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+
+  let msg = `Salam${name ? ' ' + name : ''}, ni Hambali from ShredRite.
+
+`;
+  if (kind === 'morning') {
+    msg += `Would you be ok to move your collection to the *morning slot (9am to 12pm)*${dateStr ? ` on *${dateStr}*` : ''}?
+
+`;
+    msg += `If you are not at home, you can leave the items outside your house.
+
+`;
+    msg += `Let me know, thank you!`;
+  } else {
+    msg += `Your booking is confirmed. I have booked the slot for you${dateStr ? ` on *${dateStr}*` : ''}.
+
+`;
+    msg += `I will inform you of the exact time closer to the date of collection.
+
+`;
+    msg += `JazakAllahu khairan!`;
+  }
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 async function saveBooking() {
