@@ -1451,8 +1451,16 @@ textarea.form-input {
 
       <label class="form-label">Payment Method</label>
       <div class="toggle-group" id="toggle-payment">
-        <button class="toggle-btn active" data-value="PayNow" onclick="setToggle('toggle-payment', 'PayNow')">PayNow</button>
-        <button class="toggle-btn" data-value="Cash" onclick="setToggle('toggle-payment', 'Cash')">Cash</button>
+        <button class="toggle-btn active" data-value="PayNow" onclick="setToggle('toggle-payment', 'PayNow');syncPayNowToVisibility()">PayNow</button>
+        <button class="toggle-btn" data-value="Cash" onclick="setToggle('toggle-payment', 'Cash');syncPayNowToVisibility()">Cash</button>
+      </div>
+
+      <div id="paynow-to-wrap">
+        <label class="form-label">PayNow to</label>
+        <div class="toggle-group" id="toggle-paynow-to">
+          <button class="toggle-btn active" data-value="personal" onclick="setToggle('toggle-paynow-to', 'personal')">Personal (8383 1987)</button>
+          <button class="toggle-btn" data-value="shredrite" onclick="setToggle('toggle-paynow-to', 'shredrite')">ShredRite QR (UEN)</button>
+        </div>
       </div>
 
       <label class="form-label">Customer Type</label>
@@ -1522,6 +1530,10 @@ textarea.form-input {
           </div>
 
           <div class="receipt-payment" id="r-payment"></div>
+          <div id="r-paynow-qr" class="hidden" style="text-align:center;margin-top:14px;">
+            <div id="r-paynow-qr-code" style="display:inline-block;padding:8px;background:#fff;"></div>
+            <div style="font-size:11px;color:#666;margin-top:4px;">Scan to PayNow SHREDRITE PTE. LTD.<br>UEN 202614101Z</div>
+          </div>
         </div>
         <div class="receipt-footer">
           <p class="thank-you">Thank you for choosing ShredRite</p>
@@ -2157,7 +2169,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-09-30.4';
+const APP_VERSION = '2026-10-01.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -3099,7 +3111,7 @@ async function syncCollectionToSheet(pickup, collectionData) {
     tips: collectionData.tips,
     discount: collectionData.discount,
     paymentMethod: collectionData.paymentMethod,
-    notes: collectionData.notes || '',
+    notes: [collectionData.notes || '', collectionData.paynowTo === 'shredrite' ? 'PayNow to ShredRite UEN' : ''].filter(Boolean).join('; '),
     referral: pickup.referral || '',
     customerType: getToggle('toggle-collect-type') || 'Home',
     paymentReceived: (collectionData.paymentMethod === 'Cash' || pickup.paymentStatus === 'Received') ? 'Yes' : 'No'
@@ -3422,7 +3434,7 @@ function viewCompleted(bookingId) {
   statusEl.style.padding = '6px 12px';
   document.getElementById('vc-mark-paid').classList.toggle('hidden', isReceived || !b.row);
   if (!isReceived && b.paymentMethod === 'PayNow' && b.totalCollected > 0) {
-    renderPayNowQR('vc-paynow-qr', 'vc-paynow-qr-code', b.totalCollected, b.orderNum || b.name);
+    renderPayNowQR('vc-paynow-qr', 'vc-paynow-qr-code', b.totalCollected, b.orderNum || b.name, paynowToFor(b.id, b.notes));
   } else {
     document.getElementById('vc-paynow-qr').classList.add('hidden');
   }
@@ -3512,7 +3524,7 @@ function sendCompletedPaymentMsg() {
 
   let waMsg = '';
   if (payMethod === 'PayNow') {
-    waMsg = `Salam ${viewedBooking.name}, here is your invoice.\n\nPlease pay *$${total.toFixed(2)}* via PayNow to *83831987*.\n\nJazakAllahu khairan!`;
+    waMsg = `Salam ${viewedBooking.name}, here is your invoice.\n\nPlease pay *$${total.toFixed(2)}* via PayNow to ${payNowTarget(paynowToFor(viewedBooking.id, viewedBooking.notes))}.\n\nJazakAllahu khairan!`;
   } else {
     waMsg = `Salam ${viewedBooking.name}, here is your invoice.\n\nTotal amount: *$${total.toFixed(2)}* (Cash).\n\nJazakAllahu khairan!`;
   }
@@ -3561,6 +3573,8 @@ function startCollection(bookingId) {
 
   setToggle('toggle-paid', currentPickup.bookingPaid === 'Yes' ? 'Yes' : 'No');
   setToggle('toggle-payment', 'PayNow');
+  setToggle('toggle-paynow-to', 'personal');
+  syncPayNowToVisibility();
   setToggle('toggle-collect-type', currentPickup.customerType === 'Institution' ? 'Institution' : 'Home');
 
   collectionPhotos = [];
@@ -3600,6 +3614,8 @@ function editCompleted() {
   document.getElementById('c-booking-fee').value = pick(h.bookingFee, b.bookingFee != null ? b.bookingFee : 20);
   setToggle('toggle-paid', pick(h.bookingPaid, b.bookingPaid) === 'Yes' ? 'Yes' : 'No');
   setToggle('toggle-payment', pick(h.paymentMethod, b.paymentMethod) || 'PayNow');
+  setToggle('toggle-paynow-to', paynowToFor(b.id, b.notes));
+  syncPayNowToVisibility();
   setToggle('toggle-collect-type', (b.customerType === 'Institution' || b.certNum) ? 'Institution' : 'Home');
   document.getElementById('collect-edit-banner').classList.remove('hidden');
 }
@@ -3737,6 +3753,7 @@ function generateReceipt() {
   const discount = parseFloat(document.getElementById('c-discount').value) || 0;
   const bookingPaid = getToggle('toggle-paid');
   const paymentMethod = getToggle('toggle-payment');
+  const paynowTo = paymentMethod === 'PayNow' ? (getToggle('toggle-paynow-to') || 'personal') : '';
   const remarks = document.getElementById('c-remarks').value.trim();
 
   if (paper === 0 && frame === 0 && other === 0) {
@@ -3771,13 +3788,13 @@ function generateReceipt() {
   document.getElementById('confirm-receipt-modal').classList.remove('hidden');
 
   // Store pending data so proceedGenerateReceipt can use it
-  window._pendingReceipt = { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod, remarks };
+  window._pendingReceipt = { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod, paynowTo, remarks };
   return;
 }
 
 function proceedGenerateReceipt() {
   if (!window._pendingReceipt) { toast('Receipt data expired. Please generate receipt again.'); return; }
-  const { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod, remarks } = window._pendingReceipt;
+  const { paper, frame, other, tare, netWeight, paperCost, frameCost, otherCost, serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod, paynowTo, remarks } = window._pendingReceipt;
 
   // Populate receipt
   document.getElementById('r-name').textContent = currentPickup.name;
@@ -3851,7 +3868,9 @@ function proceedGenerateReceipt() {
 
   // Total label changes based on whether booking fee is included
   document.getElementById('r-total').textContent = '$' + totalDue.toFixed(2);
-  document.getElementById('r-payment').textContent = 'Payment: ' + paymentMethod;
+  document.getElementById('r-payment').textContent = 'Payment: ' + paymentMethod
+    + (paynowTo === 'shredrite' ? ' to SHREDRITE PTE. LTD. (UEN 202614101Z)' : '');
+  renderReceiptQR(paynowTo, totalDue);
 
 
   // Photos
@@ -3873,7 +3892,7 @@ function proceedGenerateReceipt() {
   currentPickup._collection = {
     paper, frame, other, tare, netWeight,
     paperCost, frameCost, otherCost,
-    serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod,
+    serviceTotal, bookingFee, bookingPaid, tips, discount, totalDue, paymentMethod, paynowTo,
     notes: remarks || '',
     photos: collectionPhotos.length,
     // local SGT date; toISOString() is UTC and shifts back a day before 8am.
@@ -3947,7 +3966,7 @@ function sendPaymentMessage() {
   const c = currentPickup._collection;
   let waMsg = '';
   if (c.paymentMethod === 'PayNow') {
-    waMsg = `Salam ${currentPickup.name}, here is your invoice.\n\nPlease pay *$${c.totalDue.toFixed(2)}* via PayNow to *83831987*.\n\nJazakAllahu khairan!`;
+    waMsg = `Salam ${currentPickup.name}, here is your invoice.\n\nPlease pay *$${c.totalDue.toFixed(2)}* via PayNow to ${payNowTarget(c.paynowTo)}.\n\nJazakAllahu khairan!`;
   } else {
     waMsg = `Salam ${currentPickup.name}, here is your invoice.\n\nTotal amount: *$${c.totalDue.toFixed(2)}* (Cash).\n\nJazakAllahu khairan!`;
   }
@@ -3986,6 +4005,7 @@ function updateTipAmount() {
     document.getElementById('r-tip-row').classList.add('hidden');
   }
   document.getElementById('r-total').textContent = '$' + c.totalDue.toFixed(2);
+  renderReceiptQR(c.paynowTo, c.totalDue);
 
 
   // Sync to Google Sheet if this booking has a row
@@ -7518,11 +7538,20 @@ function crc16ccitt(str) {
   return crc.toString(16).toUpperCase().padStart(4, '0');
 }
 
-function buildPayNowPayload(amount, refText) {
-  const account = emvField('00', 'SG.PAYNOW')
-    + emvField('01', '0')            // proxy type 0 = mobile number
-    + emvField('02', PAYNOW_MOBILE)
-    + emvField('03', '1');           // amount editable (prefilled)
+// ShredRite's own PayNow, as decoded from the bank-issued SGQR
+// (Downloads/ShredRite-PayNow-QR.png): UEN proxy 202614101Z, sub-field 05
+// "QSSHREDRITE PTE. LTD", merchant "SHREDRITE PTE. LTD.". Only the amount
+// and reference are added, so it pays the same account as the sticker.
+const SR_UEN = '202614101Z';
+const SR_UEN_NAME = 'SHREDRITE PTE. LTD.';
+
+function buildPayNowPayload(amount, refText, to) {
+  const uen = to === 'shredrite';
+  let account = emvField('00', 'SG.PAYNOW')
+    + emvField('01', uen ? '2' : '0')            // proxy type: 2 = UEN, 0 = mobile number
+    + emvField('02', uen ? SR_UEN : PAYNOW_MOBILE)
+    + emvField('03', '1');                       // amount editable (prefilled)
+  if (uen) account += emvField('05', 'QSSHREDRITE PTE. LTD');
   let payload = emvField('00', '01')
     + emvField('01', '12')           // dynamic QR (amount included)
     + emvField('26', account)
@@ -7530,7 +7559,7 @@ function buildPayNowPayload(amount, refText) {
     + emvField('53', '702')          // SGD
     + emvField('54', Number(amount).toFixed(2))
     + emvField('58', 'SG')
-    + emvField('59', PAYNOW_MERCHANT)
+    + emvField('59', uen ? SR_UEN_NAME : PAYNOW_MERCHANT)
     + emvField('60', 'Singapore');
   if (refText) {
     const ref = String(refText).replace(/[^A-Za-z0-9 \-]/g, '').slice(0, 25);
@@ -7541,18 +7570,46 @@ function buildPayNowPayload(amount, refText) {
 }
 
 // Render a PayNow QR into a container; hides the wrapper when unavailable
-function renderPayNowQR(wrapperId, codeId, amount, refText) {
+function renderPayNowQR(wrapperId, codeId, amount, refText, to) {
   const wrapper = document.getElementById(wrapperId);
   const container = document.getElementById(codeId);
   if (!wrapper || !container) return;
   if (!window.QRCode || !(amount > 0)) { wrapper.classList.add('hidden'); return; }
   container.innerHTML = '';
   new QRCode(container, {
-    text: buildPayNowPayload(amount, refText),
+    text: buildPayNowPayload(amount, refText, to),
     width: 160, height: 160,
     correctLevel: QRCode.CorrectLevel.M
   });
   wrapper.classList.remove('hidden');
+}
+
+// The invoice shows the ShredRite QR only when that account was chosen;
+// personal PayNow keeps the invoice exactly as it was
+function renderReceiptQR(to, amount) {
+  if (to === 'shredrite' && currentPickup) {
+    renderPayNowQR('r-paynow-qr', 'r-paynow-qr-code', amount, currentPickup.orderNum || currentPickup.name, 'shredrite');
+  } else {
+    document.getElementById('r-paynow-qr').classList.add('hidden');
+  }
+}
+
+// How the payment message names the account
+function payNowTarget(to) {
+  return to === 'shredrite' ? 'UEN *' + SR_UEN + '* (' + SR_UEN_NAME + ')' : '*83831987*';
+}
+
+// Which account a saved collection was paid to: the phone's record first,
+// then the note the app writes to the sheet
+function paynowToFor(bookingId, notes) {
+  const h = getHistory().find(x => x.bookingId === bookingId);
+  if (h && h.paynowTo) return h.paynowTo;
+  return /PayNow to ShredRite UEN/i.test(String(notes || '')) ? 'shredrite' : 'personal';
+}
+
+function syncPayNowToVisibility() {
+  const wrap = document.getElementById('paynow-to-wrap');
+  if (wrap) wrap.classList.toggle('hidden', getToggle('toggle-payment') !== 'PayNow');
 }
 
 /* ══════════════════════════════════════════════════════════════
