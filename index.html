@@ -1532,7 +1532,7 @@ textarea.form-input {
           <div class="receipt-payment" id="r-payment"></div>
           <div id="r-paynow-qr" class="hidden" style="text-align:center;margin-top:14px;">
             <div id="r-paynow-qr-code" style="display:inline-block;padding:8px;background:#fff;"></div>
-            <div style="font-size:11px;color:#666;margin-top:4px;">Scan to PayNow SHREDRITE PTE. LTD.<br>UEN 202614101Z</div>
+            <div style="font-size:11px;color:#666;margin-top:4px;">Scan to PayNow SHREDRITE PTE. LTD.<br>UEN 202614101Z<br>Key in the amount when paying</div>
           </div>
         </div>
         <div class="receipt-footer">
@@ -2169,7 +2169,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-01.1';
+const APP_VERSION = '2026-10-02.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4191,7 +4191,10 @@ function waBookingMessage(kind) {
 `;
     msg += `Let me know, thank you!`;
   } else {
-    msg += `${name ? name + ', your' : 'Your'} booking is confirmed. I have booked the slot for you${dateStr ? ` on *${dateStr}*` : ''}.
+    msg += `Salam${name ? ' ' + name : ''}, ni Hambali from ShredRite.
+
+`;
+    msg += `Your booking is confirmed. I have booked the slot for you${dateStr ? ` on *${dateStr}*` : ''}.
 
 `;
     msg += `I will inform you of the exact time closer to the date of collection.
@@ -7544,6 +7547,10 @@ function crc16ccitt(str) {
 // and reference are added, so it pays the same account as the sticker.
 const SR_UEN = '202614101Z';
 const SR_UEN_NAME = 'SHREDRITE PTE. LTD.';
+// The bank-issued sticker, verbatim (static, no amount). Shown on the invoice
+// so the customer keys in the amount themselves: a prefilled exact amount
+// removes the round-up that tips usually come from.
+const SR_STATIC_QR = '00020101021126610009SG.PAYNOW010120210202614101Z030110520QSSHREDRITE PTE. LTD51800007SG.SGQR0112260402351BC5020701.00010306068914040214050204060400000708202604025204000053037025802SG5919SHREDRITE PTE. LTD.6009Singapore63042B12';
 
 function buildPayNowPayload(amount, refText, to) {
   const uen = to === 'shredrite';
@@ -7577,7 +7584,7 @@ function renderPayNowQR(wrapperId, codeId, amount, refText, to) {
   if (!window.QRCode || !(amount > 0)) { wrapper.classList.add('hidden'); return; }
   container.innerHTML = '';
   new QRCode(container, {
-    text: buildPayNowPayload(amount, refText, to),
+    text: to === 'shredrite' ? SR_STATIC_QR : buildPayNowPayload(amount, refText, to),
     width: 160, height: 160,
     correctLevel: QRCode.CorrectLevel.M
   });
