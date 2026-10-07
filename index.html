@@ -1545,6 +1545,17 @@ textarea.form-input {
         </div>
       </div>
 
+      <!-- Fallback viewer for the invoice image: stays on this page -->
+      <div id="receipt-img-modal" class="hidden" style="position:fixed;inset:0;background:rgba(18,38,63,0.85);z-index:3000;display:flex;flex-direction:column;align-items:center;padding:16px;overflow:auto;">
+        <div style="width:100%;max-width:420px;display:flex;gap:8px;margin-bottom:10px;">
+          <button id="receipt-img-share" onclick="shareReceiptFile()" style="flex:1;padding:12px;border:none;border-radius:10px;background:#25D366;color:#fff;font-weight:700;font-size:14px;">Save / Share</button>
+          <button onclick="downloadReceiptFile()" id="receipt-img-download" style="flex:1;padding:12px;border:none;border-radius:10px;background:#fff;color:var(--navy);font-weight:700;font-size:14px;">Download</button>
+          <button onclick="document.getElementById('receipt-img-modal').classList.add('hidden')" style="padding:12px 14px;border:none;border-radius:10px;background:rgba(255,255,255,0.2);color:#fff;font-weight:700;font-size:14px;">Close</button>
+        </div>
+        <p style="color:#fff;font-size:12px;margin:0 0 10px;text-align:center;">Or press and hold the picture, then tap Save to Photos.</p>
+        <img id="receipt-img-preview" alt="Invoice" style="width:100%;max-width:420px;border-radius:8px;background:#fff;">
+      </div>
+
       <!-- Tip Edit Section (editable after invoice sent) -->
       <div id="tip-edit-section" style="background:var(--grey-50);border:1px solid var(--grey-200);border-radius:var(--radius-md);padding:14px 16px;margin-top:16px;">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -1558,7 +1569,7 @@ textarea.form-input {
       <div class="mt-16" style="display:flex;flex-direction:column;gap:10px;">
         <button class="btn-whatsapp" onclick="shareReceiptImage()">
           <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-          Send Invoice Image
+          Save / Send Invoice Image
         </button>
         <button onclick="sendPaymentMessage()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:var(--radius-md);font-weight:600;font-size:14px;cursor:pointer;background:#25D366;color:white;border:none;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -2169,7 +2180,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-02.1';
+const APP_VERSION = '2026-10-07.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -3904,60 +3915,101 @@ function proceedGenerateReceipt() {
   document.getElementById('r-tip-edit').value = tips || 0;
 
   showPage('receipt');
+  scheduleReceiptImage();
 }
 
 /* ══════════════════════════════════════════════════════════════
    WHATSAPP SHARE
    ══════════════════════════════════════════════════════════════ */
+// The invoice picture is drawn ahead of time, while the receipt is on screen,
+// so tapping the button can open the phone's share sheet straight away. iPhones
+// only allow the share sheet right after a tap, and drawing takes a second or
+// two; drawing first would lose the tap. Nothing here leaves the page: the old
+// download links opened the picture as a new page, and Back went to Home.
+let receiptImg = null;            // { key, file, url }
+let receiptImgTimer = null;
+let receiptImgBusy = null;
+
+function receiptKey() {
+  const c = currentPickup && currentPickup._collection;
+  return c ? [currentPickup.id, c.totalDue, c.tips, c.paynowTo, (collectionPhotos || []).length].join('|') : '';
+}
+
+function scheduleReceiptImage() {
+  clearTimeout(receiptImgTimer);
+  receiptImgTimer = setTimeout(() => { prepareReceiptImage(); }, 500);
+}
+
+async function prepareReceiptImage() {
+  if (!currentPickup || !currentPickup._collection) return null;
+  const key = receiptKey();
+  if (receiptImg && receiptImg.key === key) return receiptImg;
+  if (receiptImgBusy) return receiptImgBusy;
+  receiptImgBusy = (async () => {
+    try {
+      // From the SHREDRITE header down to the end of the collection photos
+      const el = document.getElementById('receipt-capture');
+      const lowMem = navigator.deviceMemory ? navigator.deviceMemory < 4 : /Android/i.test(navigator.userAgent);
+      const canvas = await html2canvas(el, {
+        scale: lowMem ? 1.5 : 2, backgroundColor: '#FFFFFF', useCORS: true, logging: false
+      });
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const fileName = 'ShredRite-Receipt-' + currentPickup.name.replace(/\s+/g, '-') + '-' + localDateStr() + '.png';
+      if (receiptImg && receiptImg.url) URL.revokeObjectURL(receiptImg.url);
+      receiptImg = { key, file: new File([blob], fileName, { type: 'image/png' }), url: URL.createObjectURL(blob) };
+      return receiptImg;
+    } catch (err) {
+      console.error('Receipt capture error:', err);
+      return null;
+    } finally {
+      receiptImgBusy = null;
+    }
+  })();
+  return receiptImgBusy;
+}
+
 async function shareReceiptImage() {
   if (!currentPickup || !currentPickup._collection) return;
-
-  toast('Generating receipt image...');
-
-  try {
-    const receiptEl = document.getElementById('receipt-capture');
-
-    // Use lower scale on devices with limited memory (< 4GB RAM)
-    const lowMem = navigator.deviceMemory ? navigator.deviceMemory < 4 : /Android/i.test(navigator.userAgent);
-    const canvas = await html2canvas(receiptEl, {
-      scale: lowMem ? 1.5 : 2,
-      backgroundColor: '#FFFFFF',
-      useCORS: true,
-      logging: false
-    });
-
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    const dateStr = localDateStr();
-    const safeName = currentPickup.name.replace(/\s+/g, '-');
-    const fileName = 'ShredRite-Receipt-' + safeName + '-' + dateStr + '.png';
-
-    // Save a copy to phone
-    const downloadUrl = URL.createObjectURL(blob);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = downloadUrl;
-    downloadLink.download = fileName;
-    downloadLink.click();
-    URL.revokeObjectURL(downloadUrl);
-
-    savePDFCopy(canvas, fileName.replace('.png', '.pdf'));
-
-    // Try Web Share API to share image only
-    if (navigator.share && navigator.canShare) {
-      const file = new File([blob], fileName, { type: 'image/png' });
-      const shareData = { files: [file] };
-
-      if (navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-        toast('Invoice image shared');
-        return;
-      }
+  const ready = receiptImg && receiptImg.key === receiptKey();
+  if (ready && navigator.canShare && navigator.canShare({ files: [receiptImg.file] })) {
+    try {
+      await navigator.share({ files: [receiptImg.file] });
+      toast('Invoice image ready');
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;   // closed the share sheet
     }
-
-    toast('Invoice image saved to phone');
-  } catch (err) {
-    console.error('Receipt capture error:', err);
-    toast('Failed to generate image');
   }
+  // Not drawn yet, or no share sheet here: show the picture on this page
+  toast('Preparing invoice image...');
+  const img = await prepareReceiptImage();
+  if (!img) { toast('Failed to generate image'); return; }
+  openReceiptViewer();
+}
+
+function openReceiptViewer() {
+  if (!receiptImg) return;
+  document.getElementById('receipt-img-preview').src = receiptImg.url;
+  const canShare = !!(navigator.canShare && navigator.canShare({ files: [receiptImg.file] }));
+  document.getElementById('receipt-img-share').style.display = canShare ? '' : 'none';
+  document.getElementById('receipt-img-modal').classList.remove('hidden');
+}
+
+async function shareReceiptFile() {
+  if (!receiptImg) return;
+  try { await navigator.share({ files: [receiptImg.file] }); }
+  catch (err) { if (!err || err.name !== 'AbortError') toast('Press and hold the picture to save it'); }
+}
+
+// For a computer: a normal download that does not leave the page
+function downloadReceiptFile() {
+  if (!receiptImg) return;
+  const a = document.createElement('a');
+  a.href = receiptImg.url;
+  a.download = receiptImg.file.name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 function sendPaymentMessage() {
@@ -4006,6 +4058,7 @@ function updateTipAmount() {
   }
   document.getElementById('r-total').textContent = '$' + c.totalDue.toFixed(2);
   renderReceiptQR(c.paynowTo, c.totalDue);
+  scheduleReceiptImage();
 
 
   // Sync to Google Sheet if this booking has a row
@@ -4183,6 +4236,7 @@ function waBookingMessage(kind) {
 
   let msg = '';
   if (kind === 'morning') {
+    msg += `Salam${name ? ' ' + name : ''}, this is Hambali from ShredRite.\n\n`;
     msg += `Would you be ok to move your collection to the *morning slot (9am to 12pm)*${dateStr ? ` on *${dateStr}*` : ''}?
 
 `;
