@@ -1531,7 +1531,7 @@ textarea.form-input {
 
           <div class="receipt-payment" id="r-payment"></div>
           <div id="r-paynow-qr" class="hidden" style="text-align:center;margin-top:14px;">
-            <div id="r-paynow-qr-code" style="display:inline-block;padding:8px;background:#fff;"></div>
+            <div id="r-paynow-qr-code" style="display:block;width:176px;margin:0 auto;padding:8px;background:#fff;"></div>
             <div style="font-size:11px;color:#666;margin-top:4px;">Scan to PayNow SHREDRITE PTE. LTD.<br>UEN 202614101Z<br>Key in the amount when paying</div>
           </div>
         </div>
@@ -2185,7 +2185,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-07.2';
+const APP_VERSION = '2026-10-07.3';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -3956,7 +3956,19 @@ async function prepareReceiptImage() {
       const el = document.getElementById('receipt-capture');
       const lowMem = navigator.deviceMemory ? navigator.deviceMemory < 4 : /Android/i.test(navigator.userAgent);
       const canvas = await html2canvas(el, {
-        scale: lowMem ? 1.5 : 2, backgroundColor: '#FFFFFF', useCORS: true, logging: false
+        scale: lowMem ? 1.5 : 2, backgroundColor: '#FFFFFF', useCORS: true, logging: false,
+        // On screen the photos are cropped into small 4:3 boxes; html2canvas
+        // cannot crop, so it squeezed tall phone photos into them. In the saved
+        // picture each photo runs full width at its own shape, however long.
+        onclone: doc => {
+          const grid = doc.getElementById('r-photos');
+          if (grid) {
+            grid.style.gridTemplateColumns = '1fr';
+            grid.querySelectorAll('img').forEach(im => {
+              im.style.aspectRatio = 'auto'; im.style.height = 'auto'; im.style.objectFit = 'fill';
+            });
+          }
+        }
       });
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       const fileName = 'ShredRite-Receipt-' + currentPickup.name.replace(/\s+/g, '-') + '-' + localDateStr() + '.png';
