@@ -1669,8 +1669,12 @@ textarea.form-input {
           <input type="date" class="form-input" id="b-date">
         </div>
         <div class="form-group">
-          <label class="form-label">Time</label>
-          <input type="time" class="form-input" id="b-time">
+          <label class="form-label">Time slot</label>
+          <select class="form-input" id="b-time">
+            <option value="">Pick a slot</option>
+            <option value="09:00">9am - 12pm</option>
+            <option value="12:00">12pm - 4pm</option>
+          </select>
         </div>
       </div>
 
@@ -1700,6 +1704,7 @@ textarea.form-input {
           <option value="FRIEND10">FRIEND10</option>
           <option value="UMMAH10">UMMAH10</option>
           <option value="SUPPORT10">SUPPORT10</option>
+          <option value="RAZAK10">RAZAK10</option>
           <option value="OTHER">Other (key in below)</option>
         </select>
         <input type="text" class="form-input hidden" id="b-referral" placeholder="Type discount code" style="text-transform:uppercase;margin-top:8px;">
@@ -2180,7 +2185,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-07.1';
+const APP_VERSION = '2026-10-07.2';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4159,8 +4164,44 @@ function onDiscountCodeChange() {
 //   Norlela / BLK 767 #18-225 / BEDOK RESERVOIR VIEW 470767             (no labels)
 //   Name: Mdm Liza / Phone number: 81288624 / Address: Blk 289 ...      (labelled)
 // sometimes under our own "May i have the following details" question.
+// A date as customers or the website write it: "Monday, 12 October 2026",
+// "12 Oct", "12/10/2026", "2026-10-12". No year means the next such date.
+function parseBookingDate(t) {
+  const str = String(t || '').trim();
+  let m = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+  const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  let d, mo, y;
+  m = str.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,9})\.?(?:\s+(\d{4}))?/i);
+  if (m && MONTHS.indexOf(m[2].slice(0, 3).toLowerCase()) !== -1) {
+    d = +m[1]; mo = MONTHS.indexOf(m[2].slice(0, 3).toLowerCase()) + 1; y = m[3] ? +m[3] : null;
+  } else if ((m = str.match(/(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2,4}))?/))) {
+    d = +m[1]; mo = +m[2]; y = m[3] ? +m[3] : null;          // Singapore writes day first
+    if (y && y < 100) y += 2000;
+  } else return '';
+  if (!(d >= 1 && d <= 31 && mo >= 1 && mo <= 12)) return '';
+  if (!y) {
+    const now = new Date(); y = now.getFullYear();
+    if (new Date(y, mo - 1, d) < new Date(now.getFullYear(), now.getMonth(), now.getDate() - 31)) y++;
+  }
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
+// "Morning (9am - 12pm)" / "Afternoon (12pm - 4pm)" / "10am" / "2pm" -> slot start
+function parseBookingSlot(t) {
+  const str = String(t || '').toLowerCase();
+  if (/morning|pagi/.test(str)) return '09:00';
+  if (/afternoon|petang|tengah\s*hari/.test(str)) return '12:00';
+  const m = str.match(/(\d{1,2})(?::\d{2})?\s*(am|pm)/);
+  if (!m) return '';
+  const h = +m[1] % 12 + (m[2] === 'pm' ? 12 : 0);
+  return h < 12 ? '09:00' : '12:00';
+}
+
 function parseCustomerDetails(text) {
-  const out = { name: '', phone: '', address: '' };
+  const out = { name: '', phone: '', address: '', date: '', slot: '', code: '' };
+  // Booking lines from the website's WhatsApp message (or typed the same way)
+  const BOOK = /^(date|tarikh|time|slot|masa|discount\s*code|promo\s*code|code|area|masjid\s*give-?back|give-?back)\s*[:\-]\s*(.*)$/i;
   const PHONE = /(?:\+?65[\s-]?)?([689]\d{3})[\s-]?(\d{4})(?!\d)/;
   const LABEL = /^(name|nama|phone(?:\s*(?:no|number|num))?\.?|contact(?:\s*(?:no|number))?\.?|mobile(?:\s*(?:no|number))?\.?|hp(?:\s*no)?\.?|h\/p|tel(?:ephone)?\.?|no\.?\s*(?:tel|hp|phone)|address|addr\.?|alamat)\s*[:\-]\s*(.*)$/i;
   const lines = String(text || '').replace(/\r/g, '').split('\n')
@@ -4168,11 +4209,22 @@ function parseCustomerDetails(text) {
     .map(l => l.replace(/^\[[^\]]*\]\s*[^:]{1,40}:\s*/, '').replace(/^[\s*_~•-]+|[\s*_~]+$/g, '').trim())
     .filter(Boolean)
     // our own question, and any other question line, is not customer data
-    .filter(l => !/\?\s*$/.test(l) && !/^(may i|can i|could i|kindly|please (provide|share|send))/i.test(l));
+    .filter(l => !/\?\s*$/.test(l) && !/^(may i|can i|could i|kindly|please (provide|share|send))/i.test(l))
+    // the website's opening line, and its "My details:" heading
+    .filter(l => !/^(assalamualaikum|salam)\b.*\b(book|collection)\b/i.test(l) && !/^\*?my details\s*:?\*?$/i.test(l));
 
   let labelled = false, current = null;
   const loose = [];
   lines.forEach(l => {
+    const bk = l.match(BOOK);
+    if (bk) {
+      const k = bk[1].toLowerCase(), v = bk[2].trim();
+      if (/date|tarikh/.test(k)) out.date = parseBookingDate(v) || out.date;
+      else if (/time|slot|masa/.test(k)) out.slot = parseBookingSlot(v) || out.slot;
+      else if (/code/.test(k)) out.code = v.replace(/\s+/g, '').toUpperCase();
+      current = null;                       // area / give-back lines carry nothing to fill
+      return;
+    }
     const m = l.match(LABEL);
     if (m) {
       labelled = true;
@@ -4205,6 +4257,8 @@ function parseCustomerDetails(text) {
   if (!out.phone) {
     for (const l of lines) { const p = l.match(PHONE); if (p && !/#|\b\d{6}\b/.test(l)) { out.phone = p[1] + p[2]; break; } }
   }
+  // A code typed anywhere, e.g. "I have ALEEM10"
+  if (!out.code) { const c = String(text || '').match(/\b([A-Z]{3,12}10)\b/); if (c) out.code = c[1]; }
   out.name = out.name.replace(/\s+/g, ' ').trim();
   out.address = out.address.split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
   return out;
@@ -4219,6 +4273,18 @@ function fillFromPaste() {
   if (d.name) { document.getElementById('b-name').value = d.name; filled.push('name'); }
   if (d.phone) { document.getElementById('b-phone').value = d.phone; filled.push('phone'); }
   if (d.address) { document.getElementById('b-address').value = d.address; filled.push('address'); }
+  if (d.date) { document.getElementById('b-date').value = d.date; filled.push('date'); }
+  if (d.slot) { document.getElementById('b-time').value = d.slot; filled.push(d.slot === '09:00' ? 'morning slot' : 'afternoon slot'); }
+  if (d.code) {
+    const sel = document.getElementById('b-referral-select');
+    const known = [...sel.options].some(o => o.value === d.code);
+    sel.value = known ? d.code : 'OTHER';
+    onDiscountCodeChange();
+    if (!known) document.getElementById('b-referral').value = d.code;
+    // every code gives $10 off the $20 booking fee
+    document.getElementById('b-fee').value = '10';
+    filled.push('code ' + d.code + ' ($10 fee)');
+  }
   const missing = ['name', 'phone', 'address'].filter(x => !filled.includes(x));
   note.innerHTML = (filled.length ? '&#10003; Filled ' + filled.join(', ') + '. Please check them.' : 'Could not read the details. Please fill them in below.')
     + (filled.length && missing.length ? ' <span style="color:#B26A00;">No ' + missing.join(' or ') + ' found.</span>' : '');
