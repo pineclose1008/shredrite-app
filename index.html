@@ -1353,6 +1353,8 @@ textarea.form-input {
 
       <div id="assign-autoplan" class="hidden" style="background:#EEF6F1;border:1px solid #CFE6D8;border-radius:var(--radius-md);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--grey-500);"></div>
 
+      <div id="assign-trip" class="hidden" style="background:#F3F5FA;border:1px solid #D9DEEA;border-radius:var(--radius-md);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--grey-500);"></div>
+
       <div id="assign-list"></div>
 
       <div class="mt-20">
@@ -2190,7 +2192,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-08.1';
+const APP_VERSION = '2026-10-13.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2427,7 +2429,7 @@ function planRouteForDate() {
     return encodeURIComponent(addr);
   });
 
-  const origin = encodeURIComponent(HOME_ADDRESS);
+  const origin = encodeURIComponent(autoPlanStartAddress());
   const url = 'https://www.google.com/maps/dir/' + origin + '/' + stops.join('/') + '/' + origin;
   window.open(url, '_blank');
 }
@@ -2486,6 +2488,17 @@ function onAutoPlanStartChange(selId, otherId) {
   const sel = document.getElementById(selId), other = document.getElementById(otherId);
   if (other) other.classList.toggle('hidden', sel.value !== 'other');
   saveAutoPlanSettings({ start: sel.value, startOther: other ? other.value.trim() : '' });
+  const page = document.querySelector('.page.active');
+  if (page && page.id === 'page-assign') scheduleTripEstimate();   // a new start changes the distance
+}
+
+// The chosen start as a Maps address, without looking anything up
+function autoPlanStartAddress() {
+  const set = autoPlanSettings();
+  if (set.start !== 'other') return AUTOPLAN_STARTS[set.start].addr;
+  const text = set.startOther.trim();
+  if (!text) return HOME_ADDRESS;
+  return /singapore/i.test(text) ? text : text + ' Singapore';
 }
 
 // The chosen start as { label, addr, ll }, looking up an "other" address
@@ -2523,6 +2536,17 @@ async function geocodeStop(address) {
     }
   }
   return null;
+}
+
+// Every address in turn: OneMap refuses several at once
+async function geocodeInTurn(list) {
+  const pts = [];
+  for (const b of list) {
+    const cached = Object.keys(safeParse('sr_geo_cache', {})).length;
+    pts.push(await geocodeStop(b.address));
+    if (Object.keys(safeParse('sr_geo_cache', {})).length > cached) await new Promise(res => setTimeout(res, 400));
+  }
+  return pts;
 }
 
 // Least total driving from `from` through every stop in `idx` (open path)
@@ -2563,13 +2587,7 @@ async function autoPlanForDate() {
     // Where the route starts; a bad "other" address stops here, before any lookups
     const start = await resolveAutoPlanStart();
     const stops = routeDatePickups.slice();
-    // One address at a time: OneMap refuses several at once
-    const pts = [];
-    for (const b of stops) {
-      const cached = Object.keys(safeParse('sr_geo_cache', {})).length;
-      pts.push(await geocodeStop(b.address));
-      if (Object.keys(safeParse('sr_geo_cache', {})).length > cached) await new Promise(res => setTimeout(res, 400));
-    }
+    const pts = await geocodeInTurn(stops);
     const found = stops.map((b, i) => ({ b, ll: pts[i] })).filter(x => x.ll);
     const lost = stops.filter((b, i) => !pts[i]);
     if (!found.length) throw new Error('None of the addresses could be found on the map');
@@ -2716,6 +2734,73 @@ function renderAssignList() {
       <input type="time" class="assign-time-input" id="assign-time-${i}" value="${b.time || ''}">
     </div>`;
   }).join('');
+  scheduleTripEstimate();
+}
+
+/* ── Trip distance and cost ───────────────────────────────────
+   Road distance for the stops in their CURRENT order: from the chosen start,
+   through every stop, and back to the start (the same trip as the Maps link).
+   Public OSRM route, no live traffic. Re-worked out whenever the order or the
+   start changes; a newer request wins over an older one still in flight. */
+const TRIP_RATE_PER_KM = 0.44;
+let tripSeq = 0, tripTimer = null;
+
+function scheduleTripEstimate() {
+  const box = document.getElementById('assign-trip');
+  clearTimeout(tripTimer);
+  tripSeq++;                                   // anything still in flight is now stale
+  if (!assignList.length) { box.classList.add('hidden'); return; }
+  box.innerHTML = '<span style="color:var(--grey-400);">Working out the distance...</span>';
+  box.classList.remove('hidden');
+  tripTimer = setTimeout(tripEstimate, 600);   // wait for a run of taps on the arrows
+}
+
+async function tripEstimate() {
+  const seq = ++tripSeq;
+  const box = document.getElementById('assign-trip');
+  const list = assignList.slice();
+  try {
+    const start = await resolveAutoPlanStart();
+    const pts = await geocodeInTurn(list);
+    if (seq !== tripSeq) return;
+    const found = list.map((b, i) => ({ b, ll: pts[i] })).filter(x => x.ll);
+    const lost = list.filter((b, i) => !pts[i]);
+    if (!found.length) throw new Error('none of the addresses could be found on the map');
+
+    const coords = [start.ll].concat(found.map(x => x.ll), [start.ll]).map(ll => ll[1] + ',' + ll[0]).join(';');
+    const r = await fetch('https://router.project-osrm.org/route/v1/driving/' + coords + '?overview=false');
+    const j = await r.json();
+    if (seq !== tripSeq) return;
+    if (j.code !== 'Ok' || !j.routes || !j.routes[0]) throw new Error('could not get road distances');
+
+    const legs = j.routes[0].legs.map(l => l.distance / 1000);
+    const km = legs.reduce((t, x) => t + x, 0);
+    const back = legs[legs.length - 1];
+    const cost = km * TRIP_RATE_PER_KM;
+    const stops = found.map(x => {
+      let addr = x.b.address.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!/singapore/i.test(addr)) addr += ' Singapore';
+      return encodeURIComponent(addr);
+    });
+    const origin = encodeURIComponent(start.addr);
+    const maps = 'https://www.google.com/maps/dir/' + origin + '/' + stops.join('/') + '/' + origin;
+
+    box.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+        <div style="font-weight:700;color:var(--navy);font-size:14px;">Trip estimate</div>
+        <div style="font-weight:700;color:var(--navy);font-size:18px;">$${cost.toFixed(2)}</div>
+      </div>
+      <div style="margin-top:2px;"><strong>${km.toFixed(1)} km</strong> from <strong>${esc(start.label)}</strong>, through ${found.length} stop${found.length === 1 ? '' : 's'} in the order below, and back (${back.toFixed(1)} km of that is the drive back). At $${TRIP_RATE_PER_KM.toFixed(2)}/km.</div>
+      ${lost.length ? `<div style="color:#B26A00;margin-top:4px;">Not counted, not found on the map: ${lost.map(b => esc(b.name)).join(', ')}.</div>` : ''}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;">
+        <span style="font-size:11px;color:var(--grey-400);">Road distance, changes when you reorder.</span>
+        <a href="${maps}" target="_blank" style="font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap;">This order in Maps &rarr;</a>
+      </div>`;
+  } catch (err) {
+    if (seq !== tripSeq) return;
+    console.error('Trip estimate error:', err);
+    box.innerHTML = `<span style="color:#B26A00;">Trip distance not available: ${esc(err.message)}</span>`;
+  }
 }
 
 function moveAssign(index, direction) {
