@@ -1158,6 +1158,110 @@ textarea.form-input {
   font-size: 12px;
 }
 
+/* ── Staff hours ─────────────────────────────────────────── */
+.st-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.st-icon-btn { background: var(--white); border: 1.5px solid var(--grey-200); border-radius: var(--radius-sm); padding: 7px 12px; font-size: 12px; font-weight: 600; color: var(--grey-600); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.st-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.st-chip { padding: 6px 13px; border-radius: 999px; border: 1.5px solid var(--grey-200); background: var(--white); font-size: 13px; font-weight: 600; color: var(--grey-600); cursor: pointer; }
+.st-chip.on { background: var(--navy); border-color: var(--navy); color: var(--white); }
+.st-clock { background: linear-gradient(160deg, var(--navy) 0%, var(--navy-light) 100%); color: var(--white); border-radius: var(--radius-lg); padding: 18px 18px 16px; box-shadow: var(--shadow-lg); margin-bottom: 14px; position: relative; overflow: hidden; }
+.st-clock.on::after { content: ''; position: absolute; top: 16px; right: 16px; width: 9px; height: 9px; border-radius: 50%; background: #3DDC84; animation: stPulse 1.8s infinite; }
+@keyframes stPulse { 0% { box-shadow: 0 0 0 0 rgba(61,220,132,.6); } 70% { box-shadow: 0 0 0 10px rgba(61,220,132,0); } 100% { box-shadow: 0 0 0 0 rgba(61,220,132,0); } }
+.st-clock-top { display: flex; gap: 16px; align-items: center; }
+.st-ring { position: relative; width: 118px; height: 118px; flex-shrink: 0; }
+.st-ring svg { width: 118px; height: 118px; transform: rotate(-90deg); }
+.st-ring svg circle { transition: stroke-dashoffset .8s ease; }
+.st-ring-mid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.st-elapsed { font-size: 25px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: .3px; }
+.st-elapsed small { font-size: 13px; font-weight: 600; opacity: .6; }
+.st-ring-sub { font-size: 10px; letter-spacing: .8px; text-transform: uppercase; opacity: .6; margin-top: 2px; }
+.st-state { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--gold-light); font-weight: 700; }
+.st-who { font-family: var(--font-display); font-size: 22px; margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-since { font-size: 13px; opacity: .78; }
+.st-earned { font-size: 28px; font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; margin-top: 6px; line-height: 1.1; }
+.st-earned-sub { font-size: 11px; opacity: .6; }
+.st-tasks { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0 12px; }
+.st-task { padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(255,255,255,.28); background: transparent; color: rgba(255,255,255,.85); font-size: 12px; font-weight: 600; cursor: pointer; }
+.st-task.on { background: var(--gold); border-color: var(--gold); color: var(--navy); }
+.st-actions { display: flex; gap: 8px; }
+.st-btn { flex: 1; padding: 15px 10px; border-radius: var(--radius-md); font-size: 16px; font-weight: 700; cursor: pointer; border: none; transition: transform .1s, background .2s; }
+.st-btn:active { transform: scale(.97); }
+.st-btn.in { background: var(--gold); color: var(--navy); box-shadow: var(--shadow-gold); }
+.st-btn.out { background: #E74C3C; color: var(--white); }
+.st-btn.out.armed { background: #B71C1C; animation: stShake .3s; }
+@keyframes stShake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+.st-btn.brk { flex: .75; background: rgba(255,255,255,.12); color: var(--white); border: 1px solid rgba(255,255,255,.25); }
+.st-btn.brk.on { background: #F39C12; border-color: #F39C12; color: var(--navy); }
+.st-break-note { background: rgba(243,156,18,.18); border: 1px solid rgba(243,156,18,.45); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; margin-bottom: 10px; }
+.st-hint { font-size: 11px; opacity: .55; margin-top: 9px; text-align: center; }
+.st-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.st-tile { background: var(--white); border: 1.5px solid var(--grey-200); border-radius: var(--radius-md); padding: 10px; min-width: 0; }
+.st-tile.unpaid { border-color: var(--gold); cursor: pointer; box-shadow: var(--shadow-gold); background: #FFFBEF; }
+.st-tile.unpaid:active { transform: scale(.98); }
+.st-tile-l { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--grey-400); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-tile-h { font-size: 16px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.st-tile-p { font-size: 12px; color: var(--grey-500); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-card { background: var(--white); border: 1px solid var(--grey-200); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px; box-shadow: var(--shadow-sm); }
+.st-week-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.st-week-nav button { background: var(--grey-100); border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 18px; line-height: 1; cursor: pointer; color: var(--navy); flex-shrink: 0; }
+.st-week-nav button:disabled { opacity: .3; cursor: default; }
+.st-week-title { text-align: center; font-weight: 700; font-size: 14px; }
+.st-week-title small { display: block; font-weight: 500; color: var(--grey-500); font-size: 12px; margin-top: 1px; }
+.st-bars { display: flex; gap: 6px; height: 156px; padding-top: 20px; }
+.st-bar { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.st-bar-area { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.st-bar-col { position: relative; width: 100%; max-width: 30px; transition: height .4s ease; }
+.st-bar-in { height: 100%; border-radius: 6px 6px 3px 3px; background: var(--grey-100); overflow: hidden; display: flex; flex-direction: column-reverse; }
+.st-bar-v { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; font-size: 10px; font-weight: 700; color: var(--grey-600); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.st-seg.unpaid { background: var(--navy); }
+.st-seg.paid { background: var(--green); }
+.st-seg.open { background: repeating-linear-gradient(45deg, var(--gold), var(--gold) 5px, var(--gold-light) 5px, var(--gold-light) 10px); }
+.st-bar-d { font-size: 11px; font-weight: 700; color: var(--grey-500); margin-top: 6px; }
+.st-bar-n { font-size: 10px; color: var(--grey-400); }
+.st-bar.today .st-bar-n { color: var(--gold); font-weight: 700; }
+.st-bar.sel .st-bar-d { color: var(--navy); }
+.st-bar.sel .st-bar-in { box-shadow: 0 0 0 2px var(--white), 0 0 0 4px var(--gold); }
+.st-legend { display: flex; gap: 14px; justify-content: center; font-size: 11px; color: var(--grey-500); margin-top: 10px; }
+.st-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.st-list-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.st-shift { display: flex; gap: 10px; align-items: center; padding: 11px 0; border-top: 1px solid var(--grey-100); cursor: pointer; }
+.st-shift:first-child { border-top: none; }
+.st-shift:active { background: var(--grey-50); }
+.st-shift-day { width: 38px; text-align: center; flex-shrink: 0; }
+.st-shift-day b { display: block; font-size: 18px; line-height: 1.1; }
+.st-shift-day span { font-size: 10px; text-transform: uppercase; color: var(--grey-400); font-weight: 700; }
+.st-shift-mid { flex: 1; min-width: 0; }
+.st-shift-time { font-weight: 600; font-size: 14px; }
+.st-shift-meta { font-size: 12px; color: var(--grey-500); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-shift-right { text-align: right; flex-shrink: 0; }
+.st-shift-pay { font-weight: 700; font-variant-numeric: tabular-nums; }
+.st-shift-dur { font-size: 12px; color: var(--grey-500); }
+.st-pill { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; margin-top: 3px; }
+.st-pill.open { background: #FFF3CD; color: #8A6D00; }
+.st-pill.done { background: var(--grey-100); color: var(--grey-600); }
+.st-pill.paid { background: var(--green-light); color: #1E7E44; }
+.st-empty { text-align: center; color: var(--grey-400); font-size: 13px; padding: 16px 0 8px; }
+.st-foot { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.st-foot a, .st-foot button { font-size: 12px; font-weight: 600; color: var(--navy); background: none; border: none; cursor: pointer; text-decoration: none; padding: 6px; }
+.st-modal { max-height: 88vh; overflow-y: auto; max-width: 400px; }
+.st-modal .form-group { margin-bottom: 12px; }
+.st-preview { background: var(--grey-50); border: 1px dashed var(--grey-300); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 14px; margin: 2px 0 12px; }
+.st-preview b { font-size: 16px; }
+.st-preview-note { font-size: 12px; color: var(--grey-500); margin-top: 4px; }
+.st-qbreak { display: flex; gap: 6px; margin-top: 6px; }
+.st-qbreak button { flex: 1; padding: 6px 0; border-radius: var(--radius-sm); border: 1.5px solid var(--grey-200); background: var(--white); font-size: 12px; font-weight: 600; cursor: pointer; color: var(--grey-600); }
+.st-payrow { display: flex; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--grey-100); font-size: 13px; cursor: pointer; }
+.st-payrow input, .st-check input { width: 18px; height: 18px; -webkit-appearance: checkbox; appearance: auto; accent-color: var(--navy); flex-shrink: 0; }
+.st-paytotal { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 0 6px; font-weight: 700; font-size: 13px; }
+.st-paytotal span:last-child { font-size: 22px; color: var(--navy); font-variant-numeric: tabular-nums; }
+.st-check { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--grey-600); margin: 6px 0 12px; line-height: 1.45; }
+.st-check input { margin-top: 1px; }
+.st-linkbtn { display: block; width: 100%; background: none; border: none; color: var(--grey-500); font-size: 12px; text-decoration: underline; margin-top: 10px; cursor: pointer; padding: 4px; }
+.st-tick { width: 56px; height: 56px; border-radius: 50%; background: var(--green-light); color: var(--green); font-size: 30px; line-height: 56px; margin: 0 auto 8px; font-weight: 700; }
+.st-sync-line { font-size: 12px; color: var(--grey-500); margin-top: 8px; line-height: 1.45; }
+.st-staff-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--grey-100); margin-bottom: 8px; }
+.bottomnav button .st-dot { position: absolute; top: 7px; left: calc(50% + 6px); width: 9px; height: 9px; border-radius: 50%; background: #3DDC84; border: 2px solid var(--white); }
+
 /* ── Modal ───────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
@@ -1741,6 +1845,33 @@ textarea.form-input {
       <div id="history-list"></div>
     </div>
 
+    <!-- ═══ STAFF HOURS PAGE ═══ -->
+    <div class="page" id="page-staff">
+      <div class="st-head">
+        <h2 class="section-title" style="margin-bottom:0;">Staff Hours</h2>
+        <button class="st-icon-btn" onclick="openStaffSetup()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Staff &amp; rate
+        </button>
+      </div>
+      <div id="st-staff-chips" class="st-chips hidden"></div>
+      <div id="st-clock"></div>
+      <div id="st-tiles" class="st-tiles"></div>
+      <div class="st-card" id="st-week"></div>
+      <div class="st-card">
+        <div class="st-list-head">
+          <div style="font-weight:700;" id="st-list-title">Shifts</div>
+          <button class="st-icon-btn" onclick="openShiftEditor()">+ Add shift</button>
+        </div>
+        <div id="st-list"></div>
+      </div>
+      <div class="st-foot">
+        <a href="https://docs.google.com/spreadsheets/d/1zkRujYyI_N4pTIBTCHC_rMxeLeGti2Zh7P9S8mzCvbA/edit#gid=1316569342" target="_blank" rel="noopener">Open the raw file (Staff Hours tab) &#8599;</a>
+        <button onclick="loadStaffShifts()">Sync now</button>
+      </div>
+      <div id="st-sync-note" style="text-align:center;font-size:11px;color:var(--grey-400);margin-top:2px;"></div>
+    </div>
+
     <!-- ═══ REVENUE SUMMARY PAGE ═══ -->
     <div class="page" id="page-revenue">
       <h2 class="section-title">Revenue Summary</h2>
@@ -1967,6 +2098,10 @@ textarea.form-input {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       <span>Booking</span>
     </button>
+    <button onclick="showPage('staff')" id="nav-staff">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><line x1="9" y1="2" x2="15" y2="2"/></svg>
+      <span>Staff</span>
+    </button>
     <button onclick="showPage('revenue')" id="nav-revenue">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
       <span>Revenue</span>
@@ -1979,6 +2114,76 @@ textarea.form-input {
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Staff: add or edit a shift -->
+<div class="modal-overlay hidden" id="st-shift-modal" onclick="if(event.target===this)closeStModal('st-shift-modal')">
+  <div class="modal st-modal">
+    <h3 id="st-shift-title">Add a shift by hand</h3>
+    <div class="form-group"><label class="form-label">Staff</label><select class="form-input" id="st-f-staff" onchange="onStaffFormStaff()"></select></div>
+    <div class="form-group"><label class="form-label">Date</label><input type="date" class="form-input" id="st-f-date" oninput="previewShiftForm()"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Start</label><input type="time" class="form-input" id="st-f-start" oninput="previewShiftForm()"></div>
+      <div class="form-group"><label class="form-label">End</label><input type="time" class="form-input" id="st-f-end" oninput="previewShiftForm()"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Unpaid break (minutes)</label>
+      <input type="number" class="form-input" id="st-f-break" min="0" step="5" inputmode="numeric" oninput="previewShiftForm()">
+      <div class="st-qbreak"><button type="button" onclick="setFormBreak(0)">None</button><button type="button" onclick="setFormBreak(15)">15</button><button type="button" onclick="setFormBreak(30)">30</button><button type="button" onclick="setFormBreak(45)">45</button><button type="button" onclick="setFormBreak(60)">60</button></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Task</label><select class="form-input" id="st-f-task"></select></div>
+      <div class="form-group"><label class="form-label">Rate ($/h)</label><input type="number" class="form-input" id="st-f-rate" min="0" step="0.5" inputmode="decimal" oninput="previewShiftForm()"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Note</label><input type="text" class="form-input" id="st-f-note" maxlength="200" placeholder="e.g. Tampines run, shredding at the unit"></div>
+    <div class="st-preview" id="st-f-preview"></div>
+    <div id="st-f-paidwarn" class="hidden" style="font-size:12px;color:#8A6D00;background:#FFF3CD;border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:12px;">This shift is already paid. Changing it here does not change what was paid.</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-secondary" id="st-f-delete" onclick="deleteShiftFromForm()" style="flex:1;color:var(--red);">Delete</button>
+      <button class="btn-secondary" onclick="closeStModal('st-shift-modal')" style="flex:1;">Cancel</button>
+      <button class="btn-primary" onclick="saveShiftForm()" style="flex:1.3;">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Staff: shift just ended -->
+<div class="modal-overlay hidden" id="st-done-modal" onclick="if(event.target===this)closeDoneShift()">
+  <div class="modal st-modal">
+    <h3>Shift done</h3>
+    <div id="st-done-body"></div>
+    <div class="form-group"><label class="form-label">What was done (optional)</label><input type="text" class="form-input" id="st-done-note" maxlength="200" placeholder="e.g. 5 collections, East run"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-secondary" onclick="editDoneShift()" style="flex:1;">Fix times</button>
+      <button class="btn-primary" onclick="closeDoneShift()" style="flex:1.4;">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Staff: pay -->
+<div class="modal-overlay hidden" id="st-pay-modal" onclick="if(event.target===this)closeStModal('st-pay-modal')">
+  <div class="modal st-modal">
+    <h3 id="st-pay-title">Pay</h3>
+    <div id="st-pay-body"></div>
+  </div>
+</div>
+
+<!-- Staff: names and rates -->
+<div class="modal-overlay hidden" id="st-staff-modal" onclick="if(event.target===this)closeStModal('st-staff-modal')">
+  <div class="modal st-modal">
+    <h3>Staff &amp; rate</h3>
+    <div id="st-staff-list"></div>
+    <div style="font-weight:700;font-size:14px;margin:8px 0 10px;" id="st-s-title">Add staff</div>
+    <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="st-s-name" maxlength="40" placeholder="Staff name"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">WhatsApp no.</label><input type="tel" class="form-input" id="st-s-phone" inputmode="tel" placeholder="8123 4567"></div>
+      <div class="form-group"><label class="form-label">Rate ($/h)</label><input type="number" class="form-input" id="st-s-rate" min="0" step="0.5" inputmode="decimal"></div>
+    </div>
+    <p style="font-size:12px;color:var(--grey-500);margin:0 0 14px;line-height:1.45;">A new rate counts from the next shift. Shifts already logged keep the rate they were logged at.</p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-secondary" onclick="closeStModal('st-staff-modal')" style="flex:1;">Close</button>
+      <button class="btn-primary" onclick="saveStaffForm()" style="flex:1.4;">Save</button>
+    </div>
+  </div>
+</div>
 
 <!-- WhatsApp Queue Modal -->
 <div class="modal-overlay hidden" id="wa-queue-modal" onclick="if(event.target===this)hideWAQueueModal()">
@@ -2192,7 +2397,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-13.2';
+const APP_VERSION = '2026-10-15.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2297,7 +2502,7 @@ async function retryFailedWrites() {
   // Only these known deterministic backend rejections can never succeed on
   // retry. Everything else (Unauthorized, Unknown action, transient Apps
   // Script service errors) stays queued.
-  const PERMANENT_REJECTION = /^(Invalid row|Invalid status|Missing time|Missing newDate|Missing required fields|Booking already completed|Row is (Cancelled|Duplicate))/;
+  const PERMANENT_REJECTION = /^(Invalid row|Invalid status|Missing time|Missing newDate|Missing required fields|Booking already completed|Row is (Cancelled|Duplicate)|Invalid shift|Invalid batch id|Invalid paid date|No shifts selected)/;
   for (const item of q) {
     try {
       const resp = await apiPost(item.body);
@@ -3391,6 +3596,7 @@ function showPage(name) {
 
   if (name === 'home') renderPickups();
   if (name === 'history') renderHistory();
+  if (name === 'staff') { renderStaff(); loadStaffShifts(true); }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -8123,6 +8329,715 @@ onReady(setupPTR);
 /* ══════════════════════════════════════════════════════════════
    INIT
    ══════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   STAFF HOURS
+   Clock in / out with a live timer, unpaid breaks, a weekly chart and pay
+   at each staff member's hourly rate. Every shift is one row in the
+   sheet's "Staff Hours" tab (the raw tracking file). Marking shifts paid
+   can also file the pay in ShredRite expenses under Labour & Works, so the
+   profit report includes wages without typing them twice.
+   ══════════════════════════════════════════════════════════════ */
+const STAFF_DEFAULT_RATE = 20;
+const STAFF_TASKS = ['Collections', 'Shredding', 'Sorting & packing', 'Admin', 'Other'];
+const STAFF_PAY_VIA = ['PayNow', 'Cash', 'Bank transfer'];
+const STAFF_DAY_TARGET_MIN = 8 * 60;   // the ring fills over an 8-hour day
+const STAFF_RING_R = 52;
+let stWeekOffset = 0, stSelDay = null, stTicker = null, stTask = null, stEditingId = null, stDoneId = null;
+let stPaySel = null, stPayDone = null;
+const stInflight = new Set();
+
+function getStaffList() { return safeParse('sr_staff', []); }
+function saveStaffList(l) { safeStore.setItem('sr_staff', JSON.stringify(l)); }
+function getShifts() { return safeParse('sr_shifts', []); }
+function saveShifts(l) { safeStore.setItem('sr_shifts', JSON.stringify(l)); updateStaffDot(); }
+function upsertShiftLocal(s) {
+  const l = getShifts(), i = l.findIndex(x => x.id === s.id);
+  if (i === -1) l.push(s); else l[i] = s;
+  saveShifts(l);
+}
+function findShift(id) { return getShifts().find(x => x.id === id) || null; }
+
+// Anyone with a shift counts as staff, so a second phone that never saw the
+// setup still shows the right names
+function staffNames() {
+  const names = getStaffList().map(s => s.name);
+  getShifts().forEach(s => { if (s.staff && s.status !== 'Deleted' && !names.includes(s.staff)) names.push(s.staff); });
+  return names;
+}
+function staffInfo(name) { return getStaffList().find(s => s.name === name) || { name, phone: '', rate: STAFF_DEFAULT_RATE }; }
+function currentStaff() {
+  const names = staffNames(), saved = safeStore.getItem('sr_staff_current');
+  return names.includes(saved) ? saved : (names[0] || '');
+}
+function setCurrentStaff(name) { safeStore.setItem('sr_staff_current', name); stSelDay = null; renderStaff(); }
+function openShiftFor(name) { return getShifts().find(s => s.staff === name && s.status === 'Open') || null; }
+function liveShifts() { return getShifts().filter(s => s.status !== 'Deleted'); }
+
+/* ── Small helpers ── */
+const stPad = n => String(n).padStart(2, '0');
+function stHM(d) { return stPad(d.getHours()) + ':' + stPad(d.getMinutes()); }
+function st12(hm) {
+  if (!hm) return '';
+  let [h, m] = hm.split(':').map(Number);
+  const ap = h >= 12 ? 'pm' : 'am';
+  h = h % 12 || 12;
+  return h + ':' + stPad(m) + ap;
+}
+function stDur(min) { min = Math.max(0, Math.round(min)); return Math.floor(min / 60) + 'h ' + (min % 60) + 'm'; }
+function stMoney(v) { return '$' + (Number(v) || 0).toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function stYmd(ymd) { const [y, m, d] = ymd.split('-').map(Number); return new Date(y, m - 1, d, 12); }
+function stDay(ymd, opts) { return stYmd(ymd).toLocaleDateString('en-SG', opts || { weekday: 'short', day: 'numeric', month: 'short' }); }
+function stAddDays(ymd, n) { const d = stYmd(ymd); d.setDate(d.getDate() + n); return localDateStr(d); }
+function stWeekStart(offset) {
+  const d = new Date(); d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - (d.getDay() + 6) % 7 + 7 * (offset || 0));   // weeks start on Monday
+  return localDateStr(d);
+}
+function stAttr(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function stWaPhone(p) { let d = String(p || '').replace(/\D/g, ''); if (d.length === 8) d = '65' + d; return d; }
+function closeStModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+/* ── Shift maths: to the minute, the same way the sheet's formulas count ── */
+function stStartMs(s) {
+  const [y, m, d] = s.date.split('-').map(Number), [h, mi] = (s.start || '0:0').split(':').map(Number);
+  return new Date(y, m - 1, d, h, mi).getTime();
+}
+function stEndMs(s) {
+  if (!s.end) return null;
+  const [y, m, d] = (s.endDate || s.date).split('-').map(Number), [h, mi] = s.end.split(':').map(Number);
+  let t = new Date(y, m - 1, d, h, mi).getTime();
+  if (t < stStartMs(s)) t += 86400000;   // past midnight
+  return t;
+}
+function stEndDateFor(f) { return f.end ? (f.end < f.start ? stAddDays(f.date, 1) : f.date) : ''; }
+function stMinutes(s, now) {
+  now = now || Date.now();
+  const end = s.end ? stEndMs(s) : now;
+  let brk = Number(s.breakMin) || 0;
+  if (s.status === 'Open' && s.breakSince) brk += Math.max(0, (now - s.breakSince) / 60000);
+  return Math.max(0, (end - stStartMs(s)) / 60000 - brk);
+}
+function stPay(s, now) { return Math.round(stMinutes(s, now) / 60 * (Number(s.rate) || 0) * 100) / 100; }
+function stSum(list, now) { return list.reduce((a, s) => ({ min: a.min + stMinutes(s, now), pay: a.pay + stPay(s, now) }), { min: 0, pay: 0 }); }
+function newShiftId(d) {
+  return 'SH-' + localDateStr(d).replace(/-/g, '') + '-' + stPad(d.getHours()) + stPad(d.getMinutes()) + '-' + Math.random().toString(36).slice(2, 6);
+}
+
+/* ── Sheet sync ── */
+function shiftForSheet(s) {
+  const o = {};
+  ['id', 'date', 'start', 'end', 'endDate', 'breakMin', 'rate', 'staff', 'task', 'note', 'status', 'paidOn', 'paidVia', 'source', 'original'].forEach(k => { o[k] = s[k] == null ? '' : s[k]; });
+  return o;
+}
+async function pushShift(s) {
+  if (!SYNC_ENABLED) return;
+  const body = { action: 'saveStaffShift', shift: shiftForSheet(s) };
+  stInflight.add(s.id);
+  try {
+    const resp = await apiPost(body);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+  } catch (err) {
+    console.error('Staff shift sync error:', err);
+    enqueueFailedWrite(body);
+    toast('Saved on this phone. It will reach the sheet when back online.');
+  } finally {
+    stInflight.delete(s.id);
+  }
+}
+
+// The sheet wins, except for changes made on this phone that have not
+// reached it yet (still queued, still sending, or newer than the sheet's copy)
+function mergeStaffShifts(server) {
+  const queue = getFailedQueue();
+  const pending = new Set();
+  queue.forEach(q => {
+    const b = q.body || {};
+    if (b.action === 'saveStaffShift' && b.shift) pending.add(b.shift.id);
+    if (b.action === 'markStaffPaid') (b.ids || []).forEach(id => pending.add(id));
+  });
+  const local = new Map(getShifts().map(s => [s.id, s]));
+  const out = [];
+  server.forEach(sv => {
+    const lc = local.get(sv.id);
+    local.delete(sv.id);
+    if (lc && (pending.has(sv.id) || stInflight.has(sv.id) || (lc.updated || 0) > (sv.updated || 0) + 1000)) { out.push(lc); return; }
+    out.push({ ...sv, breakSince: lc && sv.status === 'Open' ? (lc.breakSince || null) : null });
+  });
+  local.forEach(lc => {
+    if (pending.has(lc.id) || stInflight.has(lc.id) || Date.now() - (lc.updated || 0) < 120000) out.push(lc);
+  });
+  saveShifts(out);
+}
+async function loadStaffShifts(silent) {
+  if (!SYNC_ENABLED) return;
+  const note = document.getElementById('st-sync-note');
+  if (note && !silent) note.textContent = 'Syncing with the sheet...';
+  try {
+    const resp = await fetch(apiGet('action=getStaffShifts'));
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    mergeStaffShifts(data.shifts || []);
+    if (note) note.textContent = 'In step with the sheet, ' + new Date().toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' });
+  } catch (err) {
+    console.error('Staff sync error:', err);
+    if (note) note.textContent = /Unknown action/.test(err.message)
+      ? 'The sheet backend has not been updated for staff hours yet.'
+      : 'Could not reach the sheet. Shifts are kept on this phone.';
+  }
+  const page = document.getElementById('page-staff');
+  if (page && page.classList.contains('active')) renderStaff();
+}
+function updateStaffDot() {
+  const btn = document.getElementById('nav-staff');
+  if (!btn) return;
+  const on = getShifts().some(s => s.status === 'Open');
+  let dot = btn.querySelector('.st-dot');
+  if (on && !dot) { dot = document.createElement('i'); dot.className = 'st-dot'; btn.appendChild(dot); }
+  if (!on && dot) dot.remove();
+}
+
+/* ── Clock ── */
+function staffClockIn() {
+  const name = currentStaff();
+  if (!name) { openStaffSetup(); return; }
+  if (openShiftFor(name)) { toast(name + ' is already clocked in'); return; }
+  const now = new Date(); now.setSeconds(0, 0);
+  const s = {
+    id: newShiftId(now), date: localDateStr(now), staff: name, start: stHM(now), end: '', endDate: '',
+    breakMin: 0, breakSince: null, rate: Number(staffInfo(name).rate) || STAFF_DEFAULT_RATE,
+    task: stTask || 'Collections', note: '', status: 'Open', paidOn: '', paidVia: '', source: 'Clock', original: '', updated: Date.now()
+  };
+  upsertShiftLocal(s);
+  pushShift(s);
+  toast(name + ' clocked in at ' + st12(s.start));
+  renderStaff();
+}
+function staffClockOut() {
+  const s = openShiftFor(currentStaff());
+  if (!s) return;
+  const btn = document.getElementById('st-out-btn');
+  // Two taps, so a pocket tap never ends a shift
+  if (window._stOutArm !== s.id || Date.now() - (window._stOutArmAt || 0) > 4000) {
+    window._stOutArm = s.id;
+    window._stOutArmAt = Date.now();
+    if (btn) { btn.classList.add('armed'); btn.textContent = 'Tap again to clock out'; }
+    setTimeout(() => {
+      if (window._stOutArm === s.id && Date.now() - window._stOutArmAt >= 3900) {
+        window._stOutArm = null;
+        const b = document.getElementById('st-out-btn');
+        if (b) { b.classList.remove('armed'); b.textContent = 'Clock Out'; }
+      }
+    }, 4000);
+    return;
+  }
+  window._stOutArm = null;
+  const now = new Date(); now.setSeconds(0, 0);
+  if (s.breakSince) {
+    s.breakMin = (Number(s.breakMin) || 0) + Math.round((now.getTime() - s.breakSince) / 60000);
+    s.breakSince = null;
+  }
+  s.end = stHM(now);
+  s.endDate = localDateStr(now);
+  s.status = 'Done';
+  s.original = s.start + '-' + s.end;
+  s.updated = Date.now();
+  upsertShiftLocal(s);
+  pushShift(s);
+  stDoneId = s.id;
+  showDoneModal(s);
+  renderStaff();
+}
+function staffBreakToggle() {
+  const s = openShiftFor(currentStaff());
+  if (!s) return;
+  const now = Date.now();
+  if (s.breakSince) {
+    s.breakMin = (Number(s.breakMin) || 0) + Math.round((now - s.breakSince) / 60000);
+    s.breakSince = null;
+    s.updated = now;
+    upsertShiftLocal(s);
+    pushShift(s);
+    toast('Break over. ' + s.breakMin + ' min unpaid so far today.');
+  } else {
+    s.breakSince = now;
+    s.updated = now;
+    upsertShiftLocal(s);
+    toast('Break started. Pay is paused.');
+  }
+  renderStaff();
+}
+function pickStaffTask(t) {
+  stTask = t;
+  const s = openShiftFor(currentStaff());
+  if (s && s.task !== t) { s.task = t; s.updated = Date.now(); upsertShiftLocal(s); pushShift(s); }
+  renderStaffClock();
+}
+
+/* ── Page ── */
+function renderStaff() {
+  if (!document.getElementById('st-clock')) return;
+  renderStaffChips();
+  renderStaffClock();
+  renderStaffTiles();
+  renderStaffWeek();
+  renderStaffList();
+  startStaffTicker();
+}
+function renderStaffChips() {
+  const box = document.getElementById('st-staff-chips'), names = staffNames(), cur = currentStaff();
+  box.classList.toggle('hidden', names.length <= 1);
+  box.innerHTML = names.length <= 1 ? '' : names.map(n =>
+    `<button class="st-chip ${n === cur ? 'on' : ''}" data-n="${stAttr(n)}" onclick="setCurrentStaff(this.dataset.n)">${esc(n)}${openShiftFor(n) ? ' <span style="color:#3DDC84;">&#9679;</span>' : ''}</button>`
+  ).join('');
+}
+function renderStaffClock() {
+  const box = document.getElementById('st-clock'), name = currentStaff();
+  if (!name) {
+    box.innerHTML = `<div class="st-clock">
+      <div class="st-state">First time here</div>
+      <div class="st-who">Add your staff</div>
+      <div class="st-since">Name, WhatsApp number and hourly rate ($${STAFF_DEFAULT_RATE}/h). Takes ten seconds.</div>
+      <div class="st-actions" style="margin-top:16px;"><button class="st-btn in" onclick="openStaffSetup()">Add staff</button></div>
+    </div>`;
+    return;
+  }
+  const s = openShiftFor(name);
+  const C = 2 * Math.PI * STAFF_RING_R;
+  const task = s ? s.task : (stTask || 'Collections');
+  const tasks = `<div class="st-tasks">${STAFF_TASKS.map(t =>
+    `<button class="st-task ${t === task ? 'on' : ''}" data-t="${stAttr(t)}" onclick="pickStaffTask(this.dataset.t)">${esc(t)}</button>`).join('')}</div>`;
+  const ring = (offset, colour, id) => `<svg viewBox="0 0 118 118">
+      <circle cx="59" cy="59" r="${STAFF_RING_R}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="9"/>
+      <circle ${id ? 'id="' + id + '"' : ''} cx="59" cy="59" r="${STAFF_RING_R}" fill="none" stroke="${colour}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${offset}"/>
+    </svg>`;
+  if (!s) {
+    const today = localDateStr();
+    const done = stSum(liveShifts().filter(x => x.staff === name && x.date === today));
+    const rate = Number(staffInfo(name).rate) || STAFF_DEFAULT_RATE;
+    box.innerHTML = `<div class="st-clock">
+      <div class="st-clock-top">
+        <div class="st-ring">${ring(C * (1 - Math.min(1, done.min / STAFF_DAY_TARGET_MIN)), '#C9A84C')}
+          <div class="st-ring-mid"><div class="st-elapsed">${Math.floor(done.min / 60)}:${stPad(Math.round(done.min) % 60)}</div><div class="st-ring-sub">today</div></div>
+        </div>
+        <div style="min-width:0;">
+          <div class="st-state">Not on shift</div>
+          <div class="st-who">${esc(name)}</div>
+          <div class="st-since">${done.min ? 'Worked ' + stDur(done.min) + ' today' : 'No shift yet today'}</div>
+          <div class="st-earned">${stMoney(done.pay)}</div>
+          <div class="st-earned-sub">earned today, $${rate}/h</div>
+        </div>
+      </div>
+      ${tasks}
+      <div class="st-actions"><button class="st-btn in" onclick="staffClockIn()">Clock In</button></div>
+    </div>`;
+    return;
+  }
+  box.innerHTML = `<div class="st-clock on">
+    <div class="st-clock-top">
+      <div class="st-ring">${ring(C, s.breakSince ? '#F39C12' : '#3DDC84', 'st-ring-arc')}
+        <div class="st-ring-mid"><div class="st-elapsed" id="st-elapsed">0:00</div><div class="st-ring-sub" id="st-ring-sub">of 8h</div></div>
+      </div>
+      <div style="min-width:0;">
+        <div class="st-state">${s.breakSince ? 'On break' : 'On shift'}</div>
+        <div class="st-who">${esc(name)}</div>
+        <div class="st-since">Since ${st12(s.start)}${s.date !== localDateStr() ? ', ' + stDay(s.date) : ''}${s.breakMin ? ' &middot; ' + s.breakMin + 'm break' : ''}</div>
+        <div class="st-earned" id="st-earned">$0.00</div>
+        <div class="st-earned-sub">so far, $${s.rate}/h</div>
+      </div>
+    </div>
+    ${tasks}
+    ${s.breakSince ? `<div class="st-break-note">On break since ${st12(stHM(new Date(s.breakSince)))} <b id="st-break-run"></b>. Pay is paused until the break ends.</div>` : ''}
+    <div class="st-actions">
+      <button class="st-btn brk ${s.breakSince ? 'on' : ''}" onclick="staffBreakToggle()">${s.breakSince ? 'End break' : 'Break'}</button>
+      <button class="st-btn out" id="st-out-btn" onclick="staffClockOut()">Clock Out</button>
+    </div>
+    <div class="st-hint">Forgot to clock in or out on time? Tap the shift below to fix it.</div>
+  </div>`;
+  tickStaffClock();
+}
+function startStaffTicker() {
+  clearInterval(stTicker);
+  stTicker = null;
+  if (!openShiftFor(currentStaff())) return;
+  stTicker = setInterval(() => {
+    const page = document.getElementById('page-staff');
+    if (!page || !page.classList.contains('active')) { clearInterval(stTicker); stTicker = null; return; }
+    tickStaffClock();
+  }, 1000);
+}
+function tickStaffClock() {
+  const s = openShiftFor(currentStaff());
+  if (!s) return;
+  const now = Date.now(), worked = stMinutes(s, now), secs = Math.floor(worked * 60);
+  const el = document.getElementById('st-elapsed');
+  if (el) el.innerHTML = Math.floor(secs / 3600) + ':' + stPad(Math.floor(secs / 60) % 60) + '<small>:' + stPad(secs % 60) + '</small>';
+  const earned = document.getElementById('st-earned');
+  if (earned) earned.textContent = stMoney(worked / 60 * (Number(s.rate) || 0));
+  const arc = document.getElementById('st-ring-arc');
+  if (arc) {
+    const C = 2 * Math.PI * STAFF_RING_R;
+    arc.style.strokeDashoffset = C * (1 - Math.min(1, worked / STAFF_DAY_TARGET_MIN));
+    if (worked > STAFF_DAY_TARGET_MIN && !s.breakSince) arc.setAttribute('stroke', '#C9A84C');
+  }
+  const sub = document.getElementById('st-ring-sub');
+  if (sub) sub.textContent = worked > STAFF_DAY_TARGET_MIN ? 'past 8h' : 'of 8h';
+  const br = document.getElementById('st-break-run');
+  if (br && s.breakSince) br.textContent = '(' + stDur((now - s.breakSince) / 60000) + ')';
+}
+function renderStaffTiles() {
+  const box = document.getElementById('st-tiles'), name = currentStaff();
+  if (!name) { box.innerHTML = ''; return; }
+  const mine = liveShifts().filter(s => s.staff === name);
+  const ws = stWeekStart(0), we = stAddDays(ws, 6), mk = localDateStr().slice(0, 7);
+  const w = stSum(mine.filter(s => s.date >= ws && s.date <= we));
+  const m = stSum(mine.filter(s => s.date.slice(0, 7) === mk));
+  const unpaid = mine.filter(s => s.status === 'Done'), u = stSum(unpaid);
+  const tile = (label, v) => `<div class="st-tile"><div class="st-tile-l">${label}</div><div class="st-tile-h">${stDur(v.min)}</div><div class="st-tile-p">${stMoney(v.pay)}</div></div>`;
+  box.innerHTML = tile('This week', w) + tile(new Date().toLocaleDateString('en-SG', { month: 'long' }), m) + (unpaid.length
+    ? `<div class="st-tile unpaid" onclick="openPayModal()"><div class="st-tile-l" style="color:#8A6D00;">Unpaid &rsaquo;</div><div class="st-tile-h">${stMoney(u.pay)}</div><div class="st-tile-p">${stDur(u.min)}</div></div>`
+    : `<div class="st-tile"><div class="st-tile-l">Unpaid</div><div class="st-tile-h" style="color:var(--green);">All paid</div><div class="st-tile-p">&nbsp;</div></div>`);
+}
+function stShiftWeek(n) { stWeekOffset = Math.min(0, stWeekOffset + n); stSelDay = null; renderStaffWeek(); renderStaffList(); }
+function stPickDay(ymd) { stSelDay = stSelDay === ymd ? null : ymd; renderStaffWeek(); renderStaffList(); }
+function renderStaffWeek() {
+  const box = document.getElementById('st-week'), name = currentStaff();
+  box.classList.toggle('hidden', !name);
+  if (!name) return;
+  const ws = stWeekStart(stWeekOffset), days = [...Array(7)].map((_, i) => stAddDays(ws, i));
+  const now = Date.now(), today = localDateStr();
+  const shifts = liveShifts().filter(s => s.staff === name && s.date >= days[0] && s.date <= days[6]);
+  const per = days.map(ymd => {
+    const seg = { paid: 0, unpaid: 0, open: 0 };
+    shifts.filter(s => s.date === ymd).forEach(s => {
+      const mn = stMinutes(s, now);
+      seg[s.status === 'Paid' ? 'paid' : s.status === 'Open' ? 'open' : 'unpaid'] += mn;
+    });
+    return { ymd, seg, total: seg.paid + seg.unpaid + seg.open };
+  });
+  const maxMin = Math.max(STAFF_DAY_TARGET_MIN, ...per.map(p => p.total));
+  const tot = stSum(shifts, now);
+  const span = stDay(days[0], { day: 'numeric', month: 'short' }) + ' - ' + stDay(days[6], { day: 'numeric', month: 'short' });
+  const title = stWeekOffset === 0 ? 'This week' : stWeekOffset === -1 ? 'Last week' : span;
+  box.innerHTML = `
+    <div class="st-week-nav">
+      <button onclick="stShiftWeek(-1)" aria-label="Previous week">&#8249;</button>
+      <div class="st-week-title">${title}<small>${stWeekOffset >= -1 ? span + ' &middot; ' : ''}${stDur(tot.min)} &middot; ${stMoney(tot.pay)}</small></div>
+      <button onclick="stShiftWeek(1)" ${stWeekOffset >= 0 ? 'disabled' : ''} aria-label="Next week">&#8250;</button>
+    </div>
+    <div class="st-bars">${per.map(p => {
+      const h = p.total ? Math.max(5, p.total / maxMin * 100) : 0;
+      const segs = ['paid', 'unpaid', 'open'].filter(k => p.seg[k] > 0)
+        .map(k => `<div class="st-seg ${k}" style="height:${(p.seg[k] / p.total * 100).toFixed(1)}%"></div>`).join('');
+      return `<div class="st-bar ${stSelDay === p.ymd ? 'sel' : ''} ${p.ymd === today ? 'today' : ''}" onclick="stPickDay('${p.ymd}')">
+        <div class="st-bar-area"><div class="st-bar-col" style="height:${h ? h.toFixed(1) + '%' : '3px'}">
+          ${p.total ? `<span class="st-bar-v">${(p.total / 60).toFixed(1)}h</span>` : ''}
+          <div class="st-bar-in">${segs}</div>
+        </div></div>
+        <div class="st-bar-d">${stDay(p.ymd, { weekday: 'short' }).slice(0, 3)}</div>
+        <div class="st-bar-n">${stYmd(p.ymd).getDate()}</div>
+      </div>`;
+    }).join('')}</div>
+    <div class="st-legend"><span><i style="background:var(--navy)"></i>Unpaid</span><span><i style="background:var(--green)"></i>Paid</span><span><i style="background:var(--gold)"></i>On shift</span></div>`;
+}
+function renderStaffList() {
+  const box = document.getElementById('st-list'), title = document.getElementById('st-list-title'), name = currentStaff();
+  if (!name) { box.innerHTML = ''; title.textContent = 'Shifts'; return; }
+  const ws = stWeekStart(stWeekOffset), we = stAddDays(ws, 6);
+  const list = liveShifts()
+    .filter(s => s.staff === name && (stSelDay ? s.date === stSelDay : (s.date >= ws && s.date <= we)))
+    .sort((a, b) => (b.date + b.start).localeCompare(a.date + a.start));
+  title.textContent = stSelDay ? stDay(stSelDay, { weekday: 'long', day: 'numeric', month: 'short' })
+    : stWeekOffset === 0 ? 'Shifts this week' : 'Shifts, week of ' + stDay(ws, { day: 'numeric', month: 'short' });
+  if (!list.length) {
+    box.innerHTML = `<div class="st-empty">No shifts ${stSelDay ? 'on this day' : 'this week'}. Tap <b>+ Add shift</b> to log one by hand.</div>`;
+    return;
+  }
+  const now = Date.now();
+  box.innerHTML = list.map(s => {
+    const pill = s.status === 'Open' ? '<span class="st-pill open">On shift</span>'
+      : s.status === 'Paid' ? `<span class="st-pill paid">Paid${s.paidOn ? ' ' + stDay(s.paidOn, { day: 'numeric', month: 'short' }) : ''}</span>`
+      : '<span class="st-pill done">Unpaid</span>';
+    const how = /edited/i.test(s.source || '') ? ' &middot; edited' : s.source === 'Manual' ? ' &middot; added by hand' : '';
+    return `<div class="st-shift" data-id="${stAttr(s.id)}" onclick="openShiftEditor(this.dataset.id)">
+      <div class="st-shift-day"><b>${stYmd(s.date).getDate()}</b><span>${stDay(s.date, { weekday: 'short' }).slice(0, 3)}</span></div>
+      <div class="st-shift-mid">
+        <div class="st-shift-time">${st12(s.start)} - ${s.end ? st12(s.end) : 'now'}</div>
+        <div class="st-shift-meta">${esc(s.task || 'Other')}${s.breakMin ? ' &middot; ' + s.breakMin + 'm break' : ''}${how}${s.note ? ' &middot; ' + esc(s.note) : ''}</div>
+      </div>
+      <div class="st-shift-right"><div class="st-shift-pay">${stMoney(stPay(s, now))}</div><div class="st-shift-dur">${stDur(stMinutes(s, now))}</div>${pill}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ── After clocking out ── */
+function showDoneModal(s) {
+  document.getElementById('st-done-body').innerHTML = `
+    <div style="font-size:13px;color:var(--grey-500);">${esc(s.staff)} &middot; ${stDay(s.date, { weekday: 'long', day: 'numeric', month: 'short' })}</div>
+    <div style="font-size:32px;font-weight:700;margin:6px 0 2px;">${stDur(stMinutes(s))}</div>
+    <div style="font-size:14px;color:var(--grey-600);">${st12(s.start)} to ${st12(s.end)}${s.breakMin ? ' &middot; ' + s.breakMin + ' min unpaid break' : ''}</div>
+    <div style="font-size:24px;font-weight:700;color:var(--green);margin:10px 0 14px;">${stMoney(stPay(s))}</div>`;
+  document.getElementById('st-done-note').value = s.note || '';
+  document.getElementById('st-done-modal').classList.remove('hidden');
+}
+function closeDoneShift() {
+  const s = findShift(stDoneId), note = document.getElementById('st-done-note').value.trim();
+  if (s && note !== (s.note || '')) { s.note = note; s.updated = Date.now(); upsertShiftLocal(s); pushShift(s); }
+  closeStModal('st-done-modal');
+  renderStaff();
+}
+function editDoneShift() { closeDoneShift(); openShiftEditor(stDoneId); }
+
+/* ── Add / edit a shift ── */
+function openShiftEditor(id) {
+  const names = staffNames();
+  if (!names.length) { openStaffSetup(); return; }
+  const s = id ? findShift(id) : null;
+  if (id && !s) return;
+  stEditingId = s ? s.id : null;
+  window._stDelArm = null;
+  const g = x => document.getElementById(x);
+  g('st-shift-title').textContent = s ? (s.status === 'Open' ? 'Edit open shift' : 'Edit shift') : 'Add a shift by hand';
+  g('st-f-staff').innerHTML = names.map(n => `<option value="${stAttr(n)}">${esc(n)}</option>`).join('');
+  g('st-f-staff').value = s ? s.staff : currentStaff();
+  g('st-f-staff').disabled = !!s;
+  const tasks = STAFF_TASKS.slice();
+  if (s && s.task && !tasks.includes(s.task)) tasks.push(s.task);
+  g('st-f-task').innerHTML = tasks.map(t => `<option value="${stAttr(t)}">${esc(t)}</option>`).join('');
+  g('st-f-date').value = s ? s.date : (stSelDay || localDateStr());
+  g('st-f-start').value = s ? s.start : '09:00';
+  g('st-f-end').value = s ? (s.end || '') : '17:00';
+  g('st-f-break').value = s ? (Number(s.breakMin) || 0) : 0;
+  g('st-f-task').value = s ? (s.task || 'Other') : (stTask || 'Collections');
+  g('st-f-rate').value = s ? s.rate : (Number(staffInfo(g('st-f-staff').value).rate) || STAFF_DEFAULT_RATE);
+  g('st-f-note').value = s ? (s.note || '') : '';
+  g('st-f-delete').classList.toggle('hidden', !s || s.status === 'Paid');
+  g('st-f-delete').textContent = 'Delete';
+  g('st-f-paidwarn').classList.toggle('hidden', !(s && s.status === 'Paid'));
+  previewShiftForm();
+  g('st-shift-modal').classList.remove('hidden');
+}
+function onStaffFormStaff() {
+  if (!stEditingId) document.getElementById('st-f-rate').value = Number(staffInfo(document.getElementById('st-f-staff').value).rate) || STAFF_DEFAULT_RATE;
+  previewShiftForm();
+}
+function setFormBreak(n) { document.getElementById('st-f-break').value = n; previewShiftForm(); }
+function shiftFromForm() {
+  const g = x => document.getElementById(x);
+  return {
+    staff: g('st-f-staff').value, date: g('st-f-date').value, start: g('st-f-start').value, end: g('st-f-end').value,
+    breakMin: Math.max(0, parseInt(g('st-f-break').value, 10) || 0), rate: Math.max(0, parseFloat(g('st-f-rate').value) || 0),
+    task: g('st-f-task').value, note: g('st-f-note').value.trim()
+  };
+}
+function previewShiftForm() {
+  const f = shiftFromForm(), box = document.getElementById('st-f-preview');
+  if (!f.date || !f.start) { box.innerHTML = 'Pick a date and a start time.'; return; }
+  if (!f.end) { box.innerHTML = 'No end time, so the shift stays <b>open</b> (still working).'; return; }
+  const tmp = { ...f, endDate: stEndDateFor(f), status: 'Done' };
+  const mn = stMinutes(tmp);
+  box.innerHTML = `<b>${stDur(mn)}</b> &middot; <b>${stMoney(stPay(tmp))}</b> <span style="color:var(--grey-500);">at $${f.rate}/h</span>`
+    + (f.end < f.start ? '<div class="st-preview-note">Ends after midnight, on the next day.</div>' : '')
+    + (f.breakMin && mn === 0 ? '<div class="st-preview-note" style="color:var(--red);">The break is as long as the shift.</div>' : '');
+}
+function saveShiftForm() {
+  const f = shiftFromForm();
+  if (!f.date || !f.start) { toast('Pick a date and a start time'); return; }
+  if (!(f.rate > 0)) { toast('Enter the hourly rate'); return; }
+  const old = stEditingId ? findShift(stEditingId) : null;
+  if (old && old.status === 'Paid' && !f.end) { toast('A paid shift needs an end time'); return; }
+  const open = openShiftFor(f.staff);
+  if (!f.end && open && (!old || open.id !== old.id)) { toast(f.staff + ' already has an open shift'); return; }
+  let s;
+  if (old) {
+    s = { ...old, ...f, endDate: stEndDateFor(f), updated: Date.now() };
+    if (old.status === 'Paid') s.status = 'Paid';
+    else if (old.status === 'Open' && f.end) { s.status = 'Done'; s.breakSince = null; }
+    else if (old.status === 'Done' && !f.end) s.status = 'Open';
+    if (/^Clock/.test(old.source || '') && old.original) s.source = old.original === s.start + '-' + s.end ? 'Clock' : 'Clock (edited)';
+  } else {
+    s = { id: newShiftId(new Date()), ...f, endDate: stEndDateFor(f), breakSince: null, status: f.end ? 'Done' : 'Open',
+      paidOn: '', paidVia: '', source: 'Manual', original: '', updated: Date.now() };
+  }
+  upsertShiftLocal(s);
+  pushShift(s);
+  closeStModal('st-shift-modal');
+  if (!stSelDay || stSelDay !== s.date) stSelDay = null;
+  renderStaff();
+  toast(old ? 'Shift updated' : 'Shift added');
+}
+function deleteShiftFromForm() {
+  const s = findShift(stEditingId), btn = document.getElementById('st-f-delete');
+  if (!s || s.status === 'Paid') return;
+  if (window._stDelArm !== s.id) { window._stDelArm = s.id; btn.textContent = 'Tap again'; return; }
+  window._stDelArm = null;
+  s.status = 'Deleted';
+  s.breakSince = null;
+  s.updated = Date.now();
+  upsertShiftLocal(s);
+  pushShift(s);
+  closeStModal('st-shift-modal');
+  renderStaff();
+  toast('Shift removed. The sheet keeps it, marked Deleted.');
+}
+
+/* ── Staff and rate ── */
+function openStaffSetup(editName) {
+  const list = getStaffList(), withShifts = new Set(getShifts().map(s => s.staff));
+  window._stStaffEditing = editName || null;
+  const rec = editName ? staffInfo(editName) : null;
+  document.getElementById('st-staff-list').innerHTML = staffNames().map(n => {
+    const i = staffInfo(n);
+    return `<div class="st-staff-row"><div><b>${esc(n)}</b><div style="font-size:12px;color:var(--grey-500);">$${i.rate}/h${i.phone ? ' &middot; ' + esc(i.phone) : ''}</div></div>
+      <button class="st-icon-btn" data-n="${stAttr(n)}" onclick="openStaffSetup(this.dataset.n)">Edit</button></div>`;
+  }).join('') || '<div style="font-size:13px;color:var(--grey-500);margin-bottom:10px;">No staff yet.</div>';
+  const nameEl = document.getElementById('st-s-name');
+  nameEl.value = rec ? rec.name : '';
+  nameEl.disabled = !!(rec && withShifts.has(rec.name));   // renaming would split their history in two
+  document.getElementById('st-s-phone').value = rec ? (rec.phone || '') : '';
+  document.getElementById('st-s-rate').value = rec ? rec.rate : STAFF_DEFAULT_RATE;
+  document.getElementById('st-s-title').textContent = rec ? 'Edit ' + rec.name : 'Add staff';
+  document.getElementById('st-staff-modal').classList.remove('hidden');
+  if (!list.length && !rec) setTimeout(() => nameEl.focus(), 50);
+}
+function saveStaffForm() {
+  const name = document.getElementById('st-s-name').value.trim().replace(/\s+/g, ' ');
+  const phone = document.getElementById('st-s-phone').value.trim();
+  const rate = parseFloat(document.getElementById('st-s-rate').value);
+  if (!name) { toast('Type the staff name'); return; }
+  if (!(rate > 0)) { toast('Enter the hourly rate'); return; }
+  const editing = window._stStaffEditing, list = getStaffList();
+  if (name !== editing && staffNames().includes(name)) { toast(name + ' is already on the list'); return; }
+  const i = list.findIndex(s => s.name === (editing || name));
+  const rec = { name, phone, rate };
+  if (i === -1) list.push(rec); else list[i] = rec;
+  saveStaffList(list);
+  if (editing && editing !== name) {
+    // Only possible before any shift was logged, so nothing else to rename
+    const cur = safeStore.getItem('sr_staff_current');
+    if (cur === editing) safeStore.setItem('sr_staff_current', name);
+  }
+  closeStModal('st-staff-modal');
+  setCurrentStaff(name);
+  toast(name + ' saved at $' + rate + '/h');
+}
+
+/* ── Pay ── */
+function unpaidShifts(name) {
+  return liveShifts().filter(s => s.staff === name && s.status === 'Done')
+    .sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+}
+function openPayModal() {
+  const name = currentStaff(), list = unpaidShifts(name);
+  if (!list.length) { toast('Nothing unpaid for ' + name); return; }
+  stPaySel = new Set(list.map(s => s.id));
+  stPayDone = null;
+  renderPayModal();
+  document.getElementById('st-pay-modal').classList.remove('hidden');
+}
+function renderPayModal() {
+  const name = currentStaff(), body = document.getElementById('st-pay-body');
+  document.getElementById('st-pay-title').textContent = stPayDone ? 'Paid' : 'Pay ' + name;
+  if (stPayDone) {
+    const t = stSum(stPayDone.shifts), sync = stPayDone.synced;
+    const exp = sync && sync.expenses && sync.expenses.length
+      ? ' Added to ShredRite expenses: ' + sync.expenses.map(e => stYmd(e.month + '-01').toLocaleDateString('en-SG', { month: 'short', year: 'numeric' }) + ' ' + stMoney(e.amount)).join(', ') + '.' : '';
+    body.innerHTML = `<div style="text-align:center;padding:4px 0 2px;">
+        <div class="st-tick">&#10003;</div>
+        <div style="font-size:20px;font-weight:700;">${stMoney(t.pay)} marked paid</div>
+        <div style="font-size:13px;color:var(--grey-500);margin-top:4px;">${stPayDone.shifts.length} shift${stPayDone.shifts.length === 1 ? '' : 's'}, ${stDur(t.min)}, ${esc(stPayDone.via)}, ${stDay(stPayDone.paidOn)}</div>
+        <div class="st-sync-line">${sync === null ? 'Saving to the sheet...' : sync === false ? 'Saved on this phone. The sheet updates when back online.' : 'Saved to the sheet.' + exp}</div>
+      </div>
+      <button class="btn-primary mt-8" style="background:#25D366;" onclick="sendPaySlip(true)">Send pay slip to ${esc(name)} on WhatsApp</button>
+      <button class="btn-secondary mt-8" onclick="closeStModal('st-pay-modal')">Done</button>`;
+    return;
+  }
+  const list = unpaidShifts(name);
+  body.innerHTML = `
+    <div style="font-size:12px;color:var(--grey-500);margin-bottom:4px;">Untick any shift you are not paying now.</div>
+    ${list.map(s => `<label class="st-payrow">
+      <input type="checkbox" data-id="${stAttr(s.id)}" ${stPaySel.has(s.id) ? 'checked' : ''} onchange="togglePayShift(this.dataset.id, this.checked)">
+      <span style="flex:1;min-width:0;"><b>${stDay(s.date)}</b><br><span style="color:var(--grey-500);">${st12(s.start)} - ${st12(s.end)}${s.breakMin ? ', ' + s.breakMin + 'm break' : ''} &middot; ${stDur(stMinutes(s))}</span></span>
+      <span style="font-weight:700;">${stMoney(stPay(s))}</span>
+    </label>`).join('')}
+    <div class="st-paytotal"><span id="st-pay-count"></span><span id="st-pay-sum"></span></div>
+    <div class="form-row" style="margin-top:4px;">
+      <div class="form-group"><label class="form-label">Paid on</label><input type="date" class="form-input" id="st-pay-date" value="${localDateStr()}"></div>
+      <div class="form-group"><label class="form-label">Paid via</label><select class="form-input" id="st-pay-via">${STAFF_PAY_VIA.map(v => `<option>${v}</option>`).join('')}</select></div>
+    </div>
+    <label class="st-check"><input type="checkbox" id="st-pay-expense" checked>
+      <span>Also add this pay to <b>ShredRite expenses</b> (Labour &amp; Works), one line per month worked, so profit includes it. Untick if you enter wages there yourself.</span></label>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn-secondary" onclick="closeStModal('st-pay-modal')" style="flex:1;">Cancel</button>
+      <button class="btn-primary gold" id="st-pay-go" onclick="confirmStaffPaid()" style="flex:1.7;">Mark paid</button>
+    </div>
+    <button class="st-linkbtn" onclick="sendPaySlip(false)">Send the summary on WhatsApp first, without marking paid</button>`;
+  updatePayTotals();
+}
+function togglePayShift(id, on) { if (on) stPaySel.add(id); else stPaySel.delete(id); updatePayTotals(); }
+function updatePayTotals() {
+  const sel = unpaidShifts(currentStaff()).filter(s => stPaySel.has(s.id)), t = stSum(sel);
+  document.getElementById('st-pay-count').textContent = sel.length + ' shift' + (sel.length === 1 ? '' : 's') + ' · ' + stDur(t.min);
+  document.getElementById('st-pay-sum').textContent = stMoney(t.pay);
+  const go = document.getElementById('st-pay-go');
+  go.textContent = sel.length ? 'Mark ' + stMoney(t.pay) + ' paid' : 'Pick a shift';
+  go.disabled = !sel.length;
+  go.style.opacity = sel.length ? '' : '0.5';
+}
+async function confirmStaffPaid() {
+  const name = currentStaff();
+  const ids = unpaidShifts(name).filter(s => stPaySel.has(s.id)).map(s => s.id);
+  if (!ids.length) return;
+  const paidOn = document.getElementById('st-pay-date').value || localDateStr();
+  const via = document.getElementById('st-pay-via').value;
+  const addExpense = document.getElementById('st-pay-expense').checked;
+  const batchId = 'PAY-' + paidOn.replace(/-/g, '') + '-' + Math.random().toString(36).slice(2, 7);
+  const all = getShifts(), paid = [];
+  all.forEach(s => {
+    if (!ids.includes(s.id)) return;
+    s.status = 'Paid'; s.paidOn = paidOn; s.paidVia = via; s.updated = Date.now();
+    paid.push({ ...s });
+  });
+  saveShifts(all);
+  stPayDone = { paidOn, via, shifts: paid, synced: null };
+  renderPayModal();
+  renderStaff();
+  // A shift still on its way to the sheet goes along with the payment, so
+  // the sheet can write it first if it never arrived
+  const body = { action: 'markStaffPaid', ids, paidOn, paidVia: via, addExpense, batchId, shifts: paid.map(s => ({ ...shiftForSheet(s), status: 'Done' })) };
+  for (let i = 0; i < 40 && ids.some(id => stInflight.has(id)); i++) await new Promise(r => setTimeout(r, 250));
+  try {
+    if (getFailedQueue().some(q => q.body && q.body.action === 'saveStaffShift' && ids.includes(q.body.shift && q.body.shift.id))) throw new Error('queued behind unsent shifts');
+    const resp = await apiPost(body);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    stPayDone.synced = data;
+  } catch (err) {
+    console.error('Mark paid sync error:', err);
+    enqueueFailedWrite(body);
+    stPayDone.synced = false;
+  }
+  if (!document.getElementById('st-pay-modal').classList.contains('hidden')) renderPayModal();
+}
+function sendPaySlip(afterPaid) {
+  const name = currentStaff(), info = staffInfo(name);
+  let list, via, paidOn = '';
+  if (afterPaid && stPayDone) { list = stPayDone.shifts; via = stPayDone.via; paidOn = stPayDone.paidOn; }
+  else { list = unpaidShifts(name).filter(s => stPaySel && stPaySel.has(s.id)); via = (document.getElementById('st-pay-via') || {}).value || 'PayNow'; }
+  list = list.slice().sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
+  if (!list.length) { toast('Pick at least one shift'); return; }
+  const t = stSum(list), rates = [...new Set(list.map(s => Number(s.rate)))];
+  const first = stDay(list[0].date, { day: 'numeric', month: 'short' });
+  const last = stDay(list[list.length - 1].date, { day: 'numeric', month: 'short', year: 'numeric' });
+  const lines = list.map(s => `${stDay(s.date)}: ${st12(s.start)} to ${st12(s.end)}${s.breakMin ? ' (' + s.breakMin + ' min break)' : ''} = ${stDur(stMinutes(s))}, ${stMoney(stPay(s))}`);
+  const msg = `Salam ${name}, here is your pay summary from ShredRite for ${list.length === 1 ? last : first + ' to ' + last}:\n\n`
+    + lines.join('\n')
+    + `\n\n*Total: ${stDur(t.min)}${rates.length === 1 ? ' at $' + rates[0] + '/h' : ''} = ${stMoney(t.pay)}*\n`
+    + (paidOn ? `Paid via ${via} on ${stDay(paidOn, { day: 'numeric', month: 'short', year: 'numeric' })}.` : `Payment via ${via}.`)
+    + '\n\nThank you for your hard work!';
+  window.open('https://wa.me/' + stWaPhone(info.phone) + '?text=' + encodeURIComponent(msg), '_blank');
+}
+
 function initApp() {
   // Logo is embedded as a data URI in the img tag - no file loading needed
 
@@ -8148,11 +9063,13 @@ function initApp() {
   }
 
   renderPickups();
+  updateStaffDot();
 
   // Auto-sync from Google Sheet on load
   if (SYNC_ENABLED) {
     document.getElementById('sync-status').textContent = 'Connected to Google Sheet';
     syncFromSheet();
+    loadStaffShifts(true);
   } else {
     document.getElementById('sync-status').textContent = 'Offline mode (no Google Sheet connected)';
     document.getElementById('sync-btn').style.display = 'none';
