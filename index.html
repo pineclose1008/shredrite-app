@@ -1331,6 +1331,25 @@ textarea.form-input {
 .assign-slot-head em { font-style: normal; font-weight: 500; opacity: .8; margin-left: 4px; }
 .assign-slot-head a { font-size: 12px; font-weight: 600; color: inherit; white-space: nowrap; }
 
+/* ── Route settings (morning / afternoon) ────────────────── */
+.rs-summary { display: flex; flex-wrap: wrap; gap: 3px 10px; align-items: center; margin-top: 8px; padding: 8px 10px; background: var(--grey-50); border: 1px solid var(--grey-200); border-radius: var(--radius-sm); font-size: 12px; color: var(--grey-600); cursor: pointer; }
+.rs-summary b { color: var(--navy); margin-right: 3px; }
+.rs-edit { margin-left: auto; font-weight: 700; color: var(--navy); }
+.rs-box { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.rs-slot { border-radius: var(--radius-sm); padding: 8px 10px; }
+.rs-slot.am { background: #FFF6DD; }
+.rs-slot.pm { background: #E7EEF9; }
+.rs-title { font-weight: 700; font-size: 13px; color: var(--navy); }
+.rs-title em { font-style: normal; font-weight: 500; opacity: .75; margin-left: 4px; font-size: 12px; }
+.rs-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.rs-row label { width: 64px; flex-shrink: 0; font-size: 12px; color: var(--grey-600); font-weight: 600; }
+.rs-row.wide label { width: auto; }
+.rs-row select, .rs-row input, .rs-other { flex: 1; min-width: 0; padding: 7px 8px; border: 1px solid var(--grey-200); border-radius: 6px; font-size: 13px; background: #fff; color: var(--navy); }
+.rs-row.wide input { flex: 0 0 70px; }
+.rs-other { display: block; width: 100%; margin-top: 6px; }
+.rs-other.hidden { display: none; }
+.rs-hint { font-size: 11px; color: var(--grey-500); margin-top: 4px; }
+
 /* ── Modal ───────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
@@ -1504,11 +1523,8 @@ textarea.form-input {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
             Auto Plan (best order + arrival times)
           </button>
-          <div style="display:flex;gap:6px;align-items:center;margin-top:8px;">
-            <label for="ap-start" style="font-size:12px;color:var(--grey-500);white-space:nowrap;">Start from</label>
-            <select id="ap-start" class="form-input" style="padding:7px 8px;font-size:13px;" onchange="onAutoPlanStartChange('ap-start', 'ap-start-other')"></select>
-          </div>
-          <input id="ap-start-other" class="form-input hidden" placeholder="Postal code or address" style="margin-top:6px;font-size:13px;padding:8px 10px;" onchange="onAutoPlanStartChange('ap-start', 'ap-start-other')">
+          <div class="rs-summary" id="rs-home-summary" onclick="toggleRouteSettings()"></div>
+          <div class="rs-box hidden" id="rs-home"></div>
         </div>
       </div>
       <div id="pickup-list"></div>
@@ -2500,7 +2516,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-18.1';
+const APP_VERSION = '2026-10-19.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2717,7 +2733,7 @@ function loadDatePickups() {
   const dateLabel = formatDateStr(selectedDate, { weekday: 'long', day: 'numeric', month: 'short' });
   document.getElementById('route-summary-title').textContent = dateLabel;
   document.getElementById('route-summary-count').textContent = routeDatePickups.length + ' stops';
-  fillStartPicker('ap-start', 'ap-start-other');
+  refreshRouteForms();
   document.getElementById('route-summary-names').innerHTML = routeDatePickups.map((b, i) =>
     `${i + 1}. ${esc(b.name)} <span style="color:var(--grey-300);">${b.time ? formatTime(b.time) : 'no time'}</span>`
   ).join('<br>');
@@ -2765,36 +2781,131 @@ const TRAFFIC_PAD = 1.25;                                    // free-flow times 
 let autoPlanLast = null;
 
 function autoPlanSettings() {
-  const saved = safeParse('sr_autoplan', {});
+  const s = safeParse('sr_autoplan', {});
+  const place = (v, dflt, extra) => (AUTOPLAN_STARTS[v] || v === 'other' || (extra || []).includes(v)) ? v : dflt;
+  const start = place(s.start, 'home');
+  // Until 2026-10-19 there was one switch: carry on from the last morning
+  // stop (default) or go back to the start point. It maps onto the morning's end.
+  const back = s.pmFrom === 'start';
   return {
-    leave: saved.leave || '09:00', perStop: saved.perStop != null ? saved.perStop : 15,
-    start: (AUTOPLAN_STARTS[saved.start] || saved.start === 'other') ? saved.start : 'home',
-    startOther: saved.startOther || '',
-    // 'last': the afternoon carries on from the last morning stop
-    // 'start': back to the start point first (e.g. to unload at the unit)
-    pmFrom: saved.pmFrom === 'start' ? 'start' : 'last'
+    perStop: s.perStop != null ? s.perStop : 15,
+    // Morning
+    start, startOther: s.startOther || '', leave: s.leave || '09:00',
+    amEnd: place(s.amEnd, back ? start : 'carry', ['carry']),
+    amEndOther: s.amEndOther != null ? s.amEndOther : (back ? s.startOther || '' : ''),
+    // Afternoon ('morning' = wherever the morning ends; blank leave = reach the first door at 12:00)
+    pmStart: place(s.pmStart, 'morning', ['morning']), pmStartOther: s.pmStartOther || '',
+    pmEnd: place(s.pmEnd, start), pmEndOther: s.pmEndOther != null ? s.pmEndOther : (start === 'other' ? s.startOther || '' : ''),
+    pmLeave: /^\d{2}:\d{2}$/.test(s.pmLeave || '') ? s.pmLeave : ''
   };
 }
 function saveAutoPlanSettings(patch) {
   safeStore.setItem('sr_autoplan', JSON.stringify(Object.assign(autoPlanSettings(), patch)));
 }
 
-// Fill a start picker with the choices and the saved one
-function fillStartPicker(selId, otherId) {
-  const set = autoPlanSettings();
-  const sel = document.getElementById(selId), other = document.getElementById(otherId);
-  if (!sel) return;
-  sel.innerHTML = Object.keys(AUTOPLAN_STARTS).map(k => `<option value="${k}">${AUTOPLAN_STARTS[k].label}</option>`).join('')
-    + '<option value="other">Other address...</option>';
-  sel.value = set.start;
-  if (other) { other.value = set.startOther; other.classList.toggle('hidden', set.start !== 'other'); }
+/* ── Places a route can start or end at ── */
+function placeAddr(key, other) {
+  if (AUTOPLAN_STARTS[key]) return AUTOPLAN_STARTS[key].addr;
+  const text = String(other || '').trim();
+  if (!text) return HOME_ADDRESS;
+  return /singapore/i.test(text) ? text : text + ' Singapore';
 }
-function onAutoPlanStartChange(selId, otherId) {
-  const sel = document.getElementById(selId), other = document.getElementById(otherId);
-  if (other) other.classList.toggle('hidden', sel.value !== 'other');
-  saveAutoPlanSettings({ start: sel.value, startOther: other ? other.value.trim() : '' });
+function placeShort(key, other) {
+  return { home: 'Home', unit: 'Unit', carry: 'carry on', morning: 'morning end' }[key] || String(other || '').trim() || 'other address';
+}
+async function resolvePlace(key, other, what) {
+  if (AUTOPLAN_STARTS[key]) return AUTOPLAN_STARTS[key];
+  const text = String(other || '').trim();
+  if (!text) throw new Error('Type the ' + what + ' address or postal code first');
+  const ll = await geocodeStop(text);
+  if (!ll) throw new Error('Could not find the ' + what + ' address on the map');
+  return { label: text, addr: placeAddr('other', text), ll };
+}
+// The day's two routes as places. A null end means the route finishes at its
+// last stop; 'lastAm' means the last morning stop.
+function routeEnds(set, hasAm, hasPm) {
+  const P = (key, other) => ({ key, other });
+  const amStart = P(set.start, set.startOther);
+  // "Carry on" only applies when an afternoon follows; otherwise back to the start
+  const amEnd = set.amEnd === 'carry' ? (hasPm ? null : amStart) : P(set.amEnd, set.amEndOther);
+  const pmStart = set.pmStart === 'morning' ? (hasAm ? (amEnd || 'lastAm') : amStart) : P(set.pmStart, set.pmStartOther);
+  return { amStart, amEnd, pmStart, pmEnd: P(set.pmEnd, set.pmEndOther) };
+}
+
+/* ── The settings form: shown on the home page and in the plan panel ── */
+const RS_FIELDS = [
+  { kind: 'amStart', key: 'start', other: 'startOther', label: 'Start' },
+  { kind: 'amEnd', key: 'amEnd', other: 'amEndOther', label: 'End' },
+  { kind: 'pmStart', key: 'pmStart', other: 'pmStartOther', label: 'Start' },
+  { kind: 'pmEnd', key: 'pmEnd', other: 'pmEndOther', label: 'End' }
+];
+function placeOptions(kind) {
+  const o = [];
+  if (kind === 'pmStart') o.push(['morning', 'Where the morning ends']);
+  Object.keys(AUTOPLAN_STARTS).forEach(k => o.push([k, AUTOPLAN_STARTS[k].label]));
+  o.push(['other', 'Other address...']);
+  if (kind === 'amEnd') o.push(['carry', 'Carry on to the afternoon']);
+  return o;
+}
+function renderRouteSettings(boxId) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  const set = autoPlanSettings();
+  const field = f => `<div class="rs-row"><label for="${boxId}-${f.kind}">${f.label}</label>
+      <select id="${boxId}-${f.kind}" onchange="onRouteSetting('${boxId}')">${placeOptions(f.kind).map(([v, l]) => `<option value="${v}" ${set[f.key] === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
+    <input id="${boxId}-${f.kind}-other" class="rs-other ${set[f.key] === 'other' ? '' : 'hidden'}" placeholder="Postal code or address" value="${stAttr(set[f.other])}" onchange="onRouteSetting('${boxId}')">`;
+  box.innerHTML = `
+    <div class="rs-slot am"><div class="rs-title">Morning<em>9am to 12pm</em></div>
+      ${field(RS_FIELDS[0])}${field(RS_FIELDS[1])}
+      <div class="rs-row"><label for="${boxId}-leave">Leave at</label><input type="time" id="${boxId}-leave" value="${set.leave}" onchange="onRouteSetting('${boxId}')"></div>
+    </div>
+    <div class="rs-slot pm"><div class="rs-title">Afternoon<em>12pm to 4pm</em></div>
+      ${field(RS_FIELDS[2])}${field(RS_FIELDS[3])}
+      <div class="rs-row"><label for="${boxId}-pmleave">Leave at</label><input type="time" id="${boxId}-pmleave" value="${set.pmLeave}" onchange="onRouteSetting('${boxId}')"></div>
+      <div class="rs-hint">Leave the time blank to reach the first afternoon door at 12:00.</div>
+    </div>
+    <div class="rs-row wide"><label for="${boxId}-perstop">Minutes at each stop</label><input type="number" id="${boxId}-perstop" min="0" step="5" inputmode="numeric" value="${set.perStop}" onchange="onRouteSetting('${boxId}')"></div>`;
+}
+function onRouteSetting(boxId) {
+  const g = id => document.getElementById(boxId + '-' + id);
+  if (!g('leave')) return;
+  const patch = {};
+  RS_FIELDS.forEach(f => {
+    const sel = g(f.kind), oth = g(f.kind + '-other');
+    patch[f.key] = sel.value;
+    patch[f.other] = oth.value.trim();
+    oth.classList.toggle('hidden', sel.value !== 'other');
+  });
+  patch.leave = g('leave').value || '09:00';
+  patch.pmLeave = g('pmleave').value || '';
+  patch.perStop = Math.max(0, parseInt(g('perstop').value, 10) || 0);
+  saveAutoPlanSettings(patch);
+  renderRouteSummary();
+  // Keep the other copy of the form in step
+  ['rs-home', 'rs-ap'].filter(id => id !== boxId).forEach(id => { const b = document.getElementById(id); if (b && b.innerHTML.trim()) renderRouteSettings(id); });
+  // On the assign page the Maps links and the trip follow the new places straight away
   const page = document.querySelector('.page.active');
-  if (page && page.id === 'page-assign') scheduleTripEstimate();   // a new start changes the distance
+  if (page && page.id === 'page-assign') { updateSlotLinks(); scheduleTripEstimate(); }
+}
+function renderRouteSummary() {
+  const el = document.getElementById('rs-home-summary');
+  if (!el) return;
+  const s = autoPlanSettings(), open = !document.getElementById('rs-home').classList.contains('hidden');
+  el.innerHTML = `<span><b>Morning</b>${esc(placeShort(s.start, s.startOther))} &rarr; ${esc(placeShort(s.amEnd, s.amEndOther))}, ${s.leave}</span>
+    <span><b>Afternoon</b>${esc(placeShort(s.pmStart, s.pmStartOther))} &rarr; ${esc(placeShort(s.pmEnd, s.pmEndOther))}, ${s.pmLeave || 'by 12:00'}</span>
+    <span class="rs-edit">${open ? 'Done' : 'Edit'}</span>`;
+}
+// Redraw an open settings form from what is saved (used when a date is loaded)
+function refreshRouteForms() {
+  const b = document.getElementById('rs-home');
+  if (b && !b.classList.contains('hidden')) renderRouteSettings('rs-home');
+  renderRouteSummary();
+}
+function toggleRouteSettings() {
+  const b = document.getElementById('rs-home'), opening = b.classList.contains('hidden');
+  if (opening) renderRouteSettings('rs-home');
+  b.classList.toggle('hidden', !opening);
+  renderRouteSummary();
 }
 
 // Morning (9am to 12pm) or afternoon (12pm to 4pm), from the booked time.
@@ -2808,34 +2919,24 @@ function mapsAddr(b) {
 }
 // Google Maps links for each slot, in the order the stops are listed
 function slotMapsLinks(list) {
-  const set = autoPlanSettings(), origin = encodeURIComponent(autoPlanStartAddress());
   const am = list.filter(b => slotOf(b) === 'am'), pm = list.filter(b => slotOf(b) === 'pm');
+  const r = routeEnds(autoPlanSettings(), am.length > 0, pm.length > 0);
+  const enc = p => encodeURIComponent(placeAddr(p.key, p.other));
   const dir = parts => 'https://www.google.com/maps/dir/' + parts.join('/');
-  const back = set.pmFrom === 'start' || !pm.length;
   return {
-    am: am.length ? dir([origin].concat(am.map(mapsAddr), back ? [origin] : [])) : '',
-    pm: pm.length ? dir([set.pmFrom === 'start' || !am.length ? origin : mapsAddr(am[am.length - 1])].concat(pm.map(mapsAddr), [origin])) : ''
+    am: am.length ? dir([enc(r.amStart)].concat(am.map(mapsAddr), r.amEnd ? [enc(r.amEnd)] : [])) : '',
+    pm: pm.length ? dir([r.pmStart === 'lastAm' ? mapsAddr(am[am.length - 1]) : enc(r.pmStart)].concat(pm.map(mapsAddr), [enc(r.pmEnd)])) : ''
   };
 }
-
-// The chosen start as a Maps address, without looking anything up
-function autoPlanStartAddress() {
-  const set = autoPlanSettings();
-  if (set.start !== 'other') return AUTOPLAN_STARTS[set.start].addr;
-  const text = set.startOther.trim();
-  if (!text) return HOME_ADDRESS;
-  return /singapore/i.test(text) ? text : text + ' Singapore';
+function updateSlotLinks() {
+  const links = slotMapsLinks(assignList);
+  ['am', 'pm'].forEach(k => { const a = document.getElementById('assign-link-' + k); if (a && links[k]) a.href = links[k]; });
 }
 
-// The chosen start as { label, addr, ll }, looking up an "other" address
-async function resolveAutoPlanStart() {
+// The morning's start as a Maps address, without looking anything up
+function autoPlanStartAddress() {
   const set = autoPlanSettings();
-  if (set.start !== 'other') return AUTOPLAN_STARTS[set.start];
-  const text = set.startOther.trim();
-  if (!text) throw new Error('Type the start address or postal code first');
-  const ll = await geocodeStop(text);
-  if (!ll) throw new Error('Could not find the start address on the map');
-  return { label: text, addr: /singapore/i.test(text) ? text : text + ' Singapore', ll };
+  return placeAddr(set.start, set.startOther);
 }
 
 async function geocodeStop(address) {
@@ -2884,10 +2985,11 @@ async function geocodeInTurn(list) {
   return pts;
 }
 
-// Least total driving from `from` through every stop in `idx` (open path)
-function bestOrder(from, idx, dur) {
+// Least total driving from `from` through every stop in `idx`, then on to
+// `to` when the route has to end somewhere (leave `to` null for an open end)
+function bestOrder(from, idx, dur, to) {
   if (idx.length <= 1) return idx.slice();
-  const cost = ord => ord.reduce((t, k, i) => t + dur[i ? ord[i - 1] : from][k], 0);
+  const cost = ord => ord.reduce((t, k, i) => t + dur[i ? ord[i - 1] : from][k], 0) + (to != null ? dur[ord[ord.length - 1]][to] : 0);
   if (idx.length <= 8) {
     let best = null, bestC = Infinity;
     const perm = (arr, l) => {
@@ -2919,59 +3021,82 @@ async function autoPlanForDate() {
   const set = autoPlanSettings();
   document.getElementById('sync-overlay').style.display = 'flex';
   try {
-    // Where the route starts; a bad "other" address stops here, before any lookups
-    const start = await resolveAutoPlanStart();
     const stops = routeDatePickups.slice();
+    const hasAm = stops.some(b => slotOf(b) === 'am'), hasPm = stops.some(b => slotOf(b) === 'pm');
+    const ends = routeEnds(set, hasAm, hasPm);
+    // Every start and end place first: a bad "other" address stops here, before any lookups
+    const places = [], placeAt = new Map();
+    const want = async (p, what) => {
+      if (!p || p === 'lastAm') return null;
+      const k = p.key === 'other' ? 'other:' + String(p.other || '').trim().toLowerCase() : p.key;
+      if (!placeAt.has(k)) { places.push(await resolvePlace(p.key, p.other, what)); placeAt.set(k, places.length - 1); }
+      return placeAt.get(k);
+    };
+    const iAmStart = hasAm ? await want(ends.amStart, 'morning start') : null;
+    const iAmEnd = hasAm ? await want(ends.amEnd, 'morning end') : null;
+    let iPmStart = hasPm ? await want(ends.pmStart, 'afternoon start') : null;
+    const iPmEnd = hasPm ? await want(ends.pmEnd, 'afternoon end') : null;
+
     const pts = await geocodeInTurn(stops);
     const found = stops.map((b, i) => ({ b, ll: pts[i] })).filter(x => x.ll);
     const lost = stops.filter((b, i) => !pts[i]);
     if (!found.length) throw new Error('None of the addresses could be found on the map');
 
-    // Drive times (seconds) between the start and every stop, start first
-    const coords = [start.ll].concat(found.map(x => x.ll)).map(ll => ll[1] + ',' + ll[0]).join(';');
+    // Drive times (seconds) between every place and every stop: places first
+    const coords = places.map(p => p.ll).concat(found.map(x => x.ll)).map(ll => ll[1] + ',' + ll[0]).join(';');
     const r = await fetch('https://router.project-osrm.org/table/v1/driving/' + coords + '?annotations=duration');
     const j = await r.json();
     if (j.code !== 'Ok') throw new Error('Could not get drive times');
-    const dur = j.durations;
+    const dur = j.durations, base = places.length;
 
-    // Two separate routes: the morning stops in their own best order, then the
-    // afternoon stops in theirs. The two are never interleaved.
-    const idx = found.map((_, i) => i + 1);
-    const am = idx.filter(i => slotOf(found[i - 1].b) === 'am');
-    const pm = idx.filter(i => slotOf(found[i - 1].b) === 'pm');
-    const amOrd = bestOrder(0, am, dur);
-    const pmFromStart = set.pmFrom === 'start' || !amOrd.length;
-    const pmOrd = bestOrder(pmFromStart ? 0 : amOrd[amOrd.length - 1], pm, dur);
-    const per = Number(set.perStop || 0), leg = (a, b) => dur[a][b] * TRAFFIC_PAD / 60;
+    // Two separate routes, each in its own best order, never interleaved
+    const am = [], pm = [];
+    found.forEach((x, i) => (slotOf(x.b) === 'am' ? am : pm).push(base + i));
+    const amOrd = bestOrder(iAmStart, am, dur, iAmEnd);
+    if (pm.length && iPmStart == null) iPmStart = amOrd.length ? amOrd[amOrd.length - 1] : iAmStart;   // the last morning stop
+    const pmOrd = bestOrder(iPmStart, pm, dur, iPmEnd);
+
+    const per = Number(set.perStop || 0), leg = (a, b) => dur[a][b] * TRAFFIC_PAD / 60, stopOf = i => found[i - base].b;
     const plan = [];
-    let t = toMin(set.leave), cur = 0, amDrive = 0, pmDrive = 0, amFinish = null;
+    let t = toMin(set.leave), cur = iAmStart, amDrive = 0, pmDrive = 0, amDoor = null, amEndAt = null, pmLeaveAt = null;
     amOrd.forEach(i => {
       const d = leg(cur, i);
       amDrive += d; t += d;
       const eta = Math.ceil(t / 5) * 5;                   // round up to the next 5 minutes
       t = eta + per; cur = i;
-      plan.push({ b: found[i - 1].b, eta: toHHMM(eta), drive: Math.round(d), slot: 'am' });
+      plan.push({ b: stopOf(i), eta: toHHMM(eta), drive: Math.round(d), slot: 'am' });
     });
-    if (amOrd.length) amFinish = t;
+    if (amOrd.length) {
+      amDoor = t;
+      if (iAmEnd != null) { const d = leg(cur, iAmEnd); amDrive += d; t += d; }
+      amEndAt = t;
+    }
     if (pmOrd.length) {
-      if (amOrd.length && pmFromStart) { const d = leg(cur, 0); amDrive += d; t += d; cur = 0; }
-      // Leave in time to reach the first afternoon door at 12:00, not before
-      t = Math.max(t, 12 * 60 - leg(cur, pmOrd[0]));
+      cur = iPmStart;
+      const ready = amEndAt != null ? amEndAt : 0;
+      // A set leave time, or leave in time to reach the first door at 12:00; never before the morning is over
+      t = set.pmLeave ? Math.max(toMin(set.pmLeave), ready) : Math.max(ready, 12 * 60 - leg(cur, pmOrd[0]));
+      pmLeaveAt = t;
       pmOrd.forEach(i => {
         const d = leg(cur, i);
         pmDrive += d; t += d;
         if (t < 12 * 60) t = 12 * 60;
         const eta = Math.ceil(t / 5) * 5;
         t = eta + per; cur = i;
-        plan.push({ b: found[i - 1].b, eta: toHHMM(eta), drive: Math.round(d), slot: 'pm' });
+        plan.push({ b: stopOf(i), eta: toHHMM(eta), drive: Math.round(d), slot: 'pm' });
       });
+      if (iPmEnd != null) { const d = leg(cur, iPmEnd); pmDrive += d; t += d; }
     }
+    const lastAmName = amOrd.length ? stopOf(amOrd[amOrd.length - 1]).name : '';
     autoPlanLast = {
-      plan, lost, start, pmFrom: pmFromStart ? 'start' : 'last',
-      amCount: amOrd.length, pmCount: pmOrd.length,
+      plan, lost, amCount: amOrd.length, pmCount: pmOrd.length,
       amDrive: Math.round(amDrive), pmDrive: Math.round(pmDrive), driveTotal: Math.round(amDrive + pmDrive),
-      amFinish: amFinish == null ? '' : toHHMM(amFinish), finish: toHHMM(t),
-      pmFirst: (plan.find(p => p.slot === 'pm') || {}).eta || ''
+      amLeave: set.leave, amDoor: amDoor == null ? '' : toHHMM(amDoor), amEndAt: amEndAt == null ? '' : toHHMM(amEndAt),
+      pmLeave: pmLeaveAt == null ? '' : toHHMM(pmLeaveAt), pmFirst: (plan.find(p => p.slot === 'pm') || {}).eta || '', finish: toHHMM(t),
+      amStartLabel: iAmStart != null ? places[iAmStart].label : '',
+      amEndLabel: iAmEnd != null ? places[iAmEnd].label : '',
+      pmStartLabel: iPmStart == null ? '' : iPmStart < base ? places[iPmStart].label : lastAmName + ' (last morning stop)',
+      pmEndLabel: iPmEnd != null ? places[iPmEnd].label : ''
     };
 
     // Stops OneMap could not find stay in their own slot, at its end
@@ -2993,43 +3118,26 @@ async function autoPlanForDate() {
 function renderAutoPlanPanel() {
   const box = document.getElementById('assign-autoplan');
   if (!autoPlanLast) { box.classList.add('hidden'); return; }
-  const set = autoPlanSettings();
-  const a = autoPlanLast;
-  const from = esc((a.start && a.start.label) || 'Home');
-  const lastAm = a.amCount ? a.plan.filter(p => p.slot === 'am').slice(-1)[0].b.name : '';
+  const a = autoPlanLast, n = c => c + ' stop' + (c === 1 ? '' : 's');
   const amLine = a.amCount
-    ? `<div><strong>Morning:</strong> ${a.amCount} stop${a.amCount === 1 ? '' : 's'} from ${from}, about ${a.amDrive} min driving${a.pmCount && a.pmFrom === 'start' ? ' incl. the drive back' : ''}, done around <strong>${a.amFinish}</strong>.</div>` : '';
+    ? `<div><strong>Morning:</strong> leave ${esc(a.amStartLabel)} at <strong>${a.amLeave}</strong>, ${n(a.amCount)}, last one done around <strong>${a.amDoor}</strong>, ${a.amEndLabel ? 'back at ' + esc(a.amEndLabel) + ' around ' + a.amEndAt : 'then straight on to the afternoon'}. About ${a.amDrive} min driving.</div>` : '';
   const pmLine = a.pmCount
-    ? `<div><strong>Afternoon:</strong> ${a.pmCount} stop${a.pmCount === 1 ? '' : 's'} from ${a.pmFrom === 'start' || !a.amCount ? from : esc(lastAm) + ' (last morning stop)'}, first door <strong>${a.pmFirst}</strong>, about ${a.pmDrive} min driving, done around <strong>${a.finish}</strong>.</div>` : '';
-  const late = a.amCount && a.amFinish > '12:00'
+    ? `<div style="margin-top:3px;"><strong>Afternoon:</strong> leave ${esc(a.pmStartLabel)} at <strong>${a.pmLeave}</strong>, first door <strong>${a.pmFirst}</strong>, ${n(a.pmCount)}, ${a.pmEndLabel ? 'back at ' + esc(a.pmEndLabel) + ' around <strong>' + a.finish + '</strong>' : 'done around ' + a.finish}. About ${a.pmDrive} min driving.</div>` : '';
+  const late = a.amCount && a.amDoor > '12:00'
     ? `<div style="color:#B26A00;margin-top:4px;">The morning runs past 12:00. Think about moving a stop to the afternoon (change its time to 12:00).</div>` : '';
   box.innerHTML = `
     <div style="font-weight:700;color:#1B5E3A;font-size:14px;margin-bottom:4px;">Auto-planned: morning and afternoon as two routes</div>
     ${amLine}${pmLine}${late}
     ${a.lost.length ? `<div style="color:#B26A00;margin-top:4px;">Could not find on the map: ${a.lost.map(b => esc(b.name)).join(', ')}. Kept at the end of their slot with their current time; check the address has a postal code.</div>` : ''}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
-      <label style="font-size:12px;">Start from <select id="ap-start2" onchange="onAutoPlanStartChange('ap-start2', 'ap-start-other2')" style="padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;"></select></label>
-      <input id="ap-start-other2" class="hidden" placeholder="Postal code or address" onchange="onAutoPlanStartChange('ap-start2', 'ap-start-other2')" style="padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;font-size:12px;">
-      <label style="font-size:12px;">Leave at <input type="time" id="ap-leave" value="${set.leave}" style="padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;"></label>
-      <label style="font-size:12px;">Min per stop <input type="number" id="ap-stop" value="${set.perStop}" min="0" step="5" inputmode="numeric" style="width:56px;padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;"></label>
-      ${a.amCount && a.pmCount ? `<label style="font-size:12px;">Afternoon from <select id="ap-pmfrom" style="padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;">
-        <option value="last" ${a.pmFrom === 'last' ? 'selected' : ''}>Last morning stop</option>
-        <option value="start" ${a.pmFrom === 'start' ? 'selected' : ''}>Start point</option></select></label>` : ''}
-      <button onclick="replanWithSettings()" style="padding:6px 10px;border:1px solid #1B5E3A;background:#fff;color:#1B5E3A;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;">Re-plan</button>
-    </div>
-    <div style="font-size:11px;color:var(--grey-400);margin-top:6px;">Estimates: road times without live traffic, padded 25%, plus the minutes per stop. Check, then Save Times.</div>`;
+    <div class="rs-box" id="rs-ap"></div>
+    <button onclick="replanWithSettings()" style="margin-top:8px;width:100%;padding:9px 10px;border:1px solid #1B5E3A;background:#fff;color:#1B5E3A;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">Re-plan with these settings</button>
+    <div style="font-size:11px;color:var(--grey-400);margin-top:6px;">Estimates: road times without live traffic, padded 25%, plus the minutes at each stop. Check, then Save Times.</div>`;
   box.classList.remove('hidden');
-  fillStartPicker('ap-start2', 'ap-start-other2');
+  renderRouteSettings('rs-ap');
 }
 
 function replanWithSettings() {
-  const leave = document.getElementById('ap-leave').value || '09:00';
-  const perStop = Math.max(0, parseInt(document.getElementById('ap-stop').value, 10) || 0);
-  const sel = document.getElementById('ap-start2'), other = document.getElementById('ap-start-other2');
-  const pmFrom = document.getElementById('ap-pmfrom');
-  saveAutoPlanSettings({ leave, perStop, start: sel ? sel.value : 'home', startOther: other ? other.value.trim() : '',
-    pmFrom: pmFrom ? pmFrom.value : autoPlanSettings().pmFrom });
-  fillStartPicker('ap-start', 'ap-start-other');   // keep the home-page picker in step
+  onRouteSetting('rs-ap');   // pick up a field still being typed in
   autoPlanForDate();
 }
 
@@ -3094,7 +3202,7 @@ function renderAssignList() {
       const count = assignList.filter(x => slotOf(x) === slot).length;
       head = `<div class="assign-slot-head ${slot}">
         <span>${slot === 'am' ? 'Morning' : 'Afternoon'}<em>${slot === 'am' ? '9am to 12pm' : '12pm to 4pm'} &middot; ${count} stop${count === 1 ? '' : 's'}</em></span>
-        ${links[slot] ? `<a href="${links[slot]}" target="_blank" rel="noopener">Route in Maps &rarr;</a>` : ''}
+        ${links[slot] ? `<a id="assign-link-${slot}" href="${links[slot]}" target="_blank" rel="noopener">Route in Maps &rarr;</a>` : ''}
       </div>`;
     }
     n++;
@@ -3138,35 +3246,38 @@ async function tripEstimate() {
   const box = document.getElementById('assign-trip');
   const list = assignList.slice();
   try {
-    const start = await resolveAutoPlanStart();
     const pts = await geocodeInTurn(list);
     if (seq !== tripSeq) return;
     const found = list.map((b, i) => ({ b, ll: pts[i] })).filter(x => x.ll);
     const lost = list.filter((b, i) => !pts[i]);
     if (!found.length) throw new Error('none of the addresses could be found on the map');
 
-    // Same trip as the two Maps links: start, morning stops, (back to the
-    // start if the afternoon starts there), afternoon stops, back to the start
+    // Same trips as the two Maps links: each route from its own start to its own end
     const am = found.filter(x => slotOf(x.b) === 'am'), pm = found.filter(x => slotOf(x.b) === 'pm');
-    const pmFromStart = autoPlanSettings().pmFrom === 'start' || !am.length;
-    const pts2 = [start.ll].concat(am.map(x => x.ll), am.length && pm.length && pmFromStart ? [start.ll] : [], pm.map(x => x.ll), [start.ll]);
-    const coords = pts2.map(ll => ll[1] + ',' + ll[0]).join(';');
-    const r = await fetch('https://router.project-osrm.org/route/v1/driving/' + coords + '?overview=false');
-    const j = await r.json();
+    const set = autoPlanSettings(), ends = routeEnds(set, am.length > 0, pm.length > 0);
+    const at = async (p, what) => (await resolvePlace(p.key, p.other, what)).ll;
+    const amPts = am.length ? [await at(ends.amStart, 'morning start')].concat(am.map(x => x.ll), ends.amEnd ? [await at(ends.amEnd, 'morning end')] : []) : [];
+    const pmFrom = !pm.length ? null : ends.pmStart === 'lastAm' ? (am.length ? am[am.length - 1].ll : await at(ends.amStart, 'morning start')) : await at(ends.pmStart, 'afternoon start');
+    const pmPts = pm.length ? [pmFrom].concat(pm.map(x => x.ll), [await at(ends.pmEnd, 'afternoon end')]) : [];
+    const routeKm = async list => {
+      if (list.length < 2) return 0;
+      const r = await fetch('https://router.project-osrm.org/route/v1/driving/' + list.map(ll => ll[1] + ',' + ll[0]).join(';') + '?overview=false');
+      const j = await r.json();
+      if (j.code !== 'Ok' || !j.routes || !j.routes[0]) throw new Error('could not get road distances');
+      return j.routes[0].distance / 1000;
+    };
+    const amKm = await routeKm(amPts);
     if (seq !== tripSeq) return;
-    if (j.code !== 'Ok' || !j.routes || !j.routes[0]) throw new Error('could not get road distances');
-
-    const legs = j.routes[0].legs.map(l => l.distance / 1000);
-    const km = legs.reduce((t, x) => t + x, 0);
-    // Legs up to the last morning door belong to the morning, plus the drive
-    // back when the afternoon starts from the start point (or there is none)
-    const amLegs = !am.length ? 0 : am.length + (pmFromStart || !pm.length ? 1 : 0);
-    const amKm = legs.slice(0, amLegs).reduce((t, x) => t + x, 0), pmKm = km - amKm;
-    const cost = km * TRIP_RATE_PER_KM;
-    const split = am.length && pm.length
-      ? `<div style="margin-top:2px;">Morning <strong>${amKm.toFixed(1)} km</strong> &middot; Afternoon <strong>${pmKm.toFixed(1)} km</strong> &middot; Total <strong>${km.toFixed(1)} km</strong></div>
-         <div style="font-size:12px;margin-top:2px;">From <strong>${esc(start.label)}</strong>; the afternoon ${pmFromStart ? 'starts back at the start point' : 'carries on from the last morning stop'}, and ends back at the start. At $${TRIP_RATE_PER_KM.toFixed(2)}/km.</div>`
-      : `<div style="margin-top:2px;"><strong>${km.toFixed(1)} km</strong> from <strong>${esc(start.label)}</strong>, through ${found.length} ${am.length ? 'morning' : 'afternoon'} stop${found.length === 1 ? '' : 's'} and back (${legs[legs.length - 1].toFixed(1)} km of that is the drive back). At $${TRIP_RATE_PER_KM.toFixed(2)}/km.</div>`;
+    const pmKm = await routeKm(pmPts);
+    if (seq !== tripSeq) return;
+    const km = amKm + pmKm, cost = km * TRIP_RATE_PER_KM;
+    const lbl = p => p === 'lastAm' ? 'last morning stop' : placeShort(p.key, p.other);
+    const desc = (from, count, to) => `${esc(from)} &rarr; ${count} stop${count === 1 ? '' : 's'}${to ? ' &rarr; ' + esc(to) : ''}`;
+    const split = `
+      ${am.length ? `<div style="margin-top:2px;">Morning <strong>${amKm.toFixed(1)} km</strong> <span style="font-size:12px;color:var(--grey-500);">${desc(lbl(ends.amStart), am.length, ends.amEnd ? lbl(ends.amEnd) : '')}</span></div>` : ''}
+      ${pm.length ? `<div style="margin-top:2px;">Afternoon <strong>${pmKm.toFixed(1)} km</strong> <span style="font-size:12px;color:var(--grey-500);">${desc(lbl(ends.pmStart), pm.length, lbl(ends.pmEnd))}</span></div>` : ''}
+      ${am.length && pm.length ? `<div style="margin-top:2px;">Total <strong>${km.toFixed(1)} km</strong></div>` : ''}
+      <div style="font-size:12px;margin-top:2px;">At $${TRIP_RATE_PER_KM.toFixed(2)}/km.</div>`;
 
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
