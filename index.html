@@ -1323,6 +1323,14 @@ textarea.form-input {
 .map-row-v span { font-size: 10px; color: var(--grey-400); white-space: nowrap; }
 .map-note { font-size: 11px; color: var(--grey-400); margin-top: 10px; line-height: 1.5; text-align: center; }
 
+/* ── Assign: morning / afternoon groups ──────────────────── */
+.assign-slot-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 14px 0 8px; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; }
+.assign-slot-head:first-child { margin-top: 0; }
+.assign-slot-head.am { background: #FFF6DD; color: #7A5A00; }
+.assign-slot-head.pm { background: #E7EEF9; color: #1B2A4A; }
+.assign-slot-head em { font-style: normal; font-weight: 500; opacity: .8; margin-left: 4px; }
+.assign-slot-head a { font-size: 12px; font-weight: 600; color: inherit; white-space: nowrap; }
+
 /* ── Modal ───────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
@@ -2492,7 +2500,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-16.1';
+const APP_VERSION = '2026-10-18.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2721,13 +2729,7 @@ function planRouteForDate() {
     return;
   }
 
-  const stops = routeDatePickups.map(b => {
-    let addr = b.address.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!addr.toLowerCase().includes('singapore')) {
-      addr += ' Singapore';
-    }
-    return encodeURIComponent(addr);
-  });
+  const stops = slotSort(routeDatePickups).map(mapsAddr);
 
   const origin = encodeURIComponent(autoPlanStartAddress());
   const url = 'https://www.google.com/maps/dir/' + origin + '/' + stops.join('/') + '/' + origin;
@@ -2740,7 +2742,7 @@ function openAssignTimesForDate() {
     return;
   }
 
-  assignList = [...routeDatePickups];
+  assignList = slotSort([...routeDatePickups]);
   autoPlanLast = null;
   renderAssignList();
   renderAutoPlanPanel();
@@ -2767,7 +2769,10 @@ function autoPlanSettings() {
   return {
     leave: saved.leave || '09:00', perStop: saved.perStop != null ? saved.perStop : 15,
     start: (AUTOPLAN_STARTS[saved.start] || saved.start === 'other') ? saved.start : 'home',
-    startOther: saved.startOther || ''
+    startOther: saved.startOther || '',
+    // 'last': the afternoon carries on from the last morning stop
+    // 'start': back to the start point first (e.g. to unload at the unit)
+    pmFrom: saved.pmFrom === 'start' ? 'start' : 'last'
   };
 }
 function saveAutoPlanSettings(patch) {
@@ -2790,6 +2795,27 @@ function onAutoPlanStartChange(selId, otherId) {
   saveAutoPlanSettings({ start: sel.value, startOther: other ? other.value.trim() : '' });
   const page = document.querySelector('.page.active');
   if (page && page.id === 'page-assign') scheduleTripEstimate();   // a new start changes the distance
+}
+
+// Morning (9am to 12pm) or afternoon (12pm to 4pm), from the booked time.
+// Times are kept as HH:MM, so a plain string compare is safe.
+function slotOf(b) { return b && b.time && b.time >= '12:00' ? 'pm' : 'am'; }
+function slotSort(list) { return list.filter(b => slotOf(b) === 'am').concat(list.filter(b => slotOf(b) === 'pm')); }
+function mapsAddr(b) {
+  let addr = String(b.address || '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!/singapore/i.test(addr)) addr += ' Singapore';
+  return encodeURIComponent(addr);
+}
+// Google Maps links for each slot, in the order the stops are listed
+function slotMapsLinks(list) {
+  const set = autoPlanSettings(), origin = encodeURIComponent(autoPlanStartAddress());
+  const am = list.filter(b => slotOf(b) === 'am'), pm = list.filter(b => slotOf(b) === 'pm');
+  const dir = parts => 'https://www.google.com/maps/dir/' + parts.join('/');
+  const back = set.pmFrom === 'start' || !pm.length;
+  return {
+    am: am.length ? dir([origin].concat(am.map(mapsAddr), back ? [origin] : [])) : '',
+    pm: pm.length ? dir([set.pmFrom === 'start' || !am.length ? origin : mapsAddr(am[am.length - 1])].concat(pm.map(mapsAddr), [origin])) : ''
+  };
 }
 
 // The chosen start as a Maps address, without looking anything up
@@ -2908,30 +2934,52 @@ async function autoPlanForDate() {
     if (j.code !== 'Ok') throw new Error('Could not get drive times');
     const dur = j.durations;
 
-    // Morning first, then anyone booked from 12:00
+    // Two separate routes: the morning stops in their own best order, then the
+    // afternoon stops in theirs. The two are never interleaved.
     const idx = found.map((_, i) => i + 1);
-    const pm = idx.filter(i => found[i - 1].b.time && found[i - 1].b.time >= '12:00');
-    const am = idx.filter(i => !pm.includes(i));
+    const am = idx.filter(i => slotOf(found[i - 1].b) === 'am');
+    const pm = idx.filter(i => slotOf(found[i - 1].b) === 'pm');
     const amOrd = bestOrder(0, am, dur);
-    const pmOrd = bestOrder(amOrd.length ? amOrd[amOrd.length - 1] : 0, pm, dur);
-    const order = amOrd.concat(pmOrd);
-
-    let t = toMin(set.leave), cur = 0, driveTotal = 0;
-    const plan = order.map(i => {
-      const drive = dur[cur][i] * TRAFFIC_PAD / 60;
-      driveTotal += drive;
-      t += drive;
-      if (pmOrd.includes(i) && t < 12 * 60) t = 12 * 60;
+    const pmFromStart = set.pmFrom === 'start' || !amOrd.length;
+    const pmOrd = bestOrder(pmFromStart ? 0 : amOrd[amOrd.length - 1], pm, dur);
+    const per = Number(set.perStop || 0), leg = (a, b) => dur[a][b] * TRAFFIC_PAD / 60;
+    const plan = [];
+    let t = toMin(set.leave), cur = 0, amDrive = 0, pmDrive = 0, amFinish = null;
+    amOrd.forEach(i => {
+      const d = leg(cur, i);
+      amDrive += d; t += d;
       const eta = Math.ceil(t / 5) * 5;                   // round up to the next 5 minutes
-      t = eta + Number(set.perStop || 0);
-      cur = i;
-      return { b: found[i - 1].b, eta: toHHMM(eta), drive: Math.round(drive) };
+      t = eta + per; cur = i;
+      plan.push({ b: found[i - 1].b, eta: toHHMM(eta), drive: Math.round(d), slot: 'am' });
     });
-    autoPlanLast = { plan, lost, driveTotal: Math.round(driveTotal), finish: toHHMM(t), start };
+    if (amOrd.length) amFinish = t;
+    if (pmOrd.length) {
+      if (amOrd.length && pmFromStart) { const d = leg(cur, 0); amDrive += d; t += d; cur = 0; }
+      // Leave in time to reach the first afternoon door at 12:00, not before
+      t = Math.max(t, 12 * 60 - leg(cur, pmOrd[0]));
+      pmOrd.forEach(i => {
+        const d = leg(cur, i);
+        pmDrive += d; t += d;
+        if (t < 12 * 60) t = 12 * 60;
+        const eta = Math.ceil(t / 5) * 5;
+        t = eta + per; cur = i;
+        plan.push({ b: found[i - 1].b, eta: toHHMM(eta), drive: Math.round(d), slot: 'pm' });
+      });
+    }
+    autoPlanLast = {
+      plan, lost, start, pmFrom: pmFromStart ? 'start' : 'last',
+      amCount: amOrd.length, pmCount: pmOrd.length,
+      amDrive: Math.round(amDrive), pmDrive: Math.round(pmDrive), driveTotal: Math.round(amDrive + pmDrive),
+      amFinish: amFinish == null ? '' : toHHMM(amFinish), finish: toHHMM(t),
+      pmFirst: (plan.find(p => p.slot === 'pm') || {}).eta || ''
+    };
 
-    assignList = plan.map(p => p.b).concat(lost);
+    // Stops OneMap could not find stay in their own slot, at its end
+    const lostAm = lost.filter(b => slotOf(b) === 'am'), lostPm = lost.filter(b => slotOf(b) === 'pm');
+    assignList = plan.filter(p => p.slot === 'am').map(p => p.b).concat(lostAm, plan.filter(p => p.slot === 'pm').map(p => p.b), lostPm);
     renderAssignList();
-    plan.forEach((p, i) => { const inp = document.getElementById('assign-time-' + i); if (inp) inp.value = p.eta; });
+    const etaOf = new Map(plan.map(p => [p.b.id, p.eta]));
+    assignList.forEach((b, i) => { const inp = document.getElementById('assign-time-' + i); if (inp && etaOf.has(b.id)) inp.value = etaOf.get(b.id); });
     renderAutoPlanPanel();
     showPage('assign');
   } catch (err) {
@@ -2947,24 +2995,27 @@ function renderAutoPlanPanel() {
   if (!autoPlanLast) { box.classList.add('hidden'); return; }
   const set = autoPlanSettings();
   const a = autoPlanLast;
-  const stops = a.plan.map(p => {
-    let addr = p.b.address.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!/singapore/i.test(addr)) addr += ' Singapore';
-    return encodeURIComponent(addr);
-  });
-  const origin = encodeURIComponent((a.start && a.start.addr) || HOME_ADDRESS);
-  const maps = 'https://www.google.com/maps/dir/' + origin + '/' + stops.join('/') + '/' + origin;
+  const from = esc((a.start && a.start.label) || 'Home');
+  const lastAm = a.amCount ? a.plan.filter(p => p.slot === 'am').slice(-1)[0].b.name : '';
+  const amLine = a.amCount
+    ? `<div><strong>Morning:</strong> ${a.amCount} stop${a.amCount === 1 ? '' : 's'} from ${from}, about ${a.amDrive} min driving${a.pmCount && a.pmFrom === 'start' ? ' incl. the drive back' : ''}, done around <strong>${a.amFinish}</strong>.</div>` : '';
+  const pmLine = a.pmCount
+    ? `<div><strong>Afternoon:</strong> ${a.pmCount} stop${a.pmCount === 1 ? '' : 's'} from ${a.pmFrom === 'start' || !a.amCount ? from : esc(lastAm) + ' (last morning stop)'}, first door <strong>${a.pmFirst}</strong>, about ${a.pmDrive} min driving, done around <strong>${a.finish}</strong>.</div>` : '';
+  const late = a.amCount && a.amFinish > '12:00'
+    ? `<div style="color:#B26A00;margin-top:4px;">The morning runs past 12:00. Think about moving a stop to the afternoon (change its time to 12:00).</div>` : '';
   box.innerHTML = `
-    <div style="font-weight:700;color:#1B5E3A;font-size:14px;margin-bottom:4px;">Auto-planned route</div>
-    <div>From <strong>${esc((a.start && a.start.label) || 'Home')}</strong>. Best order below, times filled in. About <strong>${a.driveTotal} min</strong> of driving; last stop done around <strong>${a.finish}</strong>.</div>
-    ${a.lost.length ? `<div style="color:#B26A00;margin-top:4px;">Could not find on the map: ${a.lost.map(b => esc(b.name)).join(', ')}. Placed last with their current time; check the address has a postal code.</div>` : ''}
+    <div style="font-weight:700;color:#1B5E3A;font-size:14px;margin-bottom:4px;">Auto-planned: morning and afternoon as two routes</div>
+    ${amLine}${pmLine}${late}
+    ${a.lost.length ? `<div style="color:#B26A00;margin-top:4px;">Could not find on the map: ${a.lost.map(b => esc(b.name)).join(', ')}. Kept at the end of their slot with their current time; check the address has a postal code.</div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
       <label style="font-size:12px;">Start from <select id="ap-start2" onchange="onAutoPlanStartChange('ap-start2', 'ap-start-other2')" style="padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;"></select></label>
       <input id="ap-start-other2" class="hidden" placeholder="Postal code or address" onchange="onAutoPlanStartChange('ap-start2', 'ap-start-other2')" style="padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;font-size:12px;">
       <label style="font-size:12px;">Leave at <input type="time" id="ap-leave" value="${set.leave}" style="padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;"></label>
       <label style="font-size:12px;">Min per stop <input type="number" id="ap-stop" value="${set.perStop}" min="0" step="5" inputmode="numeric" style="width:56px;padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;"></label>
+      ${a.amCount && a.pmCount ? `<label style="font-size:12px;">Afternoon from <select id="ap-pmfrom" style="padding:4px 6px;border:1px solid var(--grey-200);border-radius:6px;">
+        <option value="last" ${a.pmFrom === 'last' ? 'selected' : ''}>Last morning stop</option>
+        <option value="start" ${a.pmFrom === 'start' ? 'selected' : ''}>Start point</option></select></label>` : ''}
       <button onclick="replanWithSettings()" style="padding:6px 10px;border:1px solid #1B5E3A;background:#fff;color:#1B5E3A;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;">Re-plan</button>
-      <a href="${maps}" target="_blank" style="font-size:12px;font-weight:600;color:var(--navy);">Open in Google Maps &rarr;</a>
     </div>
     <div style="font-size:11px;color:var(--grey-400);margin-top:6px;">Estimates: road times without live traffic, padded 25%, plus the minutes per stop. Check, then Save Times.</div>`;
   box.classList.remove('hidden');
@@ -2975,7 +3026,9 @@ function replanWithSettings() {
   const leave = document.getElementById('ap-leave').value || '09:00';
   const perStop = Math.max(0, parseInt(document.getElementById('ap-stop').value, 10) || 0);
   const sel = document.getElementById('ap-start2'), other = document.getElementById('ap-start-other2');
-  saveAutoPlanSettings({ leave, perStop, start: sel ? sel.value : 'home', startOther: other ? other.value.trim() : '' });
+  const pmFrom = document.getElementById('ap-pmfrom');
+  saveAutoPlanSettings({ leave, perStop, start: sel ? sel.value : 'home', startOther: other ? other.value.trim() : '',
+    pmFrom: pmFrom ? pmFrom.value : autoPlanSettings().pmFrom });
   fillStartPicker('ap-start', 'ap-start-other');   // keep the home-page picker in step
   autoPlanForDate();
 }
@@ -3000,7 +3053,7 @@ let assignList = []; // ordered list of bookings for time assignment
 function openAssignTimes() {
   // Use routeDatePickups if already loaded, otherwise try today
   if (routeDatePickups.length > 0) {
-    assignList = [...routeDatePickups];
+    assignList = slotSort([...routeDatePickups]);
   } else {
     const bookings = getBookings();
     const history = getHistory();
@@ -3012,6 +3065,7 @@ function openAssignTimes() {
       if (isClosedStatus(b.status)) return false;
       return b.date === today;
     }).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    assignList = slotSort(assignList);
 
     if (assignList.length === 0) {
       toast('Select a date and load pickups first');
@@ -3027,15 +3081,30 @@ function openAssignTimes() {
 
 function renderAssignList() {
   const container = document.getElementById('assign-list');
+  const links = slotMapsLinks(assignList);
+  let n = 0;
   container.innerHTML = assignList.map((b, i) => {
     const shortAddr = b.address.replace(/\n/g, ', ').replace(/\s+/g, ' ').trim();
-    return `
+    const slot = slotOf(b);
+    const first = i === 0 || slotOf(assignList[i - 1]) !== slot;
+    const last = i === assignList.length - 1 || slotOf(assignList[i + 1]) !== slot;
+    let head = '';
+    if (first) {
+      n = 0;
+      const count = assignList.filter(x => slotOf(x) === slot).length;
+      head = `<div class="assign-slot-head ${slot}">
+        <span>${slot === 'am' ? 'Morning' : 'Afternoon'}<em>${slot === 'am' ? '9am to 12pm' : '12pm to 4pm'} &middot; ${count} stop${count === 1 ? '' : 's'}</em></span>
+        ${links[slot] ? `<a href="${links[slot]}" target="_blank" rel="noopener">Route in Maps &rarr;</a>` : ''}
+      </div>`;
+    }
+    n++;
+    return `${head}
     <div class="assign-card" data-index="${i}">
       <div class="move-btns">
-        <button class="move-btn" onclick="moveAssign(${i}, -1)" ${i === 0 ? 'disabled style="opacity:0.3"' : ''}>&#9650;</button>
-        <button class="move-btn" onclick="moveAssign(${i}, 1)" ${i === assignList.length - 1 ? 'disabled style="opacity:0.3"' : ''}>&#9660;</button>
+        <button class="move-btn" onclick="moveAssign(${i}, -1)" ${first ? 'disabled style="opacity:0.3"' : ''}>&#9650;</button>
+        <button class="move-btn" onclick="moveAssign(${i}, 1)" ${last ? 'disabled style="opacity:0.3"' : ''}>&#9660;</button>
       </div>
-      <div class="order-num">${i + 1}</div>
+      <div class="order-num">${n}</div>
       <div class="assign-info">
         <div class="assign-name">${esc(b.name)}</div>
         <div class="assign-address">${esc(shortAddr)}</div>
@@ -3076,7 +3145,12 @@ async function tripEstimate() {
     const lost = list.filter((b, i) => !pts[i]);
     if (!found.length) throw new Error('none of the addresses could be found on the map');
 
-    const coords = [start.ll].concat(found.map(x => x.ll), [start.ll]).map(ll => ll[1] + ',' + ll[0]).join(';');
+    // Same trip as the two Maps links: start, morning stops, (back to the
+    // start if the afternoon starts there), afternoon stops, back to the start
+    const am = found.filter(x => slotOf(x.b) === 'am'), pm = found.filter(x => slotOf(x.b) === 'pm');
+    const pmFromStart = autoPlanSettings().pmFrom === 'start' || !am.length;
+    const pts2 = [start.ll].concat(am.map(x => x.ll), am.length && pm.length && pmFromStart ? [start.ll] : [], pm.map(x => x.ll), [start.ll]);
+    const coords = pts2.map(ll => ll[1] + ',' + ll[0]).join(';');
     const r = await fetch('https://router.project-osrm.org/route/v1/driving/' + coords + '?overview=false');
     const j = await r.json();
     if (seq !== tripSeq) return;
@@ -3084,27 +3158,24 @@ async function tripEstimate() {
 
     const legs = j.routes[0].legs.map(l => l.distance / 1000);
     const km = legs.reduce((t, x) => t + x, 0);
-    const back = legs[legs.length - 1];
+    // Legs up to the last morning door belong to the morning, plus the drive
+    // back when the afternoon starts from the start point (or there is none)
+    const amLegs = !am.length ? 0 : am.length + (pmFromStart || !pm.length ? 1 : 0);
+    const amKm = legs.slice(0, amLegs).reduce((t, x) => t + x, 0), pmKm = km - amKm;
     const cost = km * TRIP_RATE_PER_KM;
-    const stops = found.map(x => {
-      let addr = x.b.address.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-      if (!/singapore/i.test(addr)) addr += ' Singapore';
-      return encodeURIComponent(addr);
-    });
-    const origin = encodeURIComponent(start.addr);
-    const maps = 'https://www.google.com/maps/dir/' + origin + '/' + stops.join('/') + '/' + origin;
+    const split = am.length && pm.length
+      ? `<div style="margin-top:2px;">Morning <strong>${amKm.toFixed(1)} km</strong> &middot; Afternoon <strong>${pmKm.toFixed(1)} km</strong> &middot; Total <strong>${km.toFixed(1)} km</strong></div>
+         <div style="font-size:12px;margin-top:2px;">From <strong>${esc(start.label)}</strong>; the afternoon ${pmFromStart ? 'starts back at the start point' : 'carries on from the last morning stop'}, and ends back at the start. At $${TRIP_RATE_PER_KM.toFixed(2)}/km.</div>`
+      : `<div style="margin-top:2px;"><strong>${km.toFixed(1)} km</strong> from <strong>${esc(start.label)}</strong>, through ${found.length} ${am.length ? 'morning' : 'afternoon'} stop${found.length === 1 ? '' : 's'} and back (${legs[legs.length - 1].toFixed(1)} km of that is the drive back). At $${TRIP_RATE_PER_KM.toFixed(2)}/km.</div>`;
 
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
         <div style="font-weight:700;color:var(--navy);font-size:14px;">Trip estimate</div>
         <div style="font-weight:700;color:var(--navy);font-size:18px;">$${cost.toFixed(2)}</div>
       </div>
-      <div style="margin-top:2px;"><strong>${km.toFixed(1)} km</strong> from <strong>${esc(start.label)}</strong>, through ${found.length} stop${found.length === 1 ? '' : 's'} in the order below, and back (${back.toFixed(1)} km of that is the drive back). At $${TRIP_RATE_PER_KM.toFixed(2)}/km.</div>
+      ${split}
       ${lost.length ? `<div style="color:#B26A00;margin-top:4px;">Not counted, not found on the map: ${lost.map(b => esc(b.name)).join(', ')}.</div>` : ''}
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;">
-        <span style="font-size:11px;color:var(--grey-400);">Road distance, changes when you reorder.</span>
-        <a href="${maps}" target="_blank" style="font-size:12px;font-weight:600;color:var(--navy);white-space:nowrap;">This order in Maps &rarr;</a>
-      </div>`;
+      <div style="font-size:11px;color:var(--grey-400);margin-top:6px;">Road distance, changes when you reorder. Each route has its own Maps link below.</div>`;
   } catch (err) {
     if (seq !== tripSeq) return;
     console.error('Trip estimate error:', err);
@@ -3115,6 +3186,10 @@ async function tripEstimate() {
 function moveAssign(index, direction) {
   const newIndex = index + direction;
   if (newIndex < 0 || newIndex >= assignList.length) return;
+  if (slotOf(assignList[index]) !== slotOf(assignList[newIndex])) {
+    toast('Morning and afternoon are separate routes. Change the time to move a stop across.');
+    return;
+  }
 
   // Swap items
   const temp = assignList[index];
