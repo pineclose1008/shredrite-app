@@ -1728,7 +1728,7 @@ textarea.form-input {
           <div class="receipt-payment" id="r-payment"></div>
           <div id="r-paynow-qr" class="hidden" style="text-align:center;margin-top:14px;">
             <div id="r-paynow-qr-code" style="display:block;width:176px;margin:0 auto;padding:8px;background:#fff;"></div>
-            <div style="font-size:11px;color:#666;margin-top:4px;">Scan to PayNow SHREDRITE PTE. LTD.<br>UEN 202614101Z<br>Key in the amount when paying</div>
+            <div style="font-size:11px;color:#666;margin-top:4px;">Scan to PayNow SHREDRITE PTE. LTD.<br>UEN 202614101Z<br><span id="r-paynow-qr-amt">Amount filled in</span></div>
           </div>
         </div>
         <div class="receipt-footer">
@@ -2516,7 +2516,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-19.1';
+const APP_VERSION = '2026-10-21.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -4580,6 +4580,24 @@ function scheduleReceiptImage() {
   receiptImgTimer = setTimeout(() => { prepareReceiptImage(); }, 500);
 }
 
+// A photo cropped to the box it fills on screen (centre crop, like
+// object-fit: cover), at the picture's scale. null if it cannot be read.
+async function cropToBox(img, scale) {
+  try {
+    if (!img.complete || !img.naturalWidth) await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+    const bw = img.clientWidth || 300, bh = img.clientHeight || Math.round(bw * 3 / 4);
+    const W = Math.round(bw * scale), H = Math.round(bh * scale);
+    const nw = img.naturalWidth, nh = img.naturalHeight;
+    const r = Math.max(W / nw, H / nh), sw = W / r, sh = H / r;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    c.getContext('2d').drawImage(img, (nw - sw) / 2, (nh - sh) / 2, sw, sh, 0, 0, W, H);
+    return c.toDataURL('image/jpeg', 0.88);
+  } catch (e) {
+    return null;
+  }
+}
+
 async function prepareReceiptImage() {
   if (!currentPickup || !currentPickup._collection) return null;
   const key = receiptKey();
@@ -4590,25 +4608,25 @@ async function prepareReceiptImage() {
       // From the SHREDRITE header down to the end of the collection photos
       const el = document.getElementById('receipt-capture');
       const lowMem = navigator.deviceMemory ? navigator.deviceMemory < 4 : /Android/i.test(navigator.userAgent);
+      const scale = lowMem ? 1.5 : 2;
+      // On screen each photo sits in a small 4:3 box, cropped to fit.
+      // html2canvas cannot crop (no object-fit), so each photo is cropped to
+      // its box first and the picture shows the photos exactly as on screen.
+      const shots = await Promise.all([...document.querySelectorAll('#r-photos img')].map(im => cropToBox(im, scale)));
       const canvas = await html2canvas(el, {
-        scale: lowMem ? 1.5 : 2, backgroundColor: '#FFFFFF', useCORS: true, logging: false,
-        // On screen the photos are cropped into small 4:3 boxes; html2canvas
-        // cannot crop, so it squeezed tall phone photos into them. In the saved
-        // picture each photo runs full width at its own shape, however long.
+        scale, backgroundColor: '#FFFFFF', useCORS: true, logging: false,
         onclone: doc => {
-          const grid = doc.getElementById('r-photos');
-          if (grid) {
-            grid.style.gridTemplateColumns = '1fr';
-            grid.querySelectorAll('img').forEach(im => {
-              im.style.aspectRatio = 'auto'; im.style.height = 'auto'; im.style.objectFit = 'fill';
-            });
-          }
+          doc.querySelectorAll('#r-photos img').forEach((im, i) => {
+            if (!shots[i]) return;
+            im.src = shots[i];
+            im.style.objectFit = 'fill';
+          });
         }
       });
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      const fileName = 'ShredRite-Receipt-' + currentPickup.name.replace(/\s+/g, '-') + '-' + localDateStr() + '.png';
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+      const fileName = 'ShredRite-Receipt-' + currentPickup.name.replace(/\s+/g, '-') + '-' + localDateStr() + '.jpg';
       if (receiptImg && receiptImg.url) URL.revokeObjectURL(receiptImg.url);
-      receiptImg = { key, file: new File([blob], fileName, { type: 'image/png' }), url: URL.createObjectURL(blob) };
+      receiptImg = { key, file: new File([blob], fileName, { type: 'image/jpeg' }), url: URL.createObjectURL(blob) };
       return receiptImg;
     } catch (err) {
       console.error('Receipt capture error:', err);
@@ -8314,9 +8332,10 @@ function crc16ccitt(str) {
 // and reference are added, so it pays the same account as the sticker.
 const SR_UEN = '202614101Z';
 const SR_UEN_NAME = 'SHREDRITE PTE. LTD.';
-// The bank-issued sticker, verbatim (static, no amount). Shown on the invoice
-// so the customer keys in the amount themselves: a prefilled exact amount
-// removes the round-up that tips usually come from.
+// The bank-issued sticker, verbatim (static, no amount). Since 2026-10-21 the
+// invoice QR is this same code with the amount filled in (see
+// srPayNowWithAmount); the sticker says the amount stays editable, so a
+// customer can still round up.
 const SR_STATIC_QR = '00020101021126610009SG.PAYNOW010120210202614101Z030110520QSSHREDRITE PTE. LTD51800007SG.SGQR0112260402351BC5020701.00010306068914040214050204060400000708202604025204000053037025802SG5919SHREDRITE PTE. LTD.6009Singapore63042B12';
 
 function buildPayNowPayload(amount, refText, to) {
@@ -8343,6 +8362,34 @@ function buildPayNowPayload(amount, refText, to) {
   return payload + crc16ccitt(payload);
 }
 
+// Split an EMV payload into [tag, value] pairs
+function emvParse(str) {
+  const out = [];
+  for (let i = 0; i + 4 <= str.length;) {
+    const id = str.substr(i, 2), len = parseInt(str.substr(i + 2, 2), 10);
+    if (isNaN(len)) break;
+    out.push([id, str.substr(i + 4, len)]);
+    i += 4 + len;
+  }
+  return out;
+}
+// The bank-issued ShredRite code with only three changes: one-time (dynamic)
+// instead of static, the amount, and a reference (the customer's name) that
+// shows on the payment. Everything else, including the account details and
+// the SGQR registration block, is the bank's own, byte for byte.
+function srPayNowWithAmount(amount, refText) {
+  const out = [];
+  emvParse(SR_STATIC_QR).forEach(([id, v]) => {
+    if (id === '63' || id === '54' || id === '62') return;
+    out.push([id, id === '01' ? '12' : v]);
+    if (id === '53') out.push(['54', Number(amount).toFixed(2)]);
+  });
+  const ref = String(refText || '').replace(/[^A-Za-z0-9 \-]/g, '').trim().slice(0, 25);
+  if (ref) out.push(['62', emvField('01', ref)]);
+  const payload = out.map(([id, v]) => emvField(id, v)).join('') + '6304';
+  return payload + crc16ccitt(payload);
+}
+
 // Render a PayNow QR into a container; hides the wrapper when unavailable
 function renderPayNowQR(wrapperId, codeId, amount, refText, to) {
   const wrapper = document.getElementById(wrapperId);
@@ -8351,11 +8398,13 @@ function renderPayNowQR(wrapperId, codeId, amount, refText, to) {
   if (!window.QRCode || !(amount > 0)) { wrapper.classList.add('hidden'); return; }
   container.innerHTML = '';
   new QRCode(container, {
-    text: to === 'shredrite' ? SR_STATIC_QR : buildPayNowPayload(amount, refText, to),
+    text: to === 'shredrite' ? srPayNowWithAmount(amount, refText) : buildPayNowPayload(amount, refText, to),
     width: 160, height: 160,
     correctLevel: QRCode.CorrectLevel.M
   });
   wrapper.classList.remove('hidden');
+  const amt = document.getElementById(wrapperId + '-amt');   // the caption under the ShredRite QR
+  if (amt) amt.textContent = '$' + Number(amount).toFixed(2) + ' filled in';
 }
 
 // The invoice shows the ShredRite QR only when that account was chosen;
