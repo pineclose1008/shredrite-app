@@ -1350,6 +1350,10 @@ textarea.form-input {
 .rs-other.hidden { display: none; }
 .rs-hint { font-size: 11px; color: var(--grey-500); margin-top: 4px; }
 
+/* ── Customer "available from" ────────────────────────────── */
+.avail-chip { display: inline-block; font-size: 11px; font-weight: 700; color: #8A4B00; background: #FFE9CC; border: 1px solid #F5C98B; border-radius: 999px; padding: 1px 8px; margin-top: 3px; white-space: nowrap; }
+.form-hint { font-size: 12px; color: var(--grey-500); margin-top: 6px; line-height: 1.45; }
+
 /* ── Modal ───────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
@@ -1875,6 +1879,15 @@ textarea.form-input {
       </div>
 
       <div class="form-group">
+        <label class="form-label" for="b-avail">Customer available from <span style="text-transform:none;letter-spacing:0;font-weight:500;">(optional)</span></label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="time" class="form-input" id="b-avail" style="flex:1;" onchange="onAvailChange('b')">
+          <button type="button" class="btn-secondary" style="width:auto;padding:11px 14px;font-size:13px;" onclick="clearAvail('b')">Clear</button>
+        </div>
+        <div class="form-hint" id="b-avail-hint">Only when the customer is not home for the whole slot. Auto Plan never arrives before this time.</div>
+      </div>
+
+      <div class="form-group">
         <label class="form-label">Booking Fee ($)</label>
         <input type="number" class="form-input" id="b-fee" value="20" inputmode="decimal" step="1" min="0">
       </div>
@@ -2339,6 +2352,14 @@ textarea.form-input {
       <label class="form-label">Email (optional)</label>
       <input type="email" class="form-input" id="e-email" placeholder="email@example.com">
     </div>
+    <div class="form-group">
+      <label class="form-label" for="e-avail">Available from (optional)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="time" class="form-input" id="e-avail" style="flex:1;" onchange="onAvailChange('e')">
+        <button type="button" class="btn-secondary" style="width:auto;padding:11px 14px;font-size:13px;" onclick="clearAvail('e')">Clear</button>
+      </div>
+      <div class="form-hint" id="e-avail-hint">Auto Plan never arrives before this time.</div>
+    </div>
     <div class="btn-row">
       <button class="btn-secondary" onclick="closeEditPickup()">Cancel</button>
       <button class="btn-primary gold" onclick="saveEditPickup()" style="flex:2;">Save Changes</button>
@@ -2516,7 +2537,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-21.2';
+const APP_VERSION = '2026-10-28.2';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2735,7 +2756,7 @@ function loadDatePickups() {
   document.getElementById('route-summary-count').textContent = routeDatePickups.length + ' stops';
   refreshRouteForms();
   document.getElementById('route-summary-names').innerHTML = routeDatePickups.map((b, i) =>
-    `${i + 1}. ${esc(b.name)} <span style="color:var(--grey-300);">${b.time ? formatTime(b.time) : 'no time'}</span>`
+    `${i + 1}. ${esc(b.name)} <span style="color:var(--grey-300);">${b.time ? formatTime(b.time) : 'no time'}</span>${b.availableFrom ? ` <span style="color:#8A4B00;font-weight:600;">(from ${formatTime(b.availableFrom)})</span>` : ''}`
   ).join('<br>');
 }
 
@@ -2909,8 +2930,34 @@ function toggleRouteSettings() {
 }
 
 // Morning (9am to 12pm) or afternoon (12pm to 4pm), from the booked time.
-// Times are kept as HH:MM, so a plain string compare is safe.
-function slotOf(b) { return b && b.time && b.time >= '12:00' ? 'pm' : 'am'; }
+// A customer only free from 12:00 or later is an afternoon stop whatever the
+// booked slot. Times are kept as HH:MM, so a plain string compare is safe.
+function slotOf(b) {
+  if (b && b.availableFrom && b.availableFrom >= '12:00') return 'pm';
+  return b && b.time && b.time >= '12:00' ? 'pm' : 'am';
+}
+
+// The "available from" field on New Booking ('b') and Edit ('e')
+function onAvailChange(px, booking) {
+  const v = document.getElementById(px + '-avail').value;
+  const hint = document.getElementById(px + '-avail-hint');
+  const slotSel = px === 'b' ? document.getElementById('b-time') : null;
+  let note = px === 'b' ? 'Only when the customer is not home for the whole slot. ' : '';
+  if (v) {
+    if (slotSel) {
+      if (v >= '12:00' && slotSel.value !== '12:00') { slotSel.value = '12:00'; note = 'Moved to the afternoon slot, since the customer is only free from ' + formatTime(v) + '. '; }
+      else if (v < '12:00' && !slotSel.value) slotSel.value = '09:00';
+    } else if (booking && v >= '12:00' && !(booking.time >= '12:00')) {
+      note = 'This makes it an afternoon stop. ';
+    }
+  }
+  hint.textContent = note + 'Auto Plan never arrives before this time.';
+}
+function clearAvail(px) {
+  document.getElementById(px + '-avail').value = '';
+  onAvailChange(px);
+}
+function availChip(b) { return b && b.availableFrom ? `<span class="avail-chip">From ${formatTime(b.availableFrom)}</span>` : ''; }
 function slotSort(list) { return list.filter(b => slotOf(b) === 'am').concat(list.filter(b => slotOf(b) === 'pm')); }
 function mapsAddr(b) {
   let addr = String(b.address || '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
@@ -3014,7 +3061,67 @@ function bestOrder(from, idx, dur, to) {
 }
 
 const toMin = t => { const [h, m] = String(t || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
-const toHHMM = m => String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(Math.round(m % 60)).padStart(2, '0');
+
+/* One route with time limits. o = { from, stops, to, dur, per, earliest(i),
+   slotEnd, depart(firstStop) }. Walks an order: drive, wait for anyone not yet
+   available, spend the minutes at the door; leaves later instead of waiting at
+   the first door. The best order finishes earliest (driving plus waiting),
+   with each minute past the slot end counted five times over. Up to 8 stops
+   every order is tried; beyond that, nearest-next then untangled. With no
+   limits this is simply the least driving, as before. */
+function planRoute(o) {
+  const leg = (a, b) => o.dur[a][b] * TRAFFIC_PAD / 60;
+  const walk = (ord, round) => {
+    const r = { order: ord, etas: [], waits: [], drives: [], drive: 0, late: 0, depart: null, lastDoor: null, finish: null };
+    if (!ord.length) return r;
+    let t = Math.max(o.depart(ord[0]), o.earliest(ord[0]) - leg(o.from, ord[0])), cur = o.from;
+    r.depart = t;
+    ord.forEach(i => {
+      const d = leg(cur, i), w = Math.max(0, o.earliest(i) - (t + d));
+      t += d + w;
+      const eta = round ? Math.ceil(t / 5) * 5 : t;      // round up to the next 5 minutes
+      r.drives.push(d); r.waits.push(w); r.etas.push(eta);
+      r.drive += d;
+      if (eta > o.slotEnd) r.late += eta - o.slotEnd;
+      t = eta + o.per; cur = i;
+    });
+    r.lastDoor = t;
+    if (o.to != null) { const d = leg(cur, o.to); r.drive += d; t += d; }
+    r.finish = t;
+    return r;
+  };
+  const cost = ord => { const r = walk(ord, false); return r.finish + 5 * r.late + 0.01 * r.drive; };
+  const stops = o.stops.slice();
+  if (stops.length <= 1) return walk(stops, true);
+  let best = null, bestC = Infinity;
+  if (stops.length <= 8) {
+    const perm = (arr, l) => {
+      if (l === arr.length) { const c = cost(arr); if (c < bestC) { bestC = c; best = arr.slice(); } return; }
+      for (let i = l; i < arr.length; i++) { [arr[l], arr[i]] = [arr[i], arr[l]]; perm(arr, l + 1); [arr[l], arr[i]] = [arr[i], arr[l]]; }
+    };
+    perm(stops, 0);
+  } else {
+    // nearest next door that can actually be reached soonest, then 2-opt
+    let ord = [], left = stops.slice(), cur = o.from, t = o.depart(left[0]);
+    while (left.length) {
+      left.sort((a, b) => Math.max(t + leg(cur, a), o.earliest(a)) - Math.max(t + leg(cur, b), o.earliest(b)));
+      const nx = left.shift();
+      t = Math.max(t + leg(cur, nx), o.earliest(nx)) + o.per; cur = nx; ord.push(nx);
+    }
+    best = ord; bestC = cost(ord);
+    let better = true;
+    while (better) {
+      better = false;
+      for (let i = 0; i < best.length - 1; i++) for (let j = i + 1; j < best.length; j++) {
+        const cand = best.slice(0, i).concat(best.slice(i, j + 1).reverse(), best.slice(j + 1));
+        const c = cost(cand);
+        if (c + 0.5 < bestC) { best = cand; bestC = c; better = true; }
+      }
+    }
+  }
+  return walk(best, true);
+}
+const toHHMM = m => { m = Math.round(m); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 
 async function autoPlanForDate() {
   if (routeDatePickups.length === 0) { toast('Load a date first'); return; }
@@ -3049,50 +3156,35 @@ async function autoPlanForDate() {
     if (j.code !== 'Ok') throw new Error('Could not get drive times');
     const dur = j.durations, base = places.length;
 
-    // Two separate routes, each in its own best order, never interleaved
+    // Two separate routes, each in its own best order, never interleaved. A
+    // customer's "available from" time is a hard start: the plan waits (or
+    // leaves later) rather than knock early. Afternoon doors are never before 12:00.
     const am = [], pm = [];
     found.forEach((x, i) => (slotOf(x.b) === 'am' ? am : pm).push(base + i));
-    const amOrd = bestOrder(iAmStart, am, dur, iAmEnd);
-    if (pm.length && iPmStart == null) iPmStart = amOrd.length ? amOrd[amOrd.length - 1] : iAmStart;   // the last morning stop
-    const pmOrd = bestOrder(iPmStart, pm, dur, iPmEnd);
-
     const per = Number(set.perStop || 0), leg = (a, b) => dur[a][b] * TRAFFIC_PAD / 60, stopOf = i => found[i - base].b;
+    const avail = i => stopOf(i).availableFrom ? toMin(stopOf(i).availableFrom) : 0;
+    const amR = planRoute({ from: iAmStart, stops: am, to: iAmEnd, dur, per, earliest: avail, slotEnd: 12 * 60,
+      depart: () => toMin(set.leave) });
+    if (pm.length && iPmStart == null) iPmStart = amR.order.length ? amR.order[amR.order.length - 1] : iAmStart;   // the last morning stop
+    const ready = amR.order.length ? amR.finish : 0;
+    const pmEarliest = i => Math.max(12 * 60, avail(i));
+    const pmR = planRoute({ from: iPmStart, stops: pm, to: iPmEnd, dur, per, earliest: pmEarliest, slotEnd: 16 * 60,
+      // a set leave time, or in time for the first door; never before the morning is over
+      depart: first => set.pmLeave ? Math.max(toMin(set.pmLeave), ready) : Math.max(ready, pmEarliest(first) - leg(iPmStart, first)) });
+
     const plan = [];
-    let t = toMin(set.leave), cur = iAmStart, amDrive = 0, pmDrive = 0, amDoor = null, amEndAt = null, pmLeaveAt = null;
-    amOrd.forEach(i => {
-      const d = leg(cur, i);
-      amDrive += d; t += d;
-      const eta = Math.ceil(t / 5) * 5;                   // round up to the next 5 minutes
-      t = eta + per; cur = i;
-      plan.push({ b: stopOf(i), eta: toHHMM(eta), drive: Math.round(d), slot: 'am' });
-    });
-    if (amOrd.length) {
-      amDoor = t;
-      if (iAmEnd != null) { const d = leg(cur, iAmEnd); amDrive += d; t += d; }
-      amEndAt = t;
-    }
-    if (pmOrd.length) {
-      cur = iPmStart;
-      const ready = amEndAt != null ? amEndAt : 0;
-      // A set leave time, or leave in time to reach the first door at 12:00; never before the morning is over
-      t = set.pmLeave ? Math.max(toMin(set.pmLeave), ready) : Math.max(ready, 12 * 60 - leg(cur, pmOrd[0]));
-      pmLeaveAt = t;
-      pmOrd.forEach(i => {
-        const d = leg(cur, i);
-        pmDrive += d; t += d;
-        if (t < 12 * 60) t = 12 * 60;
-        const eta = Math.ceil(t / 5) * 5;
-        t = eta + per; cur = i;
-        plan.push({ b: stopOf(i), eta: toHHMM(eta), drive: Math.round(d), slot: 'pm' });
-      });
-      if (iPmEnd != null) { const d = leg(cur, iPmEnd); pmDrive += d; t += d; }
-    }
-    const lastAmName = amOrd.length ? stopOf(amOrd[amOrd.length - 1]).name : '';
+    [[amR, 'am'], [pmR, 'pm']].forEach(([R, slot]) => R.order.forEach((i, k) => plan.push({
+      b: stopOf(i), eta: toHHMM(R.etas[k]), drive: Math.round(R.drives[k]), wait: Math.round(R.waits[k]), slot,
+      late: R.etas[k] > (slot === 'am' ? 12 * 60 : 16 * 60)
+    })));
+    const lastAmName = amR.order.length ? stopOf(amR.order[amR.order.length - 1]).name : '';
     autoPlanLast = {
-      plan, lost, amCount: amOrd.length, pmCount: pmOrd.length,
-      amDrive: Math.round(amDrive), pmDrive: Math.round(pmDrive), driveTotal: Math.round(amDrive + pmDrive),
-      amLeave: set.leave, amDoor: amDoor == null ? '' : toHHMM(amDoor), amEndAt: amEndAt == null ? '' : toHHMM(amEndAt),
-      pmLeave: pmLeaveAt == null ? '' : toHHMM(pmLeaveAt), pmFirst: (plan.find(p => p.slot === 'pm') || {}).eta || '', finish: toHHMM(t),
+      plan, lost, amCount: amR.order.length, pmCount: pmR.order.length,
+      amDrive: Math.round(amR.drive), pmDrive: Math.round(pmR.drive), driveTotal: Math.round(amR.drive + pmR.drive),
+      amLeave: amR.depart == null ? set.leave : toHHMM(amR.depart), amLeaveSet: set.leave,
+      amDoor: amR.lastDoor == null ? '' : toHHMM(amR.lastDoor), amEndAt: amR.finish == null ? '' : toHHMM(amR.finish),
+      pmLeave: pmR.depart == null ? '' : toHHMM(pmR.depart), pmFirst: (plan.find(p => p.slot === 'pm') || {}).eta || '',
+      finish: pmR.finish != null ? toHHMM(pmR.finish) : (amR.finish != null ? toHHMM(amR.finish) : ''),
       amStartLabel: iAmStart != null ? places[iAmStart].label : '',
       amEndLabel: iAmEnd != null ? places[iAmEnd].label : '',
       pmStartLabel: iPmStart == null ? '' : iPmStart < base ? places[iPmStart].label : lastAmName + ' (last morning stop)',
@@ -3123,11 +3215,17 @@ function renderAutoPlanPanel() {
     ? `<div><strong>Morning:</strong> leave ${esc(a.amStartLabel)} at <strong>${a.amLeave}</strong>, ${n(a.amCount)}, last one done around <strong>${a.amDoor}</strong>, ${a.amEndLabel ? 'back at ' + esc(a.amEndLabel) + ' around ' + a.amEndAt : 'then straight on to the afternoon'}. About ${a.amDrive} min driving.</div>` : '';
   const pmLine = a.pmCount
     ? `<div style="margin-top:3px;"><strong>Afternoon:</strong> leave ${esc(a.pmStartLabel)} at <strong>${a.pmLeave}</strong>, first door <strong>${a.pmFirst}</strong>, ${n(a.pmCount)}, ${a.pmEndLabel ? 'back at ' + esc(a.pmEndLabel) + ' around <strong>' + a.finish + '</strong>' : 'done around ' + a.finish}. About ${a.pmDrive} min driving.</div>` : '';
-  const late = a.amCount && a.amDoor > '12:00'
-    ? `<div style="color:#B26A00;margin-top:4px;">The morning runs past 12:00. Think about moving a stop to the afternoon (change its time to 12:00).</div>` : '';
+  const lateAm = a.plan.filter(p => p.slot === 'am' && p.late), latePm = a.plan.filter(p => p.slot === 'pm' && p.late);
+  const late = (lateAm.length ? `<div style="color:#B26A00;margin-top:4px;">Past 12:00 in the morning: ${lateAm.map(p => esc(p.b.name) + ' ' + formatTime(p.eta)).join(', ')}. Think about moving a stop to the afternoon.</div>` : '')
+    + (latePm.length ? `<div style="color:#B26A00;margin-top:4px;">Past 4pm: ${latePm.map(p => esc(p.b.name) + ' ' + formatTime(p.eta)).join(', ')}.</div>` : '');
+  const limited = a.plan.filter(p => p.b.availableFrom);
+  const limits = limited.length
+    ? `<div style="margin-top:4px;"><strong>Time limits kept:</strong> ${limited.map(p => `${esc(p.b.name)} free from ${formatTime(p.b.availableFrom)}, arrive ${formatTime(p.eta)}${p.wait >= 5 ? ' (waits ' + p.wait + ' min)' : ''}`).join('; ')}.</div>` : '';
+  const later = a.amCount && a.amLeave > a.amLeaveSet
+    ? `<div style="margin-top:2px;font-size:12px;">Leaves at ${a.amLeave} instead of ${a.amLeaveSet}: the first customer is not free earlier.</div>` : '';
   box.innerHTML = `
     <div style="font-weight:700;color:#1B5E3A;font-size:14px;margin-bottom:4px;">Auto-planned: morning and afternoon as two routes</div>
-    ${amLine}${pmLine}${late}
+    ${amLine}${later}${pmLine}${limits}${late}
     ${a.lost.length ? `<div style="color:#B26A00;margin-top:4px;">Could not find on the map: ${a.lost.map(b => esc(b.name)).join(', ')}. Kept at the end of their slot with their current time; check the address has a postal code.</div>` : ''}
     <div class="rs-box" id="rs-ap"></div>
     <button onclick="replanWithSettings()" style="margin-top:8px;width:100%;padding:9px 10px;border:1px solid #1B5E3A;background:#fff;color:#1B5E3A;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">Re-plan with these settings</button>
@@ -3214,7 +3312,7 @@ function renderAssignList() {
       </div>
       <div class="order-num">${n}</div>
       <div class="assign-info">
-        <div class="assign-name">${esc(b.name)}</div>
+        <div class="assign-name">${esc(b.name)}</div>${availChip(b)}
         <div class="assign-address">${esc(shortAddr)}</div>
       </div>
       <input type="time" class="assign-time-input" id="assign-time-${i}" value="${b.time || ''}">
@@ -3689,7 +3787,8 @@ async function syncFromSheet(status) {
           if (!sheetVersion) return; // row left the upcoming window; drop override
           const caughtUp = sheetVersion.name === local.name
             && dig(sheetVersion.phone) === dig(local.phone)
-            && String(sheetVersion.address || '').trim() === String(local.address || '').trim();
+            && String(sheetVersion.address || '').trim() === String(local.address || '').trim()
+            && String(sheetVersion.availableFrom || '') === String(local.availableFrom || '');
           if (caughtUp) delete local.editPending;
           else { editedCarry.push(local); editedIds.add(sid); }
         });
@@ -4005,7 +4104,7 @@ function renderPickups() {
       <div class="pickup-card ${isCompleted ? 'completed' : ''}" data-booking-id="${esc(b.id)}" data-action="${isCompleted ? 'view' : 'collect'}" onclick="handleCardClick(this,event)" style="cursor:pointer;">
         <div class="pickup-card-header">
           <div class="pickup-card-name">${esc(b.name)}</div>
-          ${b.time ? `<div class="pickup-card-time">${formatTime(b.time)}</div>` : ''}
+          ${b.time ? `<div class="pickup-card-time">${formatTime(b.time)}</div>` : ''}${availChip(b)}
         </div>
         <div class="pickup-card-address" style="white-space:pre-line">${esc(b.address)}</div>
         ${collectionInfo}
@@ -4898,8 +4997,18 @@ function parseBookingSlot(t) {
   return h < 12 ? '09:00' : '12:00';
 }
 
+// "available from 2pm", "free after 3.30pm", "not before 11am", "2pm onwards"
+const AVAIL_RE = /\b(?:from|after|earliest|not before)\s+(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)\b|\b(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)\s*(?:onwards?|and after|or later)\b/i;
+function parseAvailFrom(text) {
+  const m = String(text || '').match(AVAIL_RE);
+  if (!m) return '';
+  const h = +(m[1] || m[4]), mi = m[2] || m[5] || '00', ap = String(m[3] || m[6]).toLowerCase();
+  if (!(h >= 1 && h <= 12) || +mi > 59) return '';
+  return String(h % 12 + (ap === 'pm' ? 12 : 0)).padStart(2, '0') + ':' + mi;
+}
+
 function parseCustomerDetails(text) {
-  const out = { name: '', phone: '', address: '', date: '', slot: '', code: '' };
+  const out = { name: '', phone: '', address: '', date: '', slot: '', code: '', availableFrom: '' };
   // Booking lines from the website's WhatsApp message (or typed the same way)
   const BOOK = /^(date|tarikh|time|slot|masa|discount\s*code|promo\s*code|code|area|masjid\s*give-?back|give-?back)\s*[:\-]\s*(.*)$/i;
   const PHONE = /(?:\+?65[\s-]?)?([689]\d{3})[\s-]?(\d{4})(?!\d)/;
@@ -4916,6 +5025,12 @@ function parseCustomerDetails(text) {
   let labelled = false, current = null;
   const loose = [];
   lines.forEach(l => {
+    // A line about when they are home ("only free after 2pm") is not a name or address
+    if (AVAIL_RE.test(l) && !/\d{6}|\d{8}/.test(l.replace(/[\s-]/g, ''))) {
+      out.availableFrom = parseAvailFrom(l) || out.availableFrom;
+      current = null;
+      return;
+    }
     const bk = l.match(BOOK);
     if (bk) {
       const k = bk[1].toLowerCase(), v = bk[2].trim();
@@ -4959,6 +5074,7 @@ function parseCustomerDetails(text) {
   }
   // A code typed anywhere, e.g. "I have ALEEM10"
   if (!out.code) { const c = String(text || '').match(/\b([A-Z]{3,12}10)\b/); if (c) out.code = c[1]; }
+  if (!out.availableFrom) out.availableFrom = parseAvailFrom(text);
   out.name = out.name.replace(/\s+/g, ' ').trim();
   out.address = out.address.split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
   return out;
@@ -4975,6 +5091,7 @@ function fillFromPaste() {
   if (d.address) { document.getElementById('b-address').value = d.address; filled.push('address'); }
   if (d.date) { document.getElementById('b-date').value = d.date; filled.push('date'); }
   if (d.slot) { document.getElementById('b-time').value = d.slot; filled.push(d.slot === '09:00' ? 'morning slot' : 'afternoon slot'); }
+  if (d.availableFrom) { document.getElementById('b-avail').value = d.availableFrom; onAvailChange('b'); filled.push('available from ' + formatTime(d.availableFrom)); }
   if (d.code) {
     const sel = document.getElementById('b-referral-select');
     const known = [...sel.options].some(o => o.value === d.code);
@@ -5033,6 +5150,7 @@ async function saveBooking() {
   const email = document.getElementById('b-email').value.trim();
   const date = document.getElementById('b-date').value;
   const time = document.getElementById('b-time').value;
+  const availableFrom = document.getElementById('b-avail').value || '';
   const feeRaw = document.getElementById('b-fee').value;
   const fee = feeRaw === '' ? 20 : (parseFloat(feeRaw) || 0);
   const paid = getToggle('toggle-booking-paid');
@@ -5051,7 +5169,7 @@ async function saveBooking() {
   const newId = 'b_' + Date.now();
   bookings.push({
     id: newId,
-    orderNum, name, phone, address, email, date, time,
+    orderNum, name, phone, address, email, date, time, availableFrom,
     bookingFee: fee,
     bookingPaid: paid,
     referral: referral,
@@ -5062,7 +5180,7 @@ async function saveBooking() {
 
   // Sync to Google Sheet
   document.getElementById('sync-overlay').style.display = 'flex';
-  const sheetRow = await syncNewBookingToSheet({ orderNum, name, phone, address, email, date, time, bookingFee: fee, bookingPaid: paid, referral: referral });
+  const sheetRow = await syncNewBookingToSheet({ orderNum, name, phone, address, email, date, time, availableFrom, bookingFee: fee, bookingPaid: paid, referral: referral });
   // Link the local booking to its sheet row so completing it updates that row
   // in place instead of appending a duplicate "Completed" row
   if (sheetRow) {
@@ -5084,6 +5202,7 @@ async function saveBooking() {
   document.getElementById('b-referral').classList.add('hidden');
   document.getElementById('b-date').value = '';
   document.getElementById('b-time').value = '';
+  clearAvail('b');
   document.getElementById('b-fee').value = '20';
   setToggle('toggle-booking-paid', 'No');
   setToggle('toggle-customer-type', 'Home');
@@ -5434,6 +5553,7 @@ let revSpendAssets = null; // asset register rows from the backend, for the depr
 
 async function fetchMonthlySpend() {
   revSpendIsLive = false;
+  let months = null;
   if (SYNC_ENABLED) {
     try {
       const resp = await fetch(apiGet('action=getMonthlySpend'));
@@ -5442,14 +5562,77 @@ async function fetchMonthlySpend() {
       if (data.months && Object.keys(data.months).length) {
         revSpendIsLive = true;
         revSpendAssets = data.assets || null;
-        return data.months;
+        months = data.months;
       }
     } catch (err) {
       console.error('Monthly spend error:', err);
     }
   }
-  revSpendAssets = SNAPSHOT_ASSETS;
-  return SPEND_SNAPSHOT;
+  if (!months) { revSpendAssets = SNAPSHOT_ASSETS; months = SPEND_SNAPSHOT; }
+  // A copy, so adding wages never changes the snapshot itself
+  return mergeStaffWages(JSON.parse(JSON.stringify(months)), await staffWagesByMonth());
+}
+
+/* ── Part-time wages in the report ─────────────────────────────
+   From the Staff Hours tab, counted in the month the hours were worked,
+   paid or not yet paid, so each month carries the labour it used. Pay that
+   "Mark paid" already filed in the expenses tab is taken out again here,
+   so the same wages are never counted twice. */
+async function staffWagesByMonth() {
+  let shifts = null;
+  if (SYNC_ENABLED) {
+    try {
+      const d = await (await fetch(apiGet('action=getStaffShifts'))).json();
+      if (!d.error) shifts = d.shifts || [];
+    } catch (e) { /* offline: use the copy on this phone */ }
+  }
+  if (!shifts) shifts = getShifts();
+  const out = {};
+  shifts.forEach(sh => {
+    if (sh.status !== 'Done' && sh.status !== 'Paid') return;
+    const pay = sh.pay != null && sh.pay !== '' ? Number(sh.pay) : stPay(sh);
+    if (!(pay > 0)) return;
+    const m = String(sh.date || '').slice(0, 7);
+    if (m.length !== 7) return;
+    const hours = sh.hours != null && sh.hours !== '' ? Number(sh.hours) : stMinutes(sh) / 60;
+    const o = out[m] || (out[m] = { pay: 0, hours: 0, unpaid: 0, staff: {}, last: '' });
+    o.pay += pay;
+    o.hours += hours;
+    if (sh.status !== 'Paid') o.unpaid += pay;
+    o.staff[sh.staff || 'Staff'] = (o.staff[sh.staff || 'Staff'] || 0) + hours;
+    if (sh.date > o.last) o.last = sh.date;
+  });
+  return out;
+}
+function mergeStaffWages(months, wages) {
+  const CAT = 'Labour & Works';
+  Object.keys(months).forEach(m => {
+    const mo = months[m], items = (mo.items && mo.items[CAT]) || [];
+    const filed = items.filter(it => /^Part-time work \(staff hours\)/.test(String(it.n || '')));
+    if (!filed.length) return;
+    const amt = filed.reduce((t, it) => t + (Number(it.a) || 0), 0);
+    mo.items[CAT] = items.filter(it => !filed.includes(it));
+    mo.byCat[CAT] = (mo.byCat[CAT] || 0) - amt;
+    mo.total = (mo.total || 0) - amt;
+    if (mo.opex != null) mo.opex -= amt;
+    if (Math.abs(mo.byCat[CAT]) < 0.005) delete mo.byCat[CAT];
+  });
+  Object.keys(wages).forEach(m => {
+    const w = wages[m], amt = Math.round(w.pay * 100) / 100;
+    const mo = months[m] || (months[m] = { total: 0, byCat: {}, items: {}, opex: 0, capex: 0, deposits: 0, deprec: 0 });
+    mo.byCat = mo.byCat || {};
+    mo.items = mo.items || {};
+    mo.byCat[CAT] = (mo.byCat[CAT] || 0) + amt;
+    mo.total = (mo.total || 0) + amt;
+    if (mo.opex != null) mo.opex += amt;
+    const who = Object.keys(w.staff).map(n => n + ' ' + w.staff[n].toFixed(1) + ' h').join(', ');
+    (mo.items[CAT] = mo.items[CAT] || []).push({
+      n: 'Staff wages: ' + who, v: w.unpaid > 0.005 ? 'Staff Hours, ' + dollars(w.unpaid) + ' not paid yet' : 'Staff Hours, paid',
+      a: amt, d: w.last
+    });
+    mo.items[CAT].sort((a, b) => b.a - a.a);
+  });
+  return months;
 }
 
 async function renderProfitChart(monthly) {
@@ -8146,6 +8329,8 @@ function editPickup(bookingId) {
   document.getElementById('e-phone').value = booking.phone || '';
   document.getElementById('e-address').value = booking.address || '';
   document.getElementById('e-email').value = booking.email || '';
+  document.getElementById('e-avail').value = booking.availableFrom || '';
+  onAvailChange('e', booking);
   document.getElementById('edit-modal').classList.remove('hidden');
 }
 
@@ -8163,12 +8348,13 @@ async function saveEditPickup() {
   const phone = document.getElementById('e-phone').value.trim();
   const address = document.getElementById('e-address').value.trim();
   const email = document.getElementById('e-email').value.trim();
+  const availableFrom = document.getElementById('e-avail').value || '';
   if (!name || !address) { toast('Name and address cannot be empty'); return; }
 
   // Update BOTH stores; editPending guards the values against being
   // overwritten by a stale sheet sync until the write lands
   const apply = (b, pending) => {
-    b.name = name; b.phone = phone; b.address = address; b.email = email;
+    b.name = name; b.phone = phone; b.address = address; b.email = email; b.availableFrom = availableFrom;
     if (pending) b.editPending = true; else delete b.editPending;
   };
   const markLocal = (pending) => {
@@ -8181,7 +8367,7 @@ async function saveEditPickup() {
   };
 
   if (booking.row && SYNC_ENABLED) {
-    const body = { action: 'updateBookingDetails', row: booking.row, name, phone, address, email };
+    const body = { action: 'updateBookingDetails', row: booking.row, name, phone, address, email, availableFrom };
     try {
       const resp = await apiPost(body);
       const data = await resp.json();
