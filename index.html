@@ -2537,7 +2537,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-28.2';
+const APP_VERSION = '2026-10-29.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -5368,8 +5368,8 @@ async function loadRevenueSummary() {
       if (!code) return;
       if (!byCode[code]) byCode[code] = { count: 0, paperKg: 0, gb: 0, pending: 0 };
       byCode[code].count++;
-      if (MOSQUE_CODES.includes(code) && (b.paperKg || 0) > 0.001) {
-        const amt = 10 + (b.paperKg || 0);
+      if (GIVEBACK_CODES.includes(code) && (b.paperKg || 0) > 0.001) {
+        const amt = giveBackOf(b);
         if ((b.date || '').slice(0, 7) < currentMonthKey()) byCode[code].gb += amt;
         else byCode[code].pending += amt;
       }
@@ -5387,7 +5387,7 @@ async function loadRevenueSummary() {
           const s = byCode[code];
           // Only mosque partnership codes earn give-back; other codes are
           // tracked (jobs/kg) but owe nothing
-          const isMosque = MOSQUE_CODES.includes(code);
+          const isMosque = GIVEBACK_CODES.includes(code);
           const giveBack = isMosque ? s.gb : null;
           return `<tr style="border-bottom:1px solid var(--grey-100);"><td style="padding:5px 0;font-weight:600;">${esc(code)}</td><td style="text-align:right;">${s.count}</td><td style="text-align:right;">${s.paperKg.toFixed(1)}</td><td style="text-align:right;font-weight:700;color:var(--gold);">${giveBack === null ? '-' : '$' + giveBack.toFixed(2)}</td></tr>`;
         }).join('');
@@ -5426,9 +5426,7 @@ async function loadRevenueSummary() {
       // Every collection booked on a mosque code, whatever it weighed. The
       // give-back below is a narrower test: it only pays on books returned.
       if (MOSQUE_CODES.includes(mCode)) { m.mosque++; m.mosqueRev += b.totalCollected || 0; }
-      if (MOSQUE_CODES.includes(mCode) && (b.paperKg || 0) > 0.001) {
-        m.giveBack += 10 + (b.paperKg || 0);
-      }
+      m.giveBack += giveBackOf(b);
     });
     revProfit = null;   // the revenue notes must not read the previous report's costs
     renderRevenueChart(monthly);
@@ -5476,7 +5474,22 @@ function currentMonthKey() {
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
-const MOSQUE_NAMES = { ALEEM10: 'Masjid Abdul Aleem Siddique', KHALID10: 'Masjid Khalid', RAZAK10: 'Masjid Al-Abdul Razak' };
+const MOSQUE_NAMES = { ALEEM10: 'Masjid Abdul Aleem Siddique', KHALID10: 'Masjid Khalid', RAZAK10: 'Masjid Al-Abdul Razak',
+  'DROP-ALEEM': 'Masjid Abdul Aleem Siddique (drop-off)', 'DROP-PMS': 'Masjid Petempatan Melayu Sembawang (drop-off)' };
+// Drop-offs left at a masjid's container, keyed into Orders v2 with these codes
+// (from Oct 2026). They earn $2.50 a kg of books, no $10, no booking.
+const DROPOFF_CODES = ['DROP-ALEEM', 'DROP-PMS'];
+const DROPOFF_RATE = 2.50;
+const GIVEBACK_CODES = MOSQUE_CODES.concat(DROPOFF_CODES);
+// What one collection owes its masjid: nothing without books (zero-kg rows hold
+// sentinels like 0.00001, hence the epsilon)
+function giveBackOf(b) {
+  const c = (b.referral || '').trim().toUpperCase(), kg = b.paperKg || 0;
+  if (kg <= 0.001) return 0;
+  if (MOSQUE_CODES.includes(c)) return 10 + kg;
+  if (DROPOFF_CODES.includes(c)) return DROPOFF_RATE * kg;
+  return 0;
+}
 // From August 2026 Hambali donates $3 for every kg of frames collected,
 // on ALL frames regardless of referral code
 const FRAMES_RATE = 3.00;
@@ -6309,13 +6322,13 @@ function renderReferralInsight(keys) {
   const jBefore = jobs(before) / (before.length || 1), jAfter = jobs(after) / (after.length || 1);
   const aBefore = jobs(before) ? adsOf(before) / jobs(before) : 0, aAfter = jobs(after) ? adsOf(after) / jobs(after) : 0;
   const move = jAfter > jBefore * 1.1 ? 'rose' : jAfter < jBefore * 0.9 ? 'fell' : 'barely changed';
-  const gbAll = MOSQUE_CODES.reduce((t, c) => t + ((byCode[c] && byCode[c].gb) || 0) + ((byCode[c] && byCode[c].pending) || 0), 0);
-  const pend = MOSQUE_CODES.reduce((t, c) => t + ((byCode[c] && byCode[c].pending) || 0), 0);
+  const gbAll = GIVEBACK_CODES.reduce((t, c) => t + ((byCode[c] && byCode[c].gb) || 0) + ((byCode[c] && byCode[c].pending) || 0), 0);
+  const pend = GIVEBACK_CODES.reduce((t, c) => t + ((byCode[c] && byCode[c].pending) || 0), 0);
   const d = first;
   const firstDate = `${parseInt(d.slice(8), 10)} ${MON_SHORT[parseInt(d.slice(5, 7), 10) - 1]} ${d.slice(0, 4)}`;
 
   el.innerHTML = insightList('What the data shows', [
-    ...MOSQUE_CODES.filter(c => byCode[c]).map(c =>
+    ...GIVEBACK_CODES.filter(c => byCode[c]).map(c =>
       `<strong>${esc(MOSQUE_NAMES[c] || c)}</strong>: ${byCode[c].count} collections, $${byCode[c].gb.toFixed(2)} given back.`),
     `Masjid codes were used on <strong>${mJobs.length} of ${since} collections</strong> since ${MONTHS_LONG[parseInt(startK.slice(5), 10) - 1]} ${startK.slice(0, 4)} (first one on ${firstDate}). By month: ${shareKeys.map(k => `${monLabel(k)} ${pct(k)}%${part[k] ? ' so far' : ''}`).join(', ')}.`,
     beforeDef.length && afterDef.length && avgPct(afterDef) < avgPct(beforeDef)
@@ -6939,7 +6952,7 @@ function renderBridge(keys) {
         ${line('Revenue collected from customers', rev, keys.length + ' months of collections')}
         ${line('Day-to-day costs', -opex, 'Spent and used up each month: rent, ads, transport, fees, boxes. Tap for the breakdown', { indent: true, toggle: 'bridge-opex' })}
         ${catRows('bridge-opex')}
-        ${line('Given back to the masjids', -gb, '$10 a booking plus $1 a kg of books', { indent: true })}
+        ${line('Given back to the masjids', -gb, '$10 a booking plus $1 a kg of books; drop-offs $2.50 a kg', { indent: true })}
         ${fr ? line('Frames give-back', -fr, '$3 a kg of frames, from August', { indent: true }) : ''}
         ${line('Machine cost for these months', -deprec, 'Machines are paid for once but last years, so each month carries a share of the price', { indent: true })}
         ${line('PROFIT', profit, '', { total: true })}
@@ -7686,15 +7699,15 @@ function showProfitDetail(key) {
   (revBookings || []).forEach(b => {
     if ((b.date || '').slice(0, 7) !== key) return;
     const c = (b.referral || '').trim().toUpperCase();
-    if (!MOSQUE_CODES.includes(c) || (b.paperKg || 0) <= 0.001) return;
+    if (!giveBackOf(b)) return;
     if (!gb[c]) gb[c] = { jobs: 0, kg: 0, a: 0 };
-    gb[c].jobs++; gb[c].kg += b.paperKg || 0; gb[c].a += 10 + (b.paperKg || 0);
+    gb[c].jobs++; gb[c].kg += b.paperKg || 0; gb[c].a += giveBackOf(b);
   });
   const gbList = p.giveBackPending ? [] : Object.keys(gb).sort((a, b) => gb[b].a - gb[a].a).map(c =>
     ({ n: MOSQUE_NAMES[c] || c, v: gb[c].jobs + ' collection' + (gb[c].jobs === 1 ? '' : 's') + ', ' + gb[c].kg.toFixed(1) + ' kg of books', a: gb[c].a }));
   if (p.giveBack > 0 || p.giveBackPending > 0 || gbList.length) {
     html += costLine(id('gb'), 'Masjid give-back',
-      p.giveBackPending ? `$${p.giveBackPending.toFixed(2)}, including frames, is paid at month end and counted then` : '$10 a booking plus $1 a kg of books',
+      p.giveBackPending ? `$${p.giveBackPending.toFixed(2)}, including frames, is paid at month end and counted then` : '$10 a booking plus $1 a kg of books; drop-offs $2.50 a kg',
       p.giveBack, gbList);
   }
   if (p.framesDonation > 0) {
