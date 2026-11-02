@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.6/Sortable.min.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════════
    DESIGN TOKENS
@@ -1138,25 +1139,24 @@ textarea.form-input {
   box-shadow: 0 0 0 3px var(--gold-muted);
 }
 
-.assign-card .move-btns {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.assign-card .move-btn {
-  background: none;
-  border: 1px solid var(--grey-200);
-  border-radius: 6px;
-  width: 36px; height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--grey-400);
-  font-size: 12px;
-}
+.assign-card { cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; padding: 12px; gap: 8px; }
+.assign-card .assign-time-input { -webkit-user-select: text; user-select: text; }
+.assign-grip { flex-shrink: 0; width: 14px; color: var(--grey-300); display: flex; justify-content: center; }
+.assign-grip svg { width: 14px; height: 20px; fill: currentColor; }
+.pin-btn { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--grey-200); background: var(--white); color: var(--grey-400); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.pin-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.assign-card.pinned { border: 1.5px solid var(--gold); background: #FFFBEF; }
+.assign-card.pinned .pin-btn { background: var(--navy); border-color: var(--navy); color: var(--gold); }
+.assign-card.pinned .pin-btn svg { fill: currentColor; }
+.assign-chosen { box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.assign-ghost { opacity: .35; }
+.assign-dragging { opacity: .95; cursor: grabbing; }
+.assign-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.assign-actions button { flex: 1; padding: 10px 8px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; border: 1.5px solid #1B5E3A; }
+.assign-actions .plan { background: #1B5E3A; color: #fff; }
+.assign-actions .keep { background: #fff; color: #1B5E3A; }
+.assign-hint { font-size: 12px; color: var(--grey-400); margin-bottom: 12px; line-height: 1.45; }
+.assign-hint button { background: none; border: none; padding: 0; color: #1B5E3A; font-weight: 700; font-size: 12px; text-decoration: underline; cursor: pointer; }
 
 /* ── Staff hours ─────────────────────────────────────────── */
 .st-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -1542,12 +1542,13 @@ textarea.form-input {
       </button>
 
       <h2 class="section-title">Assign Collection Times</h2>
-      <p class="section-subtitle">Set times based on your route order. Drag to reorder.</p>
+      <p class="section-subtitle">Set times based on your route order.</p>
 
       <div id="assign-autoplan" class="hidden" style="background:#EEF6F1;border:1px solid #CFE6D8;border-radius:var(--radius-md);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--grey-500);"></div>
 
       <div id="assign-trip" class="hidden" style="background:#F3F5FA;border:1px solid #D9DEEA;border-radius:var(--radius-md);padding:12px 14px;margin-bottom:12px;font-size:13px;color:var(--grey-500);"></div>
 
+      <div id="assign-actions"></div>
       <div id="assign-list"></div>
 
       <div class="mt-20">
@@ -2537,7 +2538,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-10-29.1';
+const APP_VERSION = '2026-11-02.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -2780,7 +2781,9 @@ function openAssignTimesForDate() {
   }
 
   assignList = slotSort([...routeDatePickups]);
+  assignList = applyPins(assignList);
   autoPlanLast = null;
+  document.getElementById('assign-list').innerHTML = '';   // times come from the bookings, not the last visit
   renderAssignList();
   renderAutoPlanPanel();
   showPage('assign');
@@ -3068,7 +3071,8 @@ const toMin = t => { const [h, m] = String(t || '0:0').split(':').map(Number); r
    the first door. The best order finishes earliest (driving plus waiting),
    with each minute past the slot end counted five times over. Up to 8 stops
    every order is tried; beyond that, nearest-next then untangled. With no
-   limits this is simply the least driving, as before. */
+   limits this is simply the least driving, as before. o.pins (optional, stop to
+   position from 0) holds those stops in place; only the rest are rearranged. */
 function planRoute(o) {
   const leg = (a, b) => o.dur[a][b] * TRAFFIC_PAD / 60;
   const walk = (ord, round) => {
@@ -3090,24 +3094,33 @@ function planRoute(o) {
     r.finish = t;
     return r;
   };
-  const cost = ord => { const r = walk(ord, false); return r.finish + 5 * r.late + 0.01 * r.drive; };
-  const stops = o.stops.slice();
-  if (stops.length <= 1) return walk(stops, true);
+  const seats = new Array(o.stops.length).fill(null), pins = o.pins || new Map();
+  o.stops.filter(i => pins.has(i)).sort((a, b) => pins.get(a) - pins.get(b)).forEach(i => {
+    let k = Math.min(pins.get(i), seats.length - 1);
+    while (seats[k] != null) k = (k + 1) % seats.length;
+    seats[k] = i;
+  });
+  const free = o.stops.filter(i => !pins.has(i));
+  const build = F => { let k = 0; return seats.map(st => st != null ? st : F[k++]); };
+  const cost = F => { const r = walk(build(F), false); return r.finish + 5 * r.late + 0.01 * r.drive; };
   let best = null, bestC = Infinity;
-  if (stops.length <= 8) {
+  if (free.length <= 8) {
     const perm = (arr, l) => {
       if (l === arr.length) { const c = cost(arr); if (c < bestC) { bestC = c; best = arr.slice(); } return; }
       for (let i = l; i < arr.length; i++) { [arr[l], arr[i]] = [arr[i], arr[l]]; perm(arr, l + 1); [arr[l], arr[i]] = [arr[i], arr[l]]; }
     };
-    perm(stops, 0);
+    perm(free.slice(), 0);
   } else {
     // nearest next door that can actually be reached soonest, then 2-opt
-    let ord = [], left = stops.slice(), cur = o.from, t = o.depart(left[0]);
-    while (left.length) {
-      left.sort((a, b) => Math.max(t + leg(cur, a), o.earliest(a)) - Math.max(t + leg(cur, b), o.earliest(b)));
-      const nx = left.shift();
-      t = Math.max(t + leg(cur, nx), o.earliest(nx)) + o.per; cur = nx; ord.push(nx);
-    }
+    let ord = [], left = free.slice(), cur = o.from, t = o.depart(seats[0] != null ? seats[0] : left[0]);
+    seats.forEach(st => {
+      let nx = st;
+      if (nx == null) {
+        left.sort((a, b) => Math.max(t + leg(cur, a), o.earliest(a)) - Math.max(t + leg(cur, b), o.earliest(b)));
+        nx = left.shift(); ord.push(nx);
+      }
+      t = Math.max(t + leg(cur, nx), o.earliest(nx)) + o.per; cur = nx;
+    });
     best = ord; bestC = cost(ord);
     let better = true;
     while (better) {
@@ -3119,11 +3132,13 @@ function planRoute(o) {
       }
     }
   }
-  return walk(best, true);
+  return walk(build(best), true);
 }
 const toHHMM = m => { m = Math.round(m); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 
-async function autoPlanForDate() {
+// opts.keepOrder: leave the order on screen exactly as it is and only work out the times
+async function autoPlanForDate(opts) {
+  opts = opts || {};
   if (routeDatePickups.length === 0) { toast('Load a date first'); return; }
   const set = autoPlanSettings();
   document.getElementById('sync-overlay').style.display = 'flex';
@@ -3163,12 +3178,20 @@ async function autoPlanForDate() {
     found.forEach((x, i) => (slotOf(x.b) === 'am' ? am : pm).push(base + i));
     const per = Number(set.perStop || 0), leg = (a, b) => dur[a][b] * TRAFFIC_PAD / 60, stopOf = i => found[i - base].b;
     const avail = i => stopOf(i).availableFrom ? toMin(stopOf(i).availableFrom) : 0;
-    const amR = planRoute({ from: iAmStart, stops: am, to: iAmEnd, dur, per, earliest: avail, slotEnd: 12 * 60,
+    // Stops that must sit in a set place: the pinned ones, or every stop when keeping the order
+    const seatsOf = idxs => {
+      if (opts.keepOrder) {
+        const at = i => assignList.findIndex(b => b.id === stopOf(i).id);
+        return new Map(idxs.slice().sort((x, y) => at(x) - at(y)).map((i, k) => [i, k]));
+      }
+      return new Map(idxs.filter(i => pinOf(stopOf(i))).map(i => [i, pinOf(stopOf(i)) - 1]));
+    };
+    const amR = planRoute({ from: iAmStart, stops: am, pins: seatsOf(am), to: iAmEnd, dur, per, earliest: avail, slotEnd: 12 * 60,
       depart: () => toMin(set.leave) });
     if (pm.length && iPmStart == null) iPmStart = amR.order.length ? amR.order[amR.order.length - 1] : iAmStart;   // the last morning stop
     const ready = amR.order.length ? amR.finish : 0;
     const pmEarliest = i => Math.max(12 * 60, avail(i));
-    const pmR = planRoute({ from: iPmStart, stops: pm, to: iPmEnd, dur, per, earliest: pmEarliest, slotEnd: 16 * 60,
+    const pmR = planRoute({ from: iPmStart, stops: pm, pins: seatsOf(pm), to: iPmEnd, dur, per, earliest: pmEarliest, slotEnd: 16 * 60,
       // a set leave time, or in time for the first door; never before the morning is over
       depart: first => set.pmLeave ? Math.max(toMin(set.pmLeave), ready) : Math.max(ready, pmEarliest(first) - leg(iPmStart, first)) });
 
@@ -3179,7 +3202,7 @@ async function autoPlanForDate() {
     })));
     const lastAmName = amR.order.length ? stopOf(amR.order[amR.order.length - 1]).name : '';
     autoPlanLast = {
-      plan, lost, amCount: amR.order.length, pmCount: pmR.order.length,
+      plan, lost, kept: !!opts.keepOrder, amCount: amR.order.length, pmCount: pmR.order.length,
       amDrive: Math.round(amR.drive), pmDrive: Math.round(pmR.drive), driveTotal: Math.round(amR.drive + pmR.drive),
       amLeave: amR.depart == null ? set.leave : toHHMM(amR.depart), amLeaveSet: set.leave,
       amDoor: amR.lastDoor == null ? '' : toHHMM(amR.lastDoor), amEndAt: amR.finish == null ? '' : toHHMM(amR.finish),
@@ -3193,7 +3216,7 @@ async function autoPlanForDate() {
 
     // Stops OneMap could not find stay in their own slot, at its end
     const lostAm = lost.filter(b => slotOf(b) === 'am'), lostPm = lost.filter(b => slotOf(b) === 'pm');
-    assignList = plan.filter(p => p.slot === 'am').map(p => p.b).concat(lostAm, plan.filter(p => p.slot === 'pm').map(p => p.b), lostPm);
+    if (!opts.keepOrder) assignList = applyPins(plan.filter(p => p.slot === 'am').map(p => p.b).concat(lostAm, plan.filter(p => p.slot === 'pm').map(p => p.b), lostPm));
     renderAssignList();
     const etaOf = new Map(plan.map(p => [p.b.id, p.eta]));
     assignList.forEach((b, i) => { const inp = document.getElementById('assign-time-' + i); if (inp && etaOf.has(b.id)) inp.value = etaOf.get(b.id); });
@@ -3223,9 +3246,14 @@ function renderAutoPlanPanel() {
     ? `<div style="margin-top:4px;"><strong>Time limits kept:</strong> ${limited.map(p => `${esc(p.b.name)} free from ${formatTime(p.b.availableFrom)}, arrive ${formatTime(p.eta)}${p.wait >= 5 ? ' (waits ' + p.wait + ' min)' : ''}`).join('; ')}.</div>` : '';
   const later = a.amCount && a.amLeave > a.amLeaveSet
     ? `<div style="margin-top:2px;font-size:12px;">Leaves at ${a.amLeave} instead of ${a.amLeaveSet}: the first customer is not free earlier.</div>` : '';
+  const pinned = a.plan.filter(p => pinOf(p.b));
+  const pinLine = pinned.length
+    ? `<div style="margin-top:4px;"><strong>Pinned:</strong> ${pinned.map(p => `${esc(p.b.name)} stop ${a.plan.filter(q => q.slot === p.slot).indexOf(p) + 1} (${p.slot === 'am' ? 'morning' : 'afternoon'})`).join('; ')}. The rest are planned around them.</div>` : '';
+  const moved = a.orderChanged
+    ? `<div style="color:#B26A00;margin-top:4px;">You changed the order after this plan, so these timings may not fit it. Tap <strong>Update times for this order</strong> to redo them.</div>` : '';
   box.innerHTML = `
-    <div style="font-weight:700;color:#1B5E3A;font-size:14px;margin-bottom:4px;">Auto-planned: morning and afternoon as two routes</div>
-    ${amLine}${later}${pmLine}${limits}${late}
+    <div style="font-weight:700;color:#1B5E3A;font-size:14px;margin-bottom:4px;">${a.kept ? 'Times worked out for your order' : 'Auto-planned: morning and afternoon as two routes'}</div>
+    ${moved}${amLine}${later}${pmLine}${pinLine}${limits}${late}
     ${a.lost.length ? `<div style="color:#B26A00;margin-top:4px;">Could not find on the map: ${a.lost.map(b => esc(b.name)).join(', ')}. Kept at the end of their slot with their current time; check the address has a postal code.</div>` : ''}
     <div class="rs-box" id="rs-ap"></div>
     <button onclick="replanWithSettings()" style="margin-top:8px;width:100%;padding:9px 10px;border:1px solid #1B5E3A;background:#fff;color:#1B5E3A;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">Re-plan with these settings</button>
@@ -3279,45 +3307,122 @@ function openAssignTimes() {
     }
   }
 
+  assignList = applyPins(assignList);
   autoPlanLast = null;
+  document.getElementById('assign-list').innerHTML = '';   // times come from the bookings, not the last visit
   renderAssignList();
   renderAutoPlanPanel();
   showPage('assign');
 }
 
+/* Pins: a stop held at a place in its own route (morning or afternoon), kept on
+   this phone. A pin only counts for the date it was set on, so a rescheduled
+   customer drops out of it by themselves. */
+const PIN_KEY = 'sr_route_pins';
+function getPins() { try { return JSON.parse(localStorage.getItem(PIN_KEY)) || {}; } catch (e) { return {}; } }
+function savePins(pins) {
+  const today = localDateStr();
+  Object.keys(pins).forEach(id => { if (pins[id].date < today) delete pins[id]; });
+  localStorage.setItem(PIN_KEY, JSON.stringify(pins));
+}
+function pinOf(b) { const p = getPins()[b.id]; return p && p.date === b.date ? p.pos : 0; }
+
+// Puts pinned stops at their places and the others, in the order given, around them
+function applyPins(list) {
+  const out = [];
+  ['am', 'pm'].forEach(slot => {
+    const stops = list.filter(b => slotOf(b) === slot), seats = new Array(stops.length).fill(null);
+    stops.filter(pinOf).sort((a, b) => pinOf(a) - pinOf(b)).forEach(b => {
+      let k = Math.min(pinOf(b), stops.length) - 1;
+      while (seats[k]) k = (k + 1) % stops.length;
+      seats[k] = b;
+    });
+    const free = stops.filter(b => !pinOf(b));
+    seats.forEach(st => out.push(st || free.shift()));
+  });
+  return out;
+}
+
+function togglePin(id) {
+  const b = assignList.find(x => x.id === id);
+  if (!b) return;
+  const pins = getPins();
+  if (pinOf(b)) delete pins[id];
+  else pins[id] = { pos: assignList.filter(x => slotOf(x) === slotOf(b)).indexOf(b) + 1, date: b.date };
+  savePins(pins);
+  renderAssignList();
+}
+
+function clearPins() {
+  const pins = getPins();
+  assignList.forEach(b => delete pins[b.id]);
+  savePins(pins);
+  renderAssignList();
+}
+
+// After a drag: a moved pinned stop takes its pin along (swapping with any pin
+// already there); everyone else flows around the pins
+function onAssignDrop(evt) {
+  if (evt.oldIndex === evt.newIndex) return;
+  const byId = new Map(assignList.map(b => [b.id, b]));
+  const order = [...document.querySelectorAll('#assign-list .assign-card')].map(c => byId.get(c.dataset.id));
+  const moved = byId.get(evt.item.dataset.id);
+  if (pinOf(moved)) {
+    const pins = getPins(), from = evt.oldIndex + 1, to = evt.newIndex + 1;
+    order.forEach(b => { if (b !== moved && slotOf(b) === slotOf(moved) && pinOf(b) === to) pins[b.id].pos = from; });
+    pins[moved.id].pos = to;
+    savePins(pins);
+  }
+  assignList = applyPins(order);
+  if (autoPlanLast) autoPlanLast.orderChanged = true;
+  // Sortable is still finishing this drag, so rebuild the list just after it
+  setTimeout(() => { renderAssignList(); renderAutoPlanPanel(); }, 0);
+}
+
+let assignSortables = [];
 function renderAssignList() {
   const container = document.getElementById('assign-list');
+  // Times typed or planned so far stay with their customer through a re-draw
+  const shown = new Map([...container.querySelectorAll('.assign-time-input')].map(el => [el.dataset.id, el.value]));
+  assignSortables.forEach(x => x.destroy());
+  assignSortables = [];
   const links = slotMapsLinks(assignList);
-  let n = 0;
-  container.innerHTML = assignList.map((b, i) => {
-    const shortAddr = b.address.replace(/\n/g, ', ').replace(/\s+/g, ' ').trim();
-    const slot = slotOf(b);
-    const first = i === 0 || slotOf(assignList[i - 1]) !== slot;
-    const last = i === assignList.length - 1 || slotOf(assignList[i + 1]) !== slot;
-    let head = '';
-    if (first) {
-      n = 0;
-      const count = assignList.filter(x => slotOf(x) === slot).length;
-      head = `<div class="assign-slot-head ${slot}">
-        <span>${slot === 'am' ? 'Morning' : 'Afternoon'}<em>${slot === 'am' ? '9am to 12pm' : '12pm to 4pm'} &middot; ${count} stop${count === 1 ? '' : 's'}</em></span>
-        ${links[slot] ? `<a id="assign-link-${slot}" href="${links[slot]}" target="_blank" rel="noopener">Route in Maps &rarr;</a>` : ''}
-      </div>`;
-    }
-    n++;
-    return `${head}
-    <div class="assign-card" data-index="${i}">
-      <div class="move-btns">
-        <button class="move-btn" onclick="moveAssign(${i}, -1)" ${first ? 'disabled style="opacity:0.3"' : ''}>&#9650;</button>
-        <button class="move-btn" onclick="moveAssign(${i}, 1)" ${last ? 'disabled style="opacity:0.3"' : ''}>&#9660;</button>
-      </div>
-      <div class="order-num">${n}</div>
+  container.innerHTML = ['am', 'pm'].map(slot => {
+    const stops = assignList.filter(b => slotOf(b) === slot);
+    if (!stops.length) return '';
+    const cards = stops.map((b, k) => {
+      const shortAddr = b.address.replace(/\n/g, ', ').replace(/\s+/g, ' ').trim();
+      const on = !!pinOf(b), t = shown.has(b.id) ? shown.get(b.id) : (b.time || '');
+      return `<div class="assign-card${on ? ' pinned' : ''}" data-id="${esc(b.id)}">
+      <div class="assign-grip" aria-hidden="true"><svg viewBox="0 0 14 20"><circle cx="4" cy="4" r="1.6"/><circle cx="10" cy="4" r="1.6"/><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="4" cy="16" r="1.6"/><circle cx="10" cy="16" r="1.6"/></svg></div>
+      <div class="order-num">${k + 1}</div>
       <div class="assign-info">
         <div class="assign-name">${esc(b.name)}</div>${availChip(b)}
         <div class="assign-address">${esc(shortAddr)}</div>
       </div>
-      <input type="time" class="assign-time-input" id="assign-time-${i}" value="${b.time || ''}">
+      <input type="time" class="assign-time-input" id="assign-time-${assignList.indexOf(b)}" data-id="${esc(b.id)}" value="${t}">
+      <button type="button" class="pin-btn" onclick="togglePin('${esc(b.id)}')" aria-pressed="${on}" aria-label="${on ? 'Unpin' : 'Pin'} ${esc(b.name)} at stop ${k + 1}" title="${on ? 'Pinned at stop ' + (k + 1) + '. Tap to unpin' : 'Pin at stop ' + (k + 1)}"><svg viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 3h6l-1 7 4 4v3H6v-3l4-4z"/></svg></button>
     </div>`;
+    }).join('');
+    return `<div class="assign-slot-head ${slot}">
+        <span>${slot === 'am' ? 'Morning' : 'Afternoon'}<em>${slot === 'am' ? '9am to 12pm' : '12pm to 4pm'} &middot; ${stops.length} stop${stops.length === 1 ? '' : 's'}</em></span>
+        ${links[slot] ? `<a id="assign-link-${slot}" href="${links[slot]}" target="_blank" rel="noopener">Route in Maps &rarr;</a>` : ''}
+      </div>
+      <div class="assign-slot-list">${cards}</div>`;
   }).join('');
+  if (window.Sortable) container.querySelectorAll('.assign-slot-list').forEach(el => assignSortables.push(Sortable.create(el, {
+    animation: 150, delay: 150, delayOnTouchOnly: true, touchStartThreshold: 5, forceFallback: true, fallbackTolerance: 3,
+    filter: 'input,button,a', preventOnFilter: false,
+    chosenClass: 'assign-chosen', ghostClass: 'assign-ghost', dragClass: 'assign-dragging',
+    scroll: true, scrollSensitivity: 70, scrollSpeed: 12, onEnd: onAssignDrop
+  })));
+  const n = assignList.filter(pinOf).length;
+  document.getElementById('assign-actions').innerHTML = `
+    <div class="assign-actions">
+      <button type="button" class="plan" onclick="replanWithSettings()">${n ? 'Auto Plan around ' + n + ' pinned' : 'Auto Plan'}</button>
+      <button type="button" class="keep" onclick="autoPlanForDate({ keepOrder: true })">Update times for this order</button>
+    </div>
+    <div class="assign-hint">${window.Sortable ? 'Hold a card and drag it to change the order.' : 'Dragging could not load. Check your connection and reopen the app.'} Tap the pin to keep a customer at that stop number; Auto Plan arranges the rest around them.${n ? ' <button type="button" onclick="clearPins()">Clear pins</button>' : ''}</div>`;
   scheduleTripEstimate();
 }
 
@@ -3390,39 +3495,6 @@ async function tripEstimate() {
     console.error('Trip estimate error:', err);
     box.innerHTML = `<span style="color:#B26A00;">Trip distance not available: ${esc(err.message)}</span>`;
   }
-}
-
-function moveAssign(index, direction) {
-  const newIndex = index + direction;
-  if (newIndex < 0 || newIndex >= assignList.length) return;
-  if (slotOf(assignList[index]) !== slotOf(assignList[newIndex])) {
-    toast('Morning and afternoon are separate routes. Change the time to move a stop across.');
-    return;
-  }
-
-  // Swap items
-  const temp = assignList[index];
-  assignList[index] = assignList[newIndex];
-  assignList[newIndex] = temp;
-
-  // Read times from DOM BEFORE re-render (DOM still has pre-swap layout)
-  const times = [];
-  for (let i = 0; i < assignList.length; i++) {
-    const input = document.getElementById('assign-time-' + i);
-    times.push(input ? input.value : (assignList[i].time || ''));
-  }
-  // Swap times to match the item swap
-  const tempTime = times[index];
-  times[index] = times[newIndex];
-  times[newIndex] = tempTime;
-
-  renderAssignList();
-
-  // Restore times
-  times.forEach((t, i) => {
-    const input = document.getElementById('assign-time-' + i);
-    if (input) input.value = t;
-  });
 }
 
 function saveAssignedTimes() {
