@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>ShredRite Collection</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -66,12 +68,15 @@ html {
   color: var(--navy);
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
   height: 100%;
   overflow: hidden;
   position: relative;
+  overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 input, select, textarea, button {
@@ -125,8 +130,7 @@ input, select, textarea, button {
 
 .topbar-logo {
   width: 28px; height: 28px;
-  background: var(--gold);
-  border-radius: 6px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -167,8 +171,8 @@ input, select, textarea, button {
 .page.active { display: block; }
 
 @keyframes pageIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* ── Bottom Nav ──────────────────────────────────────────── */
@@ -916,8 +920,15 @@ textarea.form-input {
 .toast {
   position: fixed;
   bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%) translateY(100px);
+  left: 24px;
+  right: 24px;
+  width: -webkit-fit-content;
+  width: fit-content;
+  margin: 0 auto;
+  transform: translateY(16px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
   background: var(--navy);
   color: var(--white);
   padding: 12px 24px;
@@ -926,14 +937,17 @@ textarea.form-input {
   font-weight: 500;
   box-shadow: var(--shadow-lg);
   z-index: 1000;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease, visibility 0s linear 0.3s;
   white-space: normal;
   max-width: calc(100vw - 48px);
   text-align: center;
 }
 
 .toast.show {
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+  transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1428,6 +1442,19 @@ textarea.form-input {
   box-shadow: 0 0 0 3px var(--gold-muted);
 }
 
+/* ── New Booking: WhatsApp requests ──────────────────────── */
+.wa-ask-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.wa-ask {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 46px; padding: 10px 8px;
+  border: none; border-radius: var(--radius-md);
+  background: #25D366; color: #fff;
+  font-weight: 600; font-size: 13px; line-height: 1.2; text-align: left;
+  cursor: pointer;
+}
+.wa-ask svg { flex-shrink: 0; }
+.wa-ask:active { opacity: 0.9; }
+
 /* ── Receipt logo ────────────────────────────────────────── */
 .receipt-logo {
   height: 40px;
@@ -1466,7 +1493,7 @@ textarea.form-input {
   <!-- ═══ TOP BAR ═══ -->
   <div class="topbar">
     <div class="topbar-brand">
-      <div class="topbar-logo">SR</div>
+      <img class="topbar-logo" alt="" src="data:image/png;base64,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">
       <h1>ShredRite</h1>
     </div>
     <div class="topbar-date" id="topbar-date"></div>
@@ -1920,12 +1947,18 @@ textarea.form-input {
         <input type="text" class="form-input hidden" id="b-referral" placeholder="Type discount code" style="text-transform:uppercase;margin-top:8px;">
       </div>
 
-      <div class="btn-row" style="margin-top:16px;">
-        <button onclick="waBookingMessage('confirm')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border:none;border-radius:var(--radius-md);background:#25D366;color:#fff;font-weight:600;font-size:13px;cursor:pointer;">
+      <div class="wa-ask-grid">
+        <button type="button" class="wa-ask" onclick="waBookingMessage('confirm')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.2 1.6 1.9 1.1.9 2 1.2 2.3 1.4.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg> Send confirmation
         </button>
-        <button onclick="waBookingMessage('morning')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px 10px;border:none;border-radius:var(--radius-md);background:#25D366;color:#fff;font-weight:600;font-size:13px;cursor:pointer;">
+        <button type="button" class="wa-ask" onclick="openBookingRescheduleAsk()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.2 1.6 1.9 1.1.9 2 1.2 2.3 1.4.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg> Ask for reschedule
+        </button>
+        <button type="button" class="wa-ask" onclick="waBookingMessage('morning')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.2 1.6 1.9 1.1.9 2 1.2 2.3 1.4.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg> Ask for morning slot
+        </button>
+        <button type="button" class="wa-ask" onclick="waBookingMessage('afternoon')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.6-4.1-.1-.2-1.1-1.5-1.1-2.8s.7-2 .9-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.2 1.6 1.9 1.1.9 2 1.2 2.3 1.4.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg> Ask for afternoon slot
         </button>
       </div>
 
@@ -2418,6 +2451,34 @@ textarea.form-input {
   </div>
 </div>
 
+<!-- New Booking: ask the customer to reschedule -->
+<div class="modal-overlay hidden" id="b-rs-modal" onclick="if(event.target===this)closeBookingRescheduleAsk()">
+  <div class="modal">
+    <h3>Ask to Reschedule</h3>
+    <p class="text-sm text-grey" id="b-rs-customer" style="margin-bottom:12px;"></p>
+    <div class="form-group">
+      <label class="form-label" for="b-rs-date">New Date</label>
+      <input type="date" class="form-input" id="b-rs-date">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="b-rs-slot">New Time Slot</label>
+      <select class="form-input" id="b-rs-slot">
+        <option value="">Pick a slot</option>
+        <option value="09:00">9am - 12pm</option>
+        <option value="12:00">12pm - 4pm</option>
+      </select>
+    </div>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--grey-600);line-height:1.4;cursor:pointer;">
+      <input type="checkbox" id="b-rs-apply" style="-webkit-appearance:auto;appearance:auto;width:18px;height:18px;margin-top:1px;flex-shrink:0;">
+      <span>Also change this booking form to the new date and slot</span>
+    </label>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeBookingRescheduleAsk()">Cancel</button>
+      <button class="btn-whatsapp" onclick="sendBookingRescheduleAsk()" style="flex:1;margin:0;border-radius:var(--radius-sm);padding:12px;">Send WhatsApp</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirm Receipt Modal -->
 <div class="modal-overlay hidden" id="confirm-receipt-modal" onclick="if(event.target===this)document.getElementById('confirm-receipt-modal').classList.add('hidden')">
   <div class="modal" style="max-width:380px;">
@@ -2497,6 +2558,50 @@ const safeStore = (() => {
   }
 })();
 
+/* ── Viewport guard ──────────────────────────────────────────
+   When the keyboard opens, phones push the whole screen up to keep the field
+   in view, and often leave it pushed after the keyboard closes. Everything is
+   then drawn in one place but answers to taps in another, so a button has to
+   be pressed a little below where it shows. Nothing in this app scrolls the
+   screen itself (only the page area inside it), so whenever no field is being
+   typed in, the screen is put back at the top. */
+(function () {
+  const root = document.documentElement;
+  const vv = window.visualViewport;
+  const typing = () => {
+    const el = document.activeElement;
+    if (!el || el === document.body) return false;
+    if (el.tagName === 'TEXTAREA' || el.isContentEditable) return true;
+    if (el.tagName !== 'INPUT') return false;
+    return !/^(button|submit|reset|checkbox|radio|range|color|file|image|hidden)$/i.test(el.type || '');
+  };
+  function settle() {
+    if (typing()) return;
+    window.scrollTo(0, 0);
+    if (root.scrollTop) root.scrollTop = 0;
+    if (document.body && document.body.scrollTop) document.body.scrollTop = 0;
+    // Still shifted with nothing left to scroll: nudge the screen so the phone
+    // lines the tap areas up with what is drawn again.
+    if (vv && vv.scale === 1 && vv.offsetTop > 0.5) { window.scrollTo(0, 1); window.scrollTo(0, 0); }
+  }
+  let timers = [];
+  function settleSoon() {
+    timers.forEach(clearTimeout);
+    // the keyboard slides away over about a third of a second
+    timers = [0, 120, 350, 700].map(ms => setTimeout(settle, ms));
+  }
+  document.addEventListener('focusout', settleSoon, true);
+  window.addEventListener('scroll', settleSoon, { passive: true });
+  window.addEventListener('orientationchange', settleSoon);
+  window.addEventListener('pageshow', settleSoon);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) settleSoon(); });
+  if (vv) {
+    vv.addEventListener('resize', settleSoon);
+    vv.addEventListener('scroll', settleSoon);
+  }
+  window.srSettleViewport = settle;
+})();
+
 // Local date helper (avoids UTC timezone shift before 8am SGT)
 function localDateStr(d) {
   d = d || new Date();
@@ -2538,7 +2643,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-11-02.1';
+const APP_VERSION = '2026-11-25.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -5190,14 +5295,11 @@ function waBookingMessage(kind) {
   const dateStr = date ? formatDateStr(date, { weekday: 'long', day: 'numeric', month: 'long' }) : '';
 
   let msg = '';
-  if (kind === 'morning') {
+  if (kind === 'morning' || kind === 'afternoon') {
+    const slot = kind === 'morning' ? 'morning slot (9am to 12pm)' : 'afternoon slot (12pm to 4pm)';
     msg += `Salam${name ? ' ' + name : ''}, this is Hambali from ShredRite.\n\n`;
-    msg += `Would you be ok to move your collection to the *morning slot (9am to 12pm)*${dateStr ? ` on *${dateStr}*` : ''}?
-
-`;
-    msg += `If you are not at home, you can leave the items outside your house.
-
-`;
+    msg += `Would you be ok to move your collection to the *${slot}*${dateStr ? ` on *${dateStr}*` : ''}?\n\n`;
+    msg += `If you are not at home, you can leave the items outside your house.\n\n`;
     msg += `Let me know, thank you!`;
   } else {
     msg += `Salam${name ? ' ' + name : ''}, ni Hambali from ShredRite.
@@ -5212,6 +5314,57 @@ function waBookingMessage(kind) {
     msg += `JazakAllahu khairan!`;
   }
   window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+/* Ask for reschedule, from the New Booking form: pick the new date and time
+   slot, then WhatsApp the customer to ask if that suits them. */
+const B_SLOT_TEXT = { '09:00': 'morning slot (9am to 12pm)', '12:00': 'afternoon slot (12pm to 4pm)' };
+
+function openBookingRescheduleAsk() {
+  const phone = cleanPhone(document.getElementById('b-phone').value);
+  if (!phone) { toast('Add the phone number first'); return; }
+  const name = document.getElementById('b-name').value.trim();
+  const date = document.getElementById('b-date').value;
+  const slot = document.getElementById('b-time').value;
+  const now = [date ? formatDateStr(date, { weekday: 'short', day: 'numeric', month: 'short' }) : '', slot === '09:00' ? '9am - 12pm' : slot === '12:00' ? '12pm - 4pm' : ''].filter(Boolean).join(', ');
+  document.getElementById('b-rs-customer').textContent = (name || 'Customer') + (now ? ' (currently ' + now + ')' : '');
+  const dateEl = document.getElementById('b-rs-date');
+  dateEl.min = localDateStr();
+  dateEl.value = '';
+  document.getElementById('b-rs-slot').value = B_SLOT_TEXT[slot] ? slot : '';
+  document.getElementById('b-rs-apply').checked = false;
+  document.getElementById('b-rs-modal').classList.remove('hidden');
+}
+
+function closeBookingRescheduleAsk() {
+  document.getElementById('b-rs-modal').classList.add('hidden');
+}
+
+function sendBookingRescheduleAsk() {
+  const phone = cleanPhone(document.getElementById('b-phone').value);
+  if (!phone) { toast('Add the phone number first'); return; }
+  const newDate = document.getElementById('b-rs-date').value;
+  const newSlot = document.getElementById('b-rs-slot').value;
+  if (!newDate) { toast('Please select a date'); return; }
+  if (!B_SLOT_TEXT[newSlot]) { toast('Please pick a time slot'); return; }
+
+  const name = document.getElementById('b-name').value.trim();
+  const oldDate = document.getElementById('b-date').value;
+  const long = d => formatDateStr(d, { weekday: 'long', day: 'numeric', month: 'long' });
+
+  let msg = `Salam${name ? ' ' + name : ''}, this is Hambali from ShredRite.\n\n`;
+  if (oldDate && oldDate !== newDate) msg += `Your collection is currently set for *${long(oldDate)}*.\n\n`;
+  msg += `Would you be ok to reschedule to *${long(newDate)}*, *${B_SLOT_TEXT[newSlot]}* instead?\n\n`;
+  msg += `If you are not at home, you can leave the items outside your house.\n\n`;
+  msg += `Let me know, thank you!`;
+
+  if (document.getElementById('b-rs-apply').checked) {
+    document.getElementById('b-date').value = newDate;
+    document.getElementById('b-time').value = newSlot;
+    toast('Booking form changed to the new date and slot');
+  }
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  closeBookingRescheduleAsk();
 }
 
 async function saveBooking() {
