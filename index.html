@@ -2030,7 +2030,7 @@ textarea.form-input {
       <div class="map-progress hidden" id="map-progress"></div>
       <div id="map-lists"></div>
       <div id="map-unplaced"></div>
-      <div class="map-note">Map &copy; OneMap, Singapore Land Authority. Planning areas: URA Master Plan 2025. Customer addresses stay on this phone.</div>
+      <div class="map-note">Map &copy; OneMap, Singapore Land Authority. Planning areas: URA Master Plan 2025. Addresses are placed by OneMap or OpenStreetMap (&copy; OpenStreetMap contributors); only the postal code or street is sent, never a name, unit or phone number.</div>
     </div>
 
     <!-- ═══ REVENUE SUMMARY PAGE ═══ -->
@@ -2643,7 +2643,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-11-25.1';
+const APP_VERSION = '2026-11-26.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -3099,8 +3099,49 @@ async function geocodeStop(address) {
   return r.ll || null;
 }
 
-// { ll, cached } when found, { notFound } when OneMap has no match,
-// { error } when OneMap could not be reached
+// Address lookups.
+// OneMap (Singapore Land Authority) was the only service used until it began
+// refusing lookups that carry no sign-in token (late Nov 2026): every address
+// then came back "not found". OneMap is still asked first, in case it answers;
+// once it refuses, the rest of the session goes to OpenStreetMap's Nominatim,
+// which is free, needs no key and knows Singapore postal codes. Nominatim
+// allows one request a second, so its lookups are spaced out.
+let oneMapRefused = false;
+let osmLastAsked = 0;
+const inSingapore = ll => ll && ll[0] > 1.15 && ll[0] < 1.48 && ll[1] > 103.59 && ll[1] < 104.1;
+
+async function oneMapLookup(query) {
+  const r = await fetch('https://www.onemap.gov.sg/api/common/elastic/search?returnGeom=Y&getAddrDetails=Y&pageNum=1&searchVal=' + encodeURIComponent(query));
+  if (r.status === 401 || r.status === 403) { oneMapRefused = true; return null; }
+  if (!r.ok) throw new Error('OneMap ' + r.status);
+  const j = await r.json();
+  const hit = (j.results || [])[0];
+  if (!hit) return { notFound: true };
+  const ll = [parseFloat(hit.LATITUDE), parseFloat(hit.LONGITUDE)];
+  return inSingapore(ll) ? { ll } : { notFound: true };
+}
+
+async function osmAsk(params) {
+  const wait = osmLastAsked + 1100 - Date.now();
+  if (wait > 0) await new Promise(res => setTimeout(res, wait));
+  osmLastAsked = Date.now();
+  const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=sg&limit=1&' + params, { headers: { Accept: 'application/json' } });
+  if (!r.ok) throw new Error('OpenStreetMap ' + r.status);
+  const j = await r.json();
+  const hit = Array.isArray(j) ? j[0] : null;
+  const ll = hit ? [parseFloat(hit.lat), parseFloat(hit.lon)] : null;
+  return inSingapore(ll) ? { ll } : { notFound: true };
+}
+
+// The postal code pins the block; if the map does not know that code, the street is tried
+async function osmLookup(postal, street) {
+  let res = postal ? await osmAsk('postalcode=' + postal) : { notFound: true };
+  if (res.notFound && /[a-z]{3}/i.test(street)) res = await osmAsk('q=' + encodeURIComponent(street + ' Singapore'));
+  return res;
+}
+
+// { ll, cached } when found, { notFound } when no map service has a match,
+// { error } when the map services could not be reached
 async function geocodeLookup(address) {
   const clean = String(address || '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
   const postal = (clean.match(/(?<!\d)(\d{6})(?!\d)/) || [])[1];
@@ -3108,20 +3149,18 @@ async function geocodeLookup(address) {
   const known = safeParse('sr_geo_cache', {})[key];
   if (known) return { ll: known, cached: true };
   if (!clean) return { notFound: true };
-  // A postal code pins the block exactly; otherwise search the street address
-  const query = postal || clean.replace(/#\s*[\w-]+/g, ' ').replace(/\b(blk|block|lift\s*\w|singapore|spore|s)\b\.?/gi, ' ').replace(/\s+/g, ' ').trim();
-  // OneMap turns away bursts of requests, so a refused lookup gets one retry
+  // Street address without the unit, block word or postal code
+  const street = clean.replace(/#\s*[\w-]+/g, ' ').replace(/(?<!\d)\d{6}(?!\d)/g, ' ').replace(/\b(blk|block|lift\s*\w|singapore|spore|s)\b\.?/gi, ' ').replace(/[,\s]+/g, ' ').trim();
+  // A refused or dropped lookup gets one retry
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const r = await fetch('https://www.onemap.gov.sg/api/common/elastic/search?returnGeom=Y&getAddrDetails=Y&pageNum=1&searchVal=' + encodeURIComponent(query));
-      const j = await r.json();
-      const hit = (j.results || [])[0];
-      if (!hit) return { notFound: true };
-      const ll = [parseFloat(hit.LATITUDE), parseFloat(hit.LONGITUDE)];
+      let res = oneMapRefused ? null : await oneMapLookup(postal || street);
+      if (!res || res.notFound) res = await osmLookup(postal, street);
+      if (res.notFound) return { notFound: true };
       const cache = safeParse('sr_geo_cache', {});   // re-read: another lookup may have saved meanwhile
-      cache[key] = ll;
+      cache[key] = res.ll;
       safeStore.setItem('sr_geo_cache', JSON.stringify(cache));
-      return { ll };
+      return { ll: res.ll };
     } catch (e) {
       await new Promise(res => setTimeout(res, 1500));
     }
@@ -3129,12 +3168,26 @@ async function geocodeLookup(address) {
   return { error: true };
 }
 
-// Every address in turn: OneMap refuses several at once
+// While OneMap was refusing lookups, the Map screen marked every address it
+// asked about as "not found, do not ask again for a week". Forget those marks once.
+try {
+  if (safeStore.getItem('sr_geo_miss_v') !== '2') {
+    safeStore.removeItem('sr_geo_miss');
+    safeStore.setItem('sr_geo_miss_v', '2');
+  }
+} catch (_) {}
+
+// Every address in turn: the map services refuse several at once
+let geoUnreachable = false;   // the last run of lookups failed to reach any map service
 async function geocodeInTurn(list) {
   const pts = [];
+  let failed = 0;
   for (const b of list) {
     const cached = Object.keys(safeParse('sr_geo_cache', {})).length;
-    pts.push(await geocodeStop(b.address));
+    const r = await geocodeLookup(b.address);
+    if (r.error) failed++;
+    pts.push(r.ll || null);
+    geoUnreachable = failed > 0 && failed === pts.length;
     if (Object.keys(safeParse('sr_geo_cache', {})).length > cached) await new Promise(res => setTimeout(res, 400));
   }
   return pts;
@@ -3267,7 +3320,7 @@ async function autoPlanForDate(opts) {
     const pts = await geocodeInTurn(stops);
     const found = stops.map((b, i) => ({ b, ll: pts[i] })).filter(x => x.ll);
     const lost = stops.filter((b, i) => !pts[i]);
-    if (!found.length) throw new Error('None of the addresses could be found on the map');
+    if (!found.length) throw new Error(geoUnreachable ? 'The map service could not be reached. Check the connection and try again' : 'None of the addresses could be found on the map');
 
     // Drive times (seconds) between every place and every stop: places first
     const coords = places.map(p => p.ll).concat(found.map(x => x.ll)).map(ll => ll[1] + ',' + ll[0]).join(';');
@@ -10022,8 +10075,13 @@ async function placeMapBookings() {
     prog.innerHTML = `<div>Placing addresses on the map: <b>${done}</b> of ${todo.size}. First time only; after this the map opens straight away.</div><div class="map-progress-bar"><i style="width:${todo.size ? (done / todo.size * 100).toFixed(1) : 100}%"></i></div>`;
   };
   show();
+  let asked = 0;
   for (const [k, addr] of todo) {
+    // OpenStreetMap's free service is not for hundreds of lookups in one go:
+    // place up to 150 new addresses per visit, the rest on later visits
+    if (oneMapRefused && asked >= 150) break;
     const r = await geocodeLookup(addr);
+    if (!r.cached) asked++;
     if (r.notFound) { const m = safeParse('sr_geo_miss', {}); m[k] = Date.now(); safeStore.setItem('sr_geo_miss', JSON.stringify(m)); }
     done++;
     show();
