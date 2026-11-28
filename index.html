@@ -2643,7 +2643,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzrdWc8I7v6OKdR
 // new deploys never arrive on their own. The app polls GitHub Pages for a
 // newer build and offers a one-tap refresh (never auto-reloads, so an
 // in-progress collection is never lost).
-const APP_VERSION = '2026-11-26.1';
+const APP_VERSION = '2026-11-28.1';
 
 function showUpdateBanner() {
   if (document.getElementById('update-banner')) return;
@@ -5406,7 +5406,9 @@ function sendBookingRescheduleAsk() {
   const long = d => formatDateStr(d, { weekday: 'long', day: 'numeric', month: 'long' });
 
   let msg = `Salam${name ? ' ' + name : ''}, this is Hambali from ShredRite.\n\n`;
-  if (oldDate && oldDate !== newDate) msg += `Your collection is currently set for *${long(oldDate)}*.\n\n`;
+  if (oldDate && oldDate !== newDate) msg += `Your collection is currently set for *${long(oldDate)}*. Unfortunately, we are fully booked.\n\n`;
+  else if (oldDate) msg += `Your collection is currently set for *${long(oldDate)}*. Unfortunately, that slot is fully booked.\n\n`;
+  else msg += `Unfortunately, we are fully booked.\n\n`;
   msg += `Would you be ok to reschedule to *${long(newDate)}*, *${B_SLOT_TEXT[newSlot]}* instead?\n\n`;
   msg += `If you are not at home, you can leave the items outside your house.\n\n`;
   msg += `Let me know, thank you!`;
